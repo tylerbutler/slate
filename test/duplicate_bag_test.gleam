@@ -1,3 +1,4 @@
+import gleam/int
 import gleam/list
 import gleeunit/should
 import slate
@@ -111,3 +112,148 @@ fn cleanup(path: String) {
 fn delete_file(path: String) -> Result(Nil, DynError)
 
 type DynError
+
+fn range(from: Int, to: Int) -> List(Int) {
+  case from > to {
+    True -> []
+    False -> [from, ..range(from + 1, to)]
+  }
+}
+
+// ── DuplicateBag: Large duplicates ──────────────────────────────────────
+
+pub fn duplicate_bag_many_duplicates_test() {
+  let path = "test_dupbag_many_dupes.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let entries = range(0, 49) |> list.map(fn(_i) { #("key", "same_value") })
+  let assert Ok(Nil) = duplicate_bag.insert_list(table, entries)
+  let assert Ok(vals) = duplicate_bag.lookup(table, key: "key")
+  vals |> list.length |> should.equal(50)
+  duplicate_bag.size(table) |> should.equal(Ok(50))
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+// ── DuplicateBag: Shared access ─────────────────────────────────────────
+
+pub fn duplicate_bag_shared_access_test() {
+  let path = "test_dupbag_shared.dets"
+  let assert Ok(t1) = duplicate_bag.open(path)
+  let assert Ok(t2) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(t1, "key", "v1")
+  let assert Ok(Nil) = duplicate_bag.insert(t2, "key", "v1")
+  let assert Ok(vals) = duplicate_bag.lookup(t1, key: "key")
+  vals |> list.length |> should.equal(2)
+  let assert Ok(Nil) = duplicate_bag.close(t1)
+  let assert Ok(Nil) = duplicate_bag.close(t2)
+  cleanup(path)
+}
+
+// ── DuplicateBag: Edge cases ────────────────────────────────────────────
+
+pub fn duplicate_bag_delete_nonexistent_test() {
+  let path = "test_dupbag_del_missing.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.delete_key(table, key: "nope")
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_fold_test() {
+  let path = "test_dupbag_fold.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 10)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 10)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "b", 20)
+  let assert Ok(sum) = duplicate_bag.fold(table, 0, fn(acc, _k, v) { acc + v })
+  sum |> should.equal(40)
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_to_list_test() {
+  let path = "test_dupbag_to_list.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "b", 2)
+  let assert Ok(entries) = duplicate_bag.to_list(table)
+  entries |> list.length |> should.equal(3)
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_delete_all_test() {
+  let path = "test_dupbag_del_all.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "b", 2)
+  let assert Ok(Nil) = duplicate_bag.delete_all(table)
+  duplicate_bag.size(table) |> should.equal(Ok(0))
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_with_table_test() {
+  let path = "test_dupbag_with_table.dets"
+  let assert Ok(Nil) =
+    duplicate_bag.with_table(path, fn(table) {
+      duplicate_bag.insert(table, "key", "val")
+    })
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(["val"]) = duplicate_bag.lookup(table, key: "key")
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_repair_policies_test() {
+  let path = "test_dupbag_repair.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  let assert Ok(table2) = duplicate_bag.open_with(path, slate.ForceRepair)
+  let assert Ok(["val"]) = duplicate_bag.lookup(table2, key: "key")
+  let assert Ok(Nil) = duplicate_bag.close(table2)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_insert_list_test() {
+  let path = "test_dupbag_insert_list.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) =
+    duplicate_bag.insert_list(table, [
+      #("k", "a"),
+      #("k", "a"),
+      #("k", "b"),
+    ])
+  let assert Ok(vals) = duplicate_bag.lookup(table, key: "k")
+  vals |> list.length |> should.equal(3)
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_large_dataset_test() {
+  let path = "test_dupbag_large.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let entries =
+    range(0, 999)
+    |> list.map(fn(i) { #(int.to_string(i / 10), i) })
+  let assert Ok(Nil) = duplicate_bag.insert_list(table, entries)
+  duplicate_bag.size(table) |> should.equal(Ok(1000))
+  // Each of the 100 keys should have 10 values
+  let assert Ok(vals) = duplicate_bag.lookup(table, key: "0")
+  vals |> list.length |> should.equal(10)
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_member_test() {
+  let path = "test_dupbag_member.dets"
+  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(Nil) = duplicate_bag.insert(table, "exists", "val")
+  duplicate_bag.member(table, key: "exists") |> should.equal(Ok(True))
+  duplicate_bag.member(table, key: "nope") |> should.equal(Ok(False))
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
