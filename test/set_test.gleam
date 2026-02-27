@@ -5,6 +5,7 @@ import gleam/string
 import gleeunit/should
 import slate
 import slate/set
+import test_helpers.{cleanup, range}
 
 // ── Set: Open / Close ───────────────────────────────────────────────────
 
@@ -218,25 +219,6 @@ pub fn set_integer_keys_test() {
   let assert Ok("two") = set.lookup(table, key: 2)
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────
-
-fn cleanup(path: String) {
-  let _ = delete_file(path)
-  Nil
-}
-
-@external(erlang, "file", "delete")
-fn delete_file(path: String) -> Result(Nil, DynError)
-
-type DynError
-
-fn range(from: Int, to: Int) -> List(Int) {
-  case from > to {
-    True -> []
-    False -> [from, ..range(from + 1, to)]
-  }
 }
 
 // ── Set: Complex value types ────────────────────────────────────────────

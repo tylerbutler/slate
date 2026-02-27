@@ -4,6 +4,7 @@ import gleam/string
 import gleeunit/should
 import slate
 import slate/bag
+import test_helpers.{cleanup, range}
 
 // ── Bag: Open / Close ───────────────────────────────────────────────────
 
@@ -137,25 +138,6 @@ pub fn bag_info_test() {
   info.kind |> should.equal(slate.Bag)
   let assert Ok(Nil) = bag.close(table)
   cleanup(path)
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────
-
-fn cleanup(path: String) {
-  let _ = delete_file(path)
-  Nil
-}
-
-@external(erlang, "file", "delete")
-fn delete_file(path: String) -> Result(Nil, DynError)
-
-type DynError
-
-fn range(from: Int, to: Int) -> List(Int) {
-  case from > to {
-    True -> []
-    False -> [from, ..range(from + 1, to)]
-  }
 }
 
 // ── Bag: Complex value types ────────────────────────────────────────────

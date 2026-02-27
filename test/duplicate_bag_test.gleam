@@ -3,6 +3,7 @@ import gleam/list
 import gleeunit/should
 import slate
 import slate/duplicate_bag
+import test_helpers.{cleanup, range}
 
 // ── DuplicateBag: Open / Close ──────────────────────────────────────────
 
@@ -99,25 +100,6 @@ pub fn duplicate_bag_info_test() {
   info.kind |> should.equal(slate.DuplicateBag)
   let assert Ok(Nil) = duplicate_bag.close(table)
   cleanup(path)
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────
-
-fn cleanup(path: String) {
-  let _ = delete_file(path)
-  Nil
-}
-
-@external(erlang, "file", "delete")
-fn delete_file(path: String) -> Result(Nil, DynError)
-
-type DynError
-
-fn range(from: Int, to: Int) -> List(Int) {
-  case from > to {
-    True -> []
-    False -> [from, ..range(from + 1, to)]
-  }
 }
 
 // ── DuplicateBag: Large duplicates ──────────────────────────────────────
