@@ -1,0 +1,16 @@
+name = "slate"
+version = "0.1.0"
+description = "Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage)"
+licences = ["MIT"]
+repository = { type = "github", user = "tylerbutler", repo = "slate" }
+gleam = ">= 1.7.0"
+target = "erlang"
+
+# internal_modules = ["dets/internal", "dets/internal/*"]
+
+[dependencies]
+gleam_stdlib = ">= 0.48.0 and < 2.0.0"
+gleam_erlang = ">= 1.0.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
