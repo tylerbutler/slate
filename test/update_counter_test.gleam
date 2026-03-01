@@ -1,8 +1,8 @@
 /// Tests for update_counter API on set tables.
 /// Adapted from OTP dets_SUITE update_counter test.
-import startest/expect
 import slate
 import slate/set
+import startest/expect
 import test_helpers.{cleanup}
 
 // ── Basic increment ─────────────────────────────────────────────────────

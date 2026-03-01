@@ -4,9 +4,9 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import startest/expect
 import slate
 import slate/set
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── Integer vs Float key distinction (OTP-4738) ─────────────────────────
@@ -283,8 +283,7 @@ pub fn set_insert_new_multiple_test() {
 pub fn set_delete_all_then_reuse_test() {
   let path = "test_set_del_all_reuse.dets"
   let assert Ok(table) = set.open(path)
-  let assert Ok(Nil) =
-    set.insert_list(table, [#("a", 1), #("b", 2), #("c", 3)])
+  let assert Ok(Nil) = set.insert_list(table, [#("a", 1), #("b", 2), #("c", 3)])
   let assert Ok(Nil) = set.delete_all(table)
   set.size(table) |> expect.to_equal(Ok(0))
   // Reuse: insert and verify
@@ -413,8 +412,7 @@ pub fn set_fold_builds_dict_test() {
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) =
     set.insert_list(table, [#(1, "one"), #(2, "two"), #(3, "three")])
-  let assert Ok(pairs) =
-    set.fold(table, [], fn(acc, k, v) { [#(k, v), ..acc] })
+  let assert Ok(pairs) = set.fold(table, [], fn(acc, k, v) { [#(k, v), ..acc] })
   pairs
   |> list.sort(fn(a, b) { int.compare(a.0, b.0) })
   |> expect.to_equal([#(1, "one"), #(2, "two"), #(3, "three")])
@@ -427,9 +425,7 @@ pub fn set_fold_builds_dict_test() {
 pub fn set_with_table_propagates_error_test() {
   let path = "test_set_with_err_prop.dets"
   let result =
-    set.with_table(path, fn(_table) {
-      Error(slate.ErlangError("custom error"))
-    })
+    set.with_table(path, fn(_table) { Error(slate.ErlangError("custom error")) })
   result |> expect.to_equal(Error(slate.ErlangError("custom error")))
   cleanup(path)
 }

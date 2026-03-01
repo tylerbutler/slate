@@ -2,9 +2,9 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import startest/expect
 import slate
 import slate/bag
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── insert_new semantics for bags (OTP insert_new test) ─────────────────
@@ -39,9 +39,7 @@ pub fn bag_many_distinct_values_test() {
   values |> list.length |> expect.to_equal(6)
   // All distinct colors should be present
   colors
-  |> list.each(fn(c) {
-    list.contains(values, c) |> expect.to_be_true()
-  })
+  |> list.each(fn(c) { list.contains(values, c) |> expect.to_be_true() })
   let assert Ok(Nil) = bag.close(table)
   cleanup(path)
 }
@@ -119,8 +117,7 @@ pub fn bag_delete_key_removes_all_values_test() {
 pub fn bag_delete_all_reuse_test() {
   let path = "test_bag_del_all_reuse.dets"
   let assert Ok(table) = bag.open(path)
-  let assert Ok(Nil) =
-    bag.insert_list(table, [#("a", 1), #("a", 2), #("b", 3)])
+  let assert Ok(Nil) = bag.insert_list(table, [#("a", 1), #("a", 2), #("b", 3)])
   let assert Ok(Nil) = bag.delete_all(table)
   bag.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = bag.insert(table, "x", 42)
@@ -173,8 +170,7 @@ pub fn bag_fold_all_entries_test() {
   let assert Ok(Nil) = bag.insert(table, "a", 20)
   let assert Ok(Nil) = bag.insert(table, "b", 30)
   let assert Ok(Nil) = bag.insert(table, "b", 40)
-  let assert Ok(pairs) =
-    bag.fold(table, [], fn(acc, k, v) { [#(k, v), ..acc] })
+  let assert Ok(pairs) = bag.fold(table, [], fn(acc, k, v) { [#(k, v), ..acc] })
   pairs |> list.length |> expect.to_equal(4)
   let assert Ok(Nil) = bag.close(table)
   cleanup(path)
@@ -233,9 +229,7 @@ pub fn bag_many_open_close_cycles_test() {
 pub fn bag_with_table_error_propagation_test() {
   let path = "test_bag_with_err.dets"
   let result =
-    bag.with_table(path, fn(_table) {
-      Error(slate.ErlangError("test error"))
-    })
+    bag.with_table(path, fn(_table) { Error(slate.ErlangError("test error")) })
   result |> expect.to_equal(Error(slate.ErlangError("test error")))
   cleanup(path)
 }

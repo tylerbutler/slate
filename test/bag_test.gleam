@@ -1,9 +1,9 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import startest/expect
 import slate
 import slate/bag
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── Bag: Open / Close ───────────────────────────────────────────────────

@@ -1,8 +1,8 @@
 /// Tests for the is_dets_file utility function.
 /// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
-import startest/expect
 import slate
 import slate/set
+import startest/expect
 import test_helpers.{cleanup}
 
 // ── Valid DETS file ─────────────────────────────────────────────────────

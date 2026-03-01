@@ -2,9 +2,9 @@
 import gleam/int
 import gleam/list
 import gleam/string
-import startest/expect
 import slate
 import slate/duplicate_bag
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── Duplicates are fully preserved (OTP core duplicate_bag test) ────────
@@ -175,8 +175,7 @@ pub fn dupbag_fold_counts_duplicates_test() {
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
-  let assert Ok(sum) =
-    duplicate_bag.fold(table, 0, fn(acc, _k, v) { acc + v })
+  let assert Ok(sum) = duplicate_bag.fold(table, 0, fn(acc, _k, v) { acc + v })
   sum |> expect.to_equal(15)
   let assert Ok(Nil) = duplicate_bag.close(table)
   cleanup(path)
@@ -320,7 +319,10 @@ pub fn dupbag_bool_values_test() {
   let assert Ok(Nil) = duplicate_bag.insert(table, "flag", False)
   let assert Ok(values) = duplicate_bag.lookup(table, key: "flag")
   values |> list.length |> expect.to_equal(3)
-  values |> list.filter(fn(v) { v == True }) |> list.length |> expect.to_equal(2)
+  values
+  |> list.filter(fn(v) { v == True })
+  |> list.length
+  |> expect.to_equal(2)
   let assert Ok(Nil) = duplicate_bag.close(table)
   cleanup(path)
 }

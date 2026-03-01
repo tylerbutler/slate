@@ -2,10 +2,10 @@
 /// Adapted from OTP dets_SUITE del_obj_test and related tests.
 import gleam/list
 import gleam/string
-import startest/expect
-import slate/set
 import slate/bag
 import slate/duplicate_bag
+import slate/set
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── Set: delete_object ──────────────────────────────────────────────────
