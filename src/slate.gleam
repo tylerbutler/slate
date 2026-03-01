@@ -42,8 +42,20 @@ pub type DetsError {
   FileSizeLimitExceeded
   /// Key already exists (for insert_new)
   KeyAlreadyPresent
+  /// Write operation attempted on a read-only table
+  AccessDenied
+  /// Table type mismatch (e.g., opening a set file as a bag)
+  TypeMismatch
   /// Erlang-level error (catch-all)
   ErlangError(String)
+}
+
+/// Access mode for opening tables.
+pub type AccessMode {
+  /// Read and write access (default)
+  ReadWrite
+  /// Read-only access — writes will return `AccessDenied`
+  ReadOnly
 }
 
 /// DETS table type.
@@ -70,3 +82,20 @@ pub type RepairPolicy {
 pub type TableInfo {
   TableInfo(file_size: Int, object_count: Int, kind: Kind)
 }
+
+/// Check whether the given file is a valid DETS file.
+///
+/// Returns `Ok(True)` if the file is a valid DETS file, `Ok(False)` if
+/// it exists but is not a DETS file, or an error if the file cannot be read.
+///
+/// ```gleam
+/// let assert Ok(True) = slate.is_dets_file("data/cache.dets")
+/// let assert Ok(False) = slate.is_dets_file("README.md")
+/// ```
+///
+pub fn is_dets_file(path: String) -> Result(Bool, DetsError) {
+  ffi_is_dets_file(path)
+}
+
+@external(erlang, "dets_ffi", "is_dets_file")
+fn ffi_is_dets_file(path: String) -> Result(Bool, DetsError)

@@ -16,7 +16,7 @@
 /// let assert Ok(Nil) = duplicate_bag.close(table)
 /// ```
 ///
-import slate.{type DetsError, type RepairPolicy, AutoRepair}
+import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS duplicate bag table with typed keys and values.
 pub opaque type DuplicateBag(k, v) {
@@ -39,6 +39,20 @@ pub fn open_with(
   repair: RepairPolicy,
 ) -> Result(DuplicateBag(k, v), DetsError) {
   case ffi_open_duplicate_bag(path, repair) {
+    Ok(ref) -> Ok(DuplicateBag(ref:))
+    Error(err) -> Error(err)
+  }
+}
+
+/// Open a DETS duplicate bag table with repair and access mode options.
+///
+/// Use `ReadOnly` to open a table for reading only.
+pub fn open_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(DuplicateBag(k, v), DetsError) {
+  case ffi_open_duplicate_bag_with_access(path, repair, access) {
     Ok(ref) -> Ok(DuplicateBag(ref:))
     Error(err) -> Error(err)
   }
@@ -142,6 +156,28 @@ pub fn delete_key(
   ffi_delete_key(table.ref, key)
 }
 
+/// Delete all occurrences of a specific key-value pair from the table.
+///
+/// In a duplicate bag, this removes every copy of the exact pair.
+/// Other values (or different duplicates) for the same key are preserved.
+///
+/// ```gleam
+/// let assert Ok(table) = duplicate_bag.open("events.dets")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_b")
+/// let assert Ok(Nil) = duplicate_bag.delete_object(table, "click", "btn_a")
+/// // Only "btn_b" remains
+/// ```
+///
+pub fn delete_object(
+  from table: DuplicateBag(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_delete_object(table.ref, #(key, value))
+}
+
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.ref)
@@ -169,6 +205,13 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
 fn ffi_open_duplicate_bag(
   path: String,
   repair: RepairPolicy,
+) -> Result(TableRef, DetsError)
+
+@external(erlang, "dets_ffi", "open_duplicate_bag_with_access")
+fn ffi_open_duplicate_bag_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
 ) -> Result(TableRef, DetsError)
 
 @external(erlang, "dets_ffi", "close")
@@ -210,6 +253,9 @@ fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
 
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "delete_object")
+fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)

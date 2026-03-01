@@ -14,7 +14,7 @@
 /// let assert Ok(Nil) = set.close(table)
 /// ```
 ///
-import slate.{type DetsError, type RepairPolicy, AutoRepair}
+import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS set table with typed keys and values.
 pub opaque type Set(k, v) {
@@ -45,6 +45,28 @@ pub fn open_with(
   repair: RepairPolicy,
 ) -> Result(Set(k, v), DetsError) {
   case ffi_open_set(path, repair) {
+    Ok(ref) -> Ok(Set(ref:))
+    Error(err) -> Error(err)
+  }
+}
+
+/// Open a DETS set table with repair and access mode options.
+///
+/// Use `ReadOnly` to open a table for reading only. Write operations
+/// on a read-only table will return `Error(AccessDenied)`.
+///
+/// ```gleam
+/// let assert Ok(table) = set.open_with_access(path, AutoRepair, ReadOnly)
+/// let assert Ok(val) = set.lookup(table, key: "key")
+/// // set.insert(table, "key", "val") would return Error(AccessDenied)
+/// ```
+///
+pub fn open_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(Set(k, v), DetsError) {
+  case ffi_open_set_with_access(path, repair, access) {
     Ok(ref) -> Ok(Set(ref:))
     Error(err) -> Error(err)
   }
@@ -160,9 +182,45 @@ pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
   ffi_delete_key(table.ref, key)
 }
 
+/// Delete a specific key-value pair from the table.
+///
+/// For set tables this is equivalent to `delete_key` since each key
+/// has at most one value. Provided for API consistency with bag tables.
+pub fn delete_object(
+  from table: Set(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_delete_object(table.ref, #(key, value))
+}
+
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.ref)
+}
+
+// ── Counters ────────────────────────────────────────────────────────────
+
+/// Atomically increment a counter value by the given amount.
+///
+/// The value associated with the key must be an integer. Returns the
+/// new value after incrementing. The increment can be negative.
+///
+/// Returns an error if the key doesn't exist or the value is not an integer.
+///
+/// ```gleam
+/// let assert Ok(table) = set.open("counters.dets")
+/// let assert Ok(Nil) = set.insert(table, "hits", 0)
+/// let assert Ok(1) = set.update_counter(table, "hits", 1)
+/// let assert Ok(3) = set.update_counter(table, "hits", 2)
+/// ```
+///
+pub fn update_counter(
+  in table: Set(k, Int),
+  key key: k,
+  increment amount: Int,
+) -> Result(Int, DetsError) {
+  ffi_update_counter(table.ref, key, amount)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
@@ -187,6 +245,13 @@ pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
 fn ffi_open_set(
   path: String,
   repair: RepairPolicy,
+) -> Result(TableRef, DetsError)
+
+@external(erlang, "dets_ffi", "open_set_with_access")
+fn ffi_open_set_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
 ) -> Result(TableRef, DetsError)
 
 @external(erlang, "dets_ffi", "close")
@@ -229,8 +294,18 @@ fn ffi_info_size(ref: TableRef) -> Result(Int, DetsError)
 @external(erlang, "dets_ffi", "info_file_size")
 fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
 
+@external(erlang, "dets_ffi", "update_counter")
+fn ffi_update_counter(
+  ref: TableRef,
+  key: k,
+  increment: Int,
+) -> Result(Int, DetsError)
+
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "delete_object")
+fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)
