@@ -2,7 +2,7 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
-import gleeunit/should
+import startest/expect
 import slate
 import slate/set
 import test_helpers.{cleanup, range}
@@ -48,7 +48,7 @@ pub fn set_lookup_not_found_test() {
   let path = "test_set_not_found.dets"
   let assert Ok(table) = set.open(path)
   set.lookup(table, key: "missing")
-  |> should.equal(Error(slate.NotFound))
+  |> expect.to_equal(Error(slate.NotFound))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -58,7 +58,7 @@ pub fn set_insert_new_test() {
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert_new(table, "key1", "first")
   set.insert_new(table, "key1", "second")
-  |> should.equal(Error(slate.KeyAlreadyPresent))
+  |> expect.to_equal(Error(slate.KeyAlreadyPresent))
   let assert Ok("first") = set.lookup(table, key: "key1")
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
@@ -70,8 +70,8 @@ pub fn set_member_test() {
   let path = "test_set_member.dets"
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert(table, "exists", 42)
-  set.member(table, key: "exists") |> should.equal(Ok(True))
-  set.member(table, key: "nope") |> should.equal(Ok(False))
+  set.member(table, key: "exists") |> expect.to_equal(Ok(True))
+  set.member(table, key: "nope") |> expect.to_equal(Ok(False))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -83,7 +83,7 @@ pub fn set_delete_key_test() {
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert(table, "key1", "val")
   let assert Ok(Nil) = set.delete_key(table, key: "key1")
-  set.lookup(table, key: "key1") |> should.equal(Error(slate.NotFound))
+  set.lookup(table, key: "key1") |> expect.to_equal(Error(slate.NotFound))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -94,7 +94,7 @@ pub fn set_delete_all_test() {
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.insert(table, "b", 2)
   let assert Ok(Nil) = set.delete_all(table)
-  set.size(table) |> should.equal(Ok(0))
+  set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -104,11 +104,11 @@ pub fn set_delete_all_test() {
 pub fn set_size_test() {
   let path = "test_set_size.dets"
   let assert Ok(table) = set.open(path)
-  set.size(table) |> should.equal(Ok(0))
+  set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.insert(table, "b", 2)
   let assert Ok(Nil) = set.insert(table, "c", 3)
-  set.size(table) |> should.equal(Ok(3))
+  set.size(table) |> expect.to_equal(Ok(3))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -121,10 +121,10 @@ pub fn set_to_list_test() {
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.insert(table, "b", 2)
   let assert Ok(entries) = set.to_list(table)
-  entries |> list.length |> should.equal(2)
+  entries |> list.length |> expect.to_equal(2)
   entries
   |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
-  |> should.equal([#("a", 1), #("b", 2)])
+  |> expect.to_equal([#("a", 1), #("b", 2)])
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -138,7 +138,7 @@ pub fn set_fold_test() {
   let assert Ok(Nil) = set.insert(table, "b", 20)
   let assert Ok(Nil) = set.insert(table, "c", 30)
   let assert Ok(sum) = set.fold(table, 0, fn(acc, _key, val) { acc + val })
-  sum |> should.equal(60)
+  sum |> expect.to_equal(60)
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -160,7 +160,7 @@ pub fn set_insert_list_test() {
   let path = "test_set_insert_list.dets"
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert_list(table, [#("a", 1), #("b", 2), #("c", 3)])
-  set.size(table) |> should.equal(Ok(3))
+  set.size(table) |> expect.to_equal(Ok(3))
   let assert Ok(1) = set.lookup(table, key: "a")
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
@@ -201,9 +201,9 @@ pub fn set_info_test() {
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(info) = set.info(table)
-  info.object_count |> should.equal(1)
-  info.kind |> should.equal(slate.Set)
-  { info.file_size > 0 } |> should.be_true
+  info.object_count |> expect.to_equal(1)
+  info.kind |> expect.to_equal(slate.Set)
+  { info.file_size > 0 } |> expect.to_be_true
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -247,7 +247,7 @@ pub fn set_nested_tuple_values_test() {
   let val = #("alice", #(30, "engineer"), [1, 2, 3])
   let assert Ok(Nil) = set.insert(table, "user", val)
   let assert Ok(result) = set.lookup(table, key: "user")
-  result |> should.equal(val)
+  result |> expect.to_equal(val)
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -258,8 +258,8 @@ pub fn set_dict_values_test() {
   let d = dict.from_list([#("a", 1), #("b", 2)])
   let assert Ok(Nil) = set.insert(table, "config", d)
   let assert Ok(result) = set.lookup(table, key: "config")
-  result |> dict.get("a") |> should.equal(Ok(1))
-  result |> dict.get("b") |> should.equal(Ok(2))
+  result |> dict.get("a") |> expect.to_equal(Ok(1))
+  result |> dict.get("b") |> expect.to_equal(Ok(2))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -286,7 +286,7 @@ pub fn set_large_dataset_test() {
     |> list.map(fn(i) { #(int.to_string(i), i * i) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   // Verify size
-  set.size(table) |> should.equal(Ok(1000))
+  set.size(table) |> expect.to_equal(Ok(1000))
   // Spot-check some values
   let assert Ok(0) = set.lookup(table, key: "0")
   let assert Ok(250_000) = set.lookup(table, key: "500")
@@ -294,7 +294,7 @@ pub fn set_large_dataset_test() {
   // Fold should sum all squares
   let assert Ok(sum) = set.fold(table, 0, fn(acc, _k, v) { acc + v })
   // Sum of i^2 from 0 to 999 = 999*1000*1999/6 = 332_833_500
-  sum |> should.equal(332_833_500)
+  sum |> expect.to_equal(332_833_500)
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -309,7 +309,7 @@ pub fn set_large_persistence_test() {
   let assert Ok(Nil) = set.close(table)
   // Reopen and verify all entries survived
   let assert Ok(table2) = set.open(path)
-  set.size(table2) |> should.equal(Ok(500))
+  set.size(table2) |> expect.to_equal(Ok(500))
   let assert Ok("value_0") = set.lookup(table2, key: 0)
   let assert Ok("value_499") = set.lookup(table2, key: 499)
   let assert Ok(Nil) = set.close(table2)
@@ -375,7 +375,7 @@ pub fn set_concurrent_writers_test() {
       table,
       range(0, 99) |> list.map(fn(i) { #("b_" <> int.to_string(i), i) }),
     )
-  set.size(table) |> should.equal(Ok(200))
+  set.size(table) |> expect.to_equal(Ok(200))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -425,7 +425,7 @@ pub fn set_fold_empty_table_test() {
   let path = "test_set_fold_empty.dets"
   let assert Ok(table) = set.open(path)
   let assert Ok(result) = set.fold(table, 0, fn(acc, _k, _v) { acc + 1 })
-  result |> should.equal(0)
+  result |> expect.to_equal(0)
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -433,7 +433,7 @@ pub fn set_fold_empty_table_test() {
 pub fn set_to_list_empty_test() {
   let path = "test_set_to_list_empty.dets"
   let assert Ok(table) = set.open(path)
-  set.to_list(table) |> should.equal(Ok([]))
+  set.to_list(table) |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -442,7 +442,7 @@ pub fn set_insert_list_empty_test() {
   let path = "test_set_insert_list_empty.dets"
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert_list(table, [])
-  set.size(table) |> should.equal(Ok(0))
+  set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -469,7 +469,7 @@ pub fn set_with_table_error_still_closes_test() {
   let path = "test_set_with_err.dets"
   // with_table should close even when callback returns Error
   let result = set.with_table(path, fn(_table) { Error(slate.NotFound) })
-  result |> should.equal(Error(slate.NotFound))
+  result |> expect.to_equal(Error(slate.NotFound))
   // Table should be closed — reopening should work
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.close(table)
@@ -487,8 +487,8 @@ pub fn set_info_grows_with_data_test() {
     |> list.map(fn(i) { #(int.to_string(i), string.repeat("x", 100)) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(info2) = set.info(table)
-  info2.object_count |> should.equal(200)
-  { info2.file_size > initial_size } |> should.be_true
+  info2.object_count |> expect.to_equal(200)
+  { info2.file_size > initial_size } |> expect.to_be_true
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -500,7 +500,7 @@ pub fn set_overwrite_preserves_size_test() {
   let assert Ok(Nil) = set.insert(table, "key", "v2")
   let assert Ok(Nil) = set.insert(table, "key", "v3")
   // Size should be 1 — sets overwrite, not accumulate
-  set.size(table) |> should.equal(Ok(1))
+  set.size(table) |> expect.to_equal(Ok(1))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -510,7 +510,7 @@ pub fn set_fold_collects_all_keys_test() {
   let assert Ok(table) = set.open(path)
   let assert Ok(Nil) = set.insert_list(table, [#("a", 1), #("b", 2), #("c", 3)])
   let assert Ok(keys) = set.fold(table, [], fn(acc, key, _val) { [key, ..acc] })
-  keys |> list.sort(string.compare) |> should.equal(["a", "b", "c"])
+  keys |> list.sort(string.compare) |> expect.to_equal(["a", "b", "c"])
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
