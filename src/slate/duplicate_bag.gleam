@@ -142,6 +142,28 @@ pub fn delete_key(
   ffi_delete_key(table.ref, key)
 }
 
+/// Delete all occurrences of a specific key-value pair from the table.
+///
+/// In a duplicate bag, this removes every copy of the exact pair.
+/// Other values (or different duplicates) for the same key are preserved.
+///
+/// ```gleam
+/// let assert Ok(table) = duplicate_bag.open("events.dets")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
+/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_b")
+/// let assert Ok(Nil) = duplicate_bag.delete_object(table, "click", "btn_a")
+/// // Only "btn_b" remains
+/// ```
+///
+pub fn delete_object(
+  from table: DuplicateBag(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_delete_object(table.ref, #(key, value))
+}
+
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.ref)
@@ -210,6 +232,9 @@ fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
 
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "delete_object")
+fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)

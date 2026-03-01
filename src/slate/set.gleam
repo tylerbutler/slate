@@ -160,9 +160,45 @@ pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
   ffi_delete_key(table.ref, key)
 }
 
+/// Delete a specific key-value pair from the table.
+///
+/// For set tables this is equivalent to `delete_key` since each key
+/// has at most one value. Provided for API consistency with bag tables.
+pub fn delete_object(
+  from table: Set(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_delete_object(table.ref, #(key, value))
+}
+
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.ref)
+}
+
+// ── Counters ────────────────────────────────────────────────────────────
+
+/// Atomically increment a counter value by the given amount.
+///
+/// The value associated with the key must be an integer. Returns the
+/// new value after incrementing. The increment can be negative.
+///
+/// Returns an error if the key doesn't exist or the value is not an integer.
+///
+/// ```gleam
+/// let assert Ok(table) = set.open("counters.dets")
+/// let assert Ok(Nil) = set.insert(table, "hits", 0)
+/// let assert Ok(1) = set.update_counter(table, "hits", 1)
+/// let assert Ok(3) = set.update_counter(table, "hits", 2)
+/// ```
+///
+pub fn update_counter(
+  in table: Set(k, Int),
+  key key: k,
+  increment amount: Int,
+) -> Result(Int, DetsError) {
+  ffi_update_counter(table.ref, key, amount)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
@@ -229,8 +265,18 @@ fn ffi_info_size(ref: TableRef) -> Result(Int, DetsError)
 @external(erlang, "dets_ffi", "info_file_size")
 fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
 
+@external(erlang, "dets_ffi", "update_counter")
+fn ffi_update_counter(
+  ref: TableRef,
+  key: k,
+  increment: Int,
+) -> Result(Int, DetsError)
+
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "delete_object")
+fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)

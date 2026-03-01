@@ -130,6 +130,28 @@ pub fn delete_key(from table: Bag(k, v), key key: k) -> Result(Nil, DetsError) {
   ffi_delete_key(table.ref, key)
 }
 
+/// Delete a specific key-value pair from the table.
+///
+/// Only the exact matching pair is removed. Other values for the same
+/// key are preserved. This is the primary way to remove individual
+/// values from a bag without affecting other entries for the same key.
+///
+/// ```gleam
+/// let assert Ok(table) = bag.open("tags.dets")
+/// let assert Ok(Nil) = bag.insert(table, "color", "red")
+/// let assert Ok(Nil) = bag.insert(table, "color", "blue")
+/// let assert Ok(Nil) = bag.delete_object(table, "color", "red")
+/// let assert Ok(["blue"]) = bag.lookup(table, "color")
+/// ```
+///
+pub fn delete_object(
+  from table: Bag(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_delete_object(table.ref, #(key, value))
+}
+
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: Bag(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.ref)
@@ -198,6 +220,9 @@ fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
 
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "delete_object")
+fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)

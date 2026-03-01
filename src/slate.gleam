@@ -70,3 +70,20 @@ pub type RepairPolicy {
 pub type TableInfo {
   TableInfo(file_size: Int, object_count: Int, kind: Kind)
 }
+
+/// Check whether the given file is a valid DETS file.
+///
+/// Returns `Ok(True)` if the file is a valid DETS file, `Ok(False)` if
+/// it exists but is not a DETS file, or an error if the file cannot be read.
+///
+/// ```gleam
+/// let assert Ok(True) = slate.is_dets_file("data/cache.dets")
+/// let assert Ok(False) = slate.is_dets_file("README.md")
+/// ```
+///
+pub fn is_dets_file(path: String) -> Result(Bool, DetsError) {
+  ffi_is_dets_file(path)
+}
+
+@external(erlang, "dets_ffi", "is_dets_file")
+fn ffi_is_dets_file(path: String) -> Result(Bool, DetsError)

@@ -2,9 +2,10 @@
 -export([
     open_set/2, open_bag/2, open_duplicate_bag/2,
     close/1, insert/2, insert_new/2,
-    lookup/2, lookup_all/2, delete_key/2, delete_all/1,
+    lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
-    info_size/1, info_file_size/1
+    info_size/1, info_file_size/1,
+    is_dets_file/1, update_counter/3
 ]).
 
 %% ── Open ────────────────────────────────────────────────────────────────
@@ -105,6 +106,14 @@ delete_key(Name, Key) ->
         _:Reason -> {error, translate_error(Reason)}
     end.
 
+delete_object(Name, Object) ->
+    try dets:delete_object(Name, Object) of
+        ok -> {ok, nil};
+        {error, Reason} -> {error, translate_error(Reason)}
+    catch
+        _:Reason -> {error, translate_error(Reason)}
+    end.
+
 delete_all(Name) ->
     try dets:delete_all_objects(Name) of
         ok -> {ok, nil};
@@ -150,6 +159,26 @@ info_file_size(Name) ->
     case dets:info(Name, file_size) of
         undefined -> {error, {erlang_error, <<"Table does not exist">>}};
         N -> {ok, N}
+    end.
+
+%% ── Utilities ───────────────────────────────────────────────────────────
+
+is_dets_file(Path) ->
+    try dets:is_dets_file(binary_to_list(Path)) of
+        true -> {ok, true};
+        false -> {ok, false};
+        {error, Reason} -> {error, translate_error(Reason)}
+    catch
+        _:Reason -> {error, translate_error(Reason)}
+    end.
+
+update_counter(Name, Key, Increment) ->
+    try dets:update_counter(Name, Key, Increment) of
+        NewVal when is_integer(NewVal) -> {ok, NewVal};
+        {error, Reason} -> {error, translate_error(Reason)}
+    catch
+        error:badarg -> {error, {erlang_error, <<"update_counter failed: key not found or value not an integer">>}};
+        _:Reason -> {error, translate_error(Reason)}
     end.
 
 %% ── Error translation ──────────────────────────────────────────────────
