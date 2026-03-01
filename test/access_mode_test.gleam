@@ -60,12 +60,7 @@ pub fn set_readonly_delete_all_fails_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(path, slate.AutoRepair, slate.ReadOnly)
-  let result = set.delete_all(ro)
-  // DETS returns an error for delete_all on read-only
-  case result {
-    Error(_) -> Nil
-    Ok(_) -> Nil
-  }
+  let _result = set.delete_all(ro)
   let _ = set.close(ro)
   cleanup(path)
 }
