@@ -15,7 +15,7 @@
 /// let assert Ok(Nil) = bag.close(table)
 /// ```
 ///
-import slate.{type DetsError, type RepairPolicy, AutoRepair}
+import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS bag table with typed keys and values.
 pub opaque type Bag(k, v) {
@@ -38,6 +38,20 @@ pub fn open_with(
   repair: RepairPolicy,
 ) -> Result(Bag(k, v), DetsError) {
   case ffi_open_bag(path, repair) {
+    Ok(ref) -> Ok(Bag(ref:))
+    Error(err) -> Error(err)
+  }
+}
+
+/// Open a DETS bag table with repair and access mode options.
+///
+/// Use `ReadOnly` to open a table for reading only.
+pub fn open_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(Bag(k, v), DetsError) {
+  case ffi_open_bag_with_access(path, repair, access) {
     Ok(ref) -> Ok(Bag(ref:))
     Error(err) -> Error(err)
   }
@@ -179,6 +193,13 @@ pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
 fn ffi_open_bag(
   path: String,
   repair: RepairPolicy,
+) -> Result(TableRef, DetsError)
+
+@external(erlang, "dets_ffi", "open_bag_with_access")
+fn ffi_open_bag_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
 ) -> Result(TableRef, DetsError)
 
 @external(erlang, "dets_ffi", "close")

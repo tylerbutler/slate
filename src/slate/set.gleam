@@ -14,7 +14,7 @@
 /// let assert Ok(Nil) = set.close(table)
 /// ```
 ///
-import slate.{type DetsError, type RepairPolicy, AutoRepair}
+import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS set table with typed keys and values.
 pub opaque type Set(k, v) {
@@ -45,6 +45,28 @@ pub fn open_with(
   repair: RepairPolicy,
 ) -> Result(Set(k, v), DetsError) {
   case ffi_open_set(path, repair) {
+    Ok(ref) -> Ok(Set(ref:))
+    Error(err) -> Error(err)
+  }
+}
+
+/// Open a DETS set table with repair and access mode options.
+///
+/// Use `ReadOnly` to open a table for reading only. Write operations
+/// on a read-only table will return `Error(AccessDenied)`.
+///
+/// ```gleam
+/// let assert Ok(table) = set.open_with_access(path, AutoRepair, ReadOnly)
+/// let assert Ok(val) = set.lookup(table, key: "key")
+/// // set.insert(table, "key", "val") would return Error(AccessDenied)
+/// ```
+///
+pub fn open_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(Set(k, v), DetsError) {
+  case ffi_open_set_with_access(path, repair, access) {
     Ok(ref) -> Ok(Set(ref:))
     Error(err) -> Error(err)
   }
@@ -223,6 +245,13 @@ pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
 fn ffi_open_set(
   path: String,
   repair: RepairPolicy,
+) -> Result(TableRef, DetsError)
+
+@external(erlang, "dets_ffi", "open_set_with_access")
+fn ffi_open_set_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
 ) -> Result(TableRef, DetsError)
 
 @external(erlang, "dets_ffi", "close")

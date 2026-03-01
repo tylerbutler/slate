@@ -42,8 +42,20 @@ pub type DetsError {
   FileSizeLimitExceeded
   /// Key already exists (for insert_new)
   KeyAlreadyPresent
+  /// Write operation attempted on a read-only table
+  AccessDenied
+  /// Table type mismatch (e.g., opening a set file as a bag)
+  TypeMismatch
   /// Erlang-level error (catch-all)
   ErlangError(String)
+}
+
+/// Access mode for opening tables.
+pub type AccessMode {
+  /// Read and write access (default)
+  ReadWrite
+  /// Read-only access — writes will return `AccessDenied`
+  ReadOnly
 }
 
 /// DETS table type.

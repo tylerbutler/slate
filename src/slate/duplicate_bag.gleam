@@ -16,7 +16,7 @@
 /// let assert Ok(Nil) = duplicate_bag.close(table)
 /// ```
 ///
-import slate.{type DetsError, type RepairPolicy, AutoRepair}
+import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS duplicate bag table with typed keys and values.
 pub opaque type DuplicateBag(k, v) {
@@ -39,6 +39,20 @@ pub fn open_with(
   repair: RepairPolicy,
 ) -> Result(DuplicateBag(k, v), DetsError) {
   case ffi_open_duplicate_bag(path, repair) {
+    Ok(ref) -> Ok(DuplicateBag(ref:))
+    Error(err) -> Error(err)
+  }
+}
+
+/// Open a DETS duplicate bag table with repair and access mode options.
+///
+/// Use `ReadOnly` to open a table for reading only.
+pub fn open_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(DuplicateBag(k, v), DetsError) {
+  case ffi_open_duplicate_bag_with_access(path, repair, access) {
     Ok(ref) -> Ok(DuplicateBag(ref:))
     Error(err) -> Error(err)
   }
@@ -191,6 +205,13 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
 fn ffi_open_duplicate_bag(
   path: String,
   repair: RepairPolicy,
+) -> Result(TableRef, DetsError)
+
+@external(erlang, "dets_ffi", "open_duplicate_bag_with_access")
+fn ffi_open_duplicate_bag_with_access(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
 ) -> Result(TableRef, DetsError)
 
 @external(erlang, "dets_ffi", "close")
