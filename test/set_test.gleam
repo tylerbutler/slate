@@ -2,9 +2,9 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/string
-import startest/expect
 import slate
 import slate/set
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── Set: Open / Close ───────────────────────────────────────────────────

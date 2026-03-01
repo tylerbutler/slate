@@ -1,8 +1,8 @@
 import gleam/int
 import gleam/list
-import startest/expect
 import slate
 import slate/duplicate_bag
+import startest/expect
 import test_helpers.{cleanup, range}
 
 // ── DuplicateBag: Open / Close ──────────────────────────────────────────
