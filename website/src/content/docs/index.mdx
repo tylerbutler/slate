@@ -1,0 +1,49 @@
+---
+title: slate
+description: Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
+template: splash
+hero:
+  tagline: Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage), targeting the Erlang (BEAM) runtime.
+  actions:
+    - text: Get started
+      link: /quick-start/
+      icon: right-arrow
+      variant: primary
+    - text: What is slate?
+      link: /introduction/
+      variant: secondary
+---
+
+import { Aside, Card, CardGrid } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Pre-1.0 Software">
+slate is not yet 1.0. The API is unstable, features may be removed in minor releases, and quality should not be considered production-ready. We welcome usage and feedback in the meantime!
+</Aside>
+
+## Features
+
+<style lang="css">{`
+  // Add a gradient to the heading on the splash page.
+  #_top {
+    background: linear-gradient(90deg, var(--sl-color-gray-2), var(--sl-color-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+`}
+</style>
+
+<CardGrid>
+	<Card title="Set Tables" icon="rocket">
+		Unique key-value storage with one value per key. The most common table type for caches, configuration, and general-purpose persistence.
+	</Card>
+	<Card title="Bag Tables" icon="document">
+		Store multiple distinct values per key. Ideal for tags, categories, and one-to-many relationships.
+	</Card>
+	<Card title="Duplicate Bag Tables" icon="approve-check-circle">
+		Allow duplicate key-value pairs for event logs, audit trails, and append-only storage patterns.
+	</Card>
+	<Card title="Persistent Storage" icon="setting">
+		Data survives process crashes and node restarts. Built entirely on OTP's DETS — no external database needed.
+	</Card>
+</CardGrid>
