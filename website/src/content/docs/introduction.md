@@ -27,3 +27,12 @@ DETS is built into OTP — no external database or dependency is needed. slate f
 - **Safe resource management**: `with_table` callbacks ensure tables are always properly closed
 - **Zero external dependencies**: Built entirely on OTP's DETS module
 - **Erlang target**: Runs on the BEAM virtual machine
+
+## Related projects
+
+- **[bravo](https://github.com/Michael-Mark-Edu/bravo)** — Comprehensive ETS (in-memory) bindings for Gleam. Use bravo when you need fast, in-memory storage without persistence.
+- **[shelf](https://github.com/tylerbutler/shelf)** — Persistent ETS tables backed by DETS. Combines microsecond in-memory reads with durable disk storage. Built on top of slate.
+
+## Learn more about DETS
+
+slate wraps Erlang's DETS module. For details on the underlying storage engine, see the [official Erlang DETS documentation](https://www.erlang.org/doc/apps/stdlib/dets.html).

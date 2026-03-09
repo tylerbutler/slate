@@ -6,7 +6,7 @@
 /// ## Example
 ///
 /// ```gleam
-/// import dets/bag
+/// import slate/bag
 ///
 /// let assert Ok(table) = bag.open("tags.dets")
 /// let assert Ok(Nil) = bag.insert(table, "color", "red")

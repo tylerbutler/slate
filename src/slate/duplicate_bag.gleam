@@ -6,7 +6,7 @@
 /// ## Example
 ///
 /// ```gleam
-/// import dets/duplicate_bag
+/// import slate/duplicate_bag
 ///
 /// let assert Ok(table) = duplicate_bag.open("events.dets")
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")

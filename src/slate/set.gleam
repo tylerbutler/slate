@@ -6,7 +6,7 @@
 /// ## Example
 ///
 /// ```gleam
-/// import dets/set
+/// import slate/set
 ///
 /// let assert Ok(table) = set.open("users.dets")
 /// let assert Ok(Nil) = set.insert(table, "alice", 42)
