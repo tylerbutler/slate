@@ -6,14 +6,14 @@
 ///
 /// ## Table Types
 ///
-/// - `dets/set` — Unique keys, one value per key
-/// - `dets/bag` — Multiple distinct values per key
-/// - `dets/duplicate_bag` — Multiple values per key (duplicates allowed)
+/// - `slate/set` — Unique keys, one value per key
+/// - `slate/bag` — Multiple distinct values per key
+/// - `slate/duplicate_bag` — Multiple values per key (duplicates allowed)
 ///
 /// ## Quick Start
 ///
 /// ```gleam
-/// import dets/set
+/// import slate/set
 ///
 /// let assert Ok(table) = set.open("data/cache.dets")
 /// let assert Ok(Nil) = set.insert(table, "key", "value")
