@@ -105,6 +105,16 @@ let assert Ok(1) = set.update_counter(table, "page_views", -2)
 `update_counter` is only available on set tables, and requires the value to be an integer.
 </Aside>
 
+## Flushing writes
+
+Use `sync` to flush pending writes to disk without closing the table. This is useful for long-lived tables where you want to ensure durability at a specific point:
+
+```gleam
+let assert Ok(Nil) = set.insert(table, "checkpoint", 42)
+let assert Ok(Nil) = set.sync(table)
+// Data is guaranteed to be on disk, table stays open
+```
+
 ## Table info
 
 ```gleam

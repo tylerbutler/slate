@@ -101,6 +101,10 @@ let assert Ok(_) = bag.with_table("data/bag.dets", fn(table) { ... })
 let assert Ok(_) = duplicate_bag.with_table("data/dup.dets", fn(table) { ... })
 ```
 
+## Repair and access options
+
+`with_table` always opens the table with `AutoRepair` and `ReadWrite` access. If you need a different repair policy or read-only access, use `open_with` or `open_with_access` directly and manage the lifecycle yourself.
+
 ## When to use `with_table`
 
 <Aside type="tip">

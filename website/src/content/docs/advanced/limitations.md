@@ -45,6 +45,19 @@ DETS table names are derived from the file path, converted to an Erlang atom. Er
 
 A DETS file should only be opened by a single OS process at a time. Multiple Erlang processes within the same BEAM node can share a table, but opening the same file from separate BEAM nodes or OS processes can lead to corruption.
 
+## Validating DETS files
+
+Use `slate.is_dets_file` to check whether a file on disk is a valid DETS file before opening it:
+
+```gleam
+import slate
+
+let assert Ok(True) = slate.is_dets_file("data/cache.dets")
+let assert Ok(False) = slate.is_dets_file("README.md")
+```
+
+This is useful when scanning a directory for DETS files or validating user-provided paths.
+
 ## Comparison with alternatives
 
 | Feature | DETS (slate) | ETS | SQLite | Mnesia |
