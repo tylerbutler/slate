@@ -3,8 +3,6 @@ title: Safe Resource Management
 description: Using with_table for automatic table lifecycle management.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 DETS tables must be properly closed to ensure data is flushed to disk. If a table is not closed — for example, because an error occurs — pending writes may be lost and the file may need repair on next open.
 
 The `with_table` function solves this by automatically closing the table when your callback returns, whether it succeeds or fails.
@@ -107,9 +105,9 @@ let assert Ok(_) = duplicate_bag.with_table("data/dup.dets", fn(table) { ... })
 
 ## When to use `with_table`
 
-<Aside type="tip">
+:::tip
 Use `with_table` for short-lived operations — lookups, inserts, or quick computations. For long-lived tables that stay open for the lifetime of your application, use `open`/`close` directly and manage the lifecycle yourself.
-</Aside>
+:::
 
 | Scenario | Recommended |
 |----------|-------------|
