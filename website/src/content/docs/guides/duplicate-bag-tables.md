@@ -84,6 +84,15 @@ let assert Ok(count) = duplicate_bag.fold(table, from: 0, with: fn(acc, _key, _v
 let assert Ok(n) = duplicate_bag.size(table)
 ```
 
+## Flushing writes
+
+Use `sync` to flush pending writes to disk without closing the table:
+
+```gleam
+let assert Ok(Nil) = duplicate_bag.sync(table)
+// Data is guaranteed to be on disk, table stays open
+```
+
 ## Table info
 
 ```gleam

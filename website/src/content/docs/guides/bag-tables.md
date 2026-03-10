@@ -86,6 +86,15 @@ let assert Ok(count) = bag.fold(table, from: 0, with: fn(acc, _key, _value) {
 let assert Ok(n) = bag.size(table)
 ```
 
+## Flushing writes
+
+Use `sync` to flush pending writes to disk without closing the table:
+
+```gleam
+let assert Ok(Nil) = bag.sync(table)
+// Data is guaranteed to be on disk, table stays open
+```
+
 ## Table info
 
 ```gleam

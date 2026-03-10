@@ -41,10 +41,21 @@ src/
     ├── bag.gleam               # Bag tables (multiple distinct values per key)
     └── duplicate_bag.gleam     # Duplicate bag tables (duplicates allowed)
 test/
-├── slate_test.gleam       # Test entry point
+├── slate_test.gleam            # Test entry point (startest.run)
+├── test_helpers.gleam          # Shared test utilities (cleanup, unique paths)
 ├── set_test.gleam              # Set table tests
 ├── bag_test.gleam              # Bag table tests
-└── duplicate_bag_test.gleam    # Duplicate bag table tests
+├── duplicate_bag_test.gleam    # Duplicate bag table tests
+├── set_otp_test.gleam          # Set OTP integration tests
+├── bag_otp_test.gleam          # Bag OTP integration tests
+├── duplicate_bag_otp_test.gleam # Duplicate bag OTP integration tests
+├── access_mode_test.gleam      # Read-only access mode tests
+├── delete_object_test.gleam    # delete_object tests across table types
+├── error_handling_test.gleam   # Error handling and type mismatch tests
+├── update_counter_test.gleam   # Atomic counter tests
+├── corruption_test.gleam       # Corruption detection and repair tests
+├── is_dets_file_test.gleam     # File validation tests
+└── test_helpers_test.gleam     # Tests for test helpers
 ```
 
 ## Architecture
@@ -67,7 +78,11 @@ Gleam `RepairPolicy` constructors map directly to Erlang atoms:
 DETS error atoms map back to Gleam `DetsError` constructors:
 - `not_found` → `NotFound`
 - `key_already_present` → `KeyAlreadyPresent`
-- `{erlang_error, Msg}` → `ErlangError(msg)`
+- `{file_error, _, enoent}` / `{file_error, _, eacces}` → `FileNotFound`
+- `{access_mode, _}` → `AccessDenied`
+- `{type_mismatch, _}` / `{keypos_mismatch, _}` / `{incompatible_arguments, _}` → `TypeMismatch`
+- `badarg` → `TableDoesNotExist`
+- Any other error → `ErlangError(formatted_string)`
 
 ### Key Design Decisions
 
@@ -83,7 +98,7 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 - `gleam_erlang` - Erlang interop
 
 ### Development
-- `gleeunit` - Testing framework
+- `startest` - Testing framework
 
 ## Testing
 

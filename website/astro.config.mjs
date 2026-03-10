@@ -88,6 +88,10 @@ export default defineConfig({
 							slug: "advanced/with-table",
 						},
 						{
+							label: "Error Handling",
+							slug: "advanced/error-handling",
+						},
+						{
 							label: "Limitations",
 							slug: "advanced/limitations",
 						},
