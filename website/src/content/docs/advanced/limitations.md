@@ -3,17 +3,15 @@ title: Limitations
 description: Known limitations of DETS and slate.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 slate wraps Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html), which has several inherent limitations. Understanding these helps you choose the right storage approach.
 
 ## File size limit
 
 DETS tables are limited to **2 GB** per file. This is a hard limit in the DETS implementation and cannot be configured. If a table exceeds this size, operations will return `Error(FileSizeLimitExceeded)`.
 
-<Aside type="tip">
+:::tip
 If you need more than 2 GB of storage, consider splitting data across multiple tables, or using a database like SQLite or Postgres.
-</Aside>
+:::
 
 ## No `ordered_set` table type
 
@@ -23,9 +21,9 @@ Unlike Erlang's ETS (in-memory storage), DETS does not support `ordered_set` tab
 
 DETS performs disk I/O on every read and write. This makes it unsuitable for high-frequency operations where latency matters. For performance-critical reads, consider loading data into ETS at startup and using DETS only for persistence.
 
-<Aside type="note">
+:::note
 The related library [shelf](https://github.com/tylerbutler/shelf) automates this pattern — it provides persistent ETS tables backed by DETS, giving you microsecond reads with durable storage.
-</Aside>
+:::
 
 ## Tables must be closed properly
 

@@ -3,8 +3,6 @@ title: Error Handling
 description: Understanding and handling errors in slate.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 All slate functions return `Result` types — they never raise exceptions. Errors are represented by the `DetsError` type defined in the `slate` module.
 
 ## Error types
@@ -21,9 +19,9 @@ let assert Ok(table) = set.open("data/users.dets")
 let assert Error(slate.NotFound) = set.lookup(table, key: "nonexistent")
 ```
 
-<Aside type="note">
+:::note
 Bag and duplicate bag tables return an empty list instead of `NotFound` when a key is missing. Only set tables return this error from `lookup`.
-</Aside>
+:::
 
 ### `KeyAlreadyPresent`
 

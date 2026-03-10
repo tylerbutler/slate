@@ -3,8 +3,6 @@ title: Set Tables
 description: Unique key-value storage with DETS set tables.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
-
 Set tables store key-value pairs where each key maps to exactly one value. Inserting with an existing key overwrites the previous value. This is the most common table type, ideal for caches, configuration, and general-purpose persistence.
 
 Set tables are provided by the `slate/set` module and correspond to the `set` table type in Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html).
@@ -46,9 +44,9 @@ let assert Ok(Nil) = set.insert_new(table, "alice", 42)
 let assert Error(slate.KeyAlreadyPresent) = set.insert_new(table, "alice", 99)
 ```
 
-<Aside type="note">
+:::note
 `insert_new` is only available on set tables. Bag and duplicate bag tables do not have this function.
-</Aside>
+:::
 
 ## Looking up data
 
@@ -101,9 +99,9 @@ let assert Ok(3) = set.update_counter(table, "page_views", 2)
 let assert Ok(1) = set.update_counter(table, "page_views", -2)
 ```
 
-<Aside type="note">
+:::note
 `update_counter` is only available on set tables, and requires the value to be an integer.
-</Aside>
+:::
 
 ## Flushing writes
 
