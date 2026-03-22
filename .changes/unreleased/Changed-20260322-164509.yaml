@@ -1,0 +1,3 @@
+kind: Changed
+body: 'BREAKING: open, open_with, open_with_access, and with_table now require key_decoder and value_decoder parameters (gleam/dynamic/decode Decoder type) to validate data read from disk, ensuring runtime type safety at the DETS-Gleam boundary. A new DecodeErrors variant is added to DetsError for type mismatches.'
+time: 2026-03-22T16:45:09.526532958-07:00
