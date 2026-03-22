@@ -1,5 +1,6 @@
 /// Tests for the delete_object API across all table types.
 /// Adapted from OTP dets_SUITE del_obj_test and related tests.
+import gleam/dynamic/decode
 import gleam/list
 import gleam/string
 import slate/bag
@@ -12,7 +13,8 @@ import test_helpers.{cleanup, range}
 
 pub fn set_delete_object_test() {
   let path = "test_set_del_obj.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.delete_object(table, "key", "val")
   set.size(table) |> expect.to_equal(Ok(0))
@@ -22,7 +24,8 @@ pub fn set_delete_object_test() {
 
 pub fn set_delete_object_wrong_value_test() {
   let path = "test_set_del_obj_wrong.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "correct")
   // Deleting with wrong value should be a no-op for sets
   let assert Ok(Nil) = set.delete_object(table, "key", "wrong")
@@ -34,7 +37,8 @@ pub fn set_delete_object_wrong_value_test() {
 
 pub fn set_delete_object_nonexistent_test() {
   let path = "test_set_del_obj_none.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Deleting from empty table should succeed silently
   let assert Ok(Nil) = set.delete_object(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
@@ -45,7 +49,8 @@ pub fn set_delete_object_nonexistent_test() {
 
 pub fn bag_delete_object_removes_one_value_test() {
   let path = "test_bag_del_obj.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "color", "red")
   let assert Ok(Nil) = bag.insert(table, "color", "blue")
   let assert Ok(Nil) = bag.insert(table, "color", "green")
@@ -62,7 +67,8 @@ pub fn bag_delete_object_removes_one_value_test() {
 
 pub fn bag_delete_object_all_values_one_by_one_test() {
   let path = "test_bag_del_obj_all.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "a")
   let assert Ok(Nil) = bag.insert(table, "k", "b")
   let assert Ok(Nil) = bag.insert(table, "k", "c")
@@ -77,7 +83,8 @@ pub fn bag_delete_object_all_values_one_by_one_test() {
 
 pub fn bag_delete_object_wrong_value_test() {
   let path = "test_bag_del_obj_wrong.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "a")
   let assert Ok(Nil) = bag.insert(table, "k", "b")
   // Delete non-existent value — should be no-op
@@ -89,7 +96,8 @@ pub fn bag_delete_object_wrong_value_test() {
 
 pub fn bag_delete_object_preserves_other_keys_test() {
   let path = "test_bag_del_obj_other.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k1", "a")
   let assert Ok(Nil) = bag.insert(table, "k1", "b")
   let assert Ok(Nil) = bag.insert(table, "k2", "x")
@@ -105,13 +113,15 @@ pub fn bag_delete_object_preserves_other_keys_test() {
 
 pub fn bag_delete_object_persistence_test() {
   let path = "test_bag_del_obj_persist.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "keep")
   let assert Ok(Nil) = bag.insert(table, "k", "remove")
   let assert Ok(Nil) = bag.delete_object(table, "k", "remove")
   let assert Ok(Nil) = bag.close(table)
   // Reopen and verify
-  let assert Ok(table2) = bag.open(path)
+  let assert Ok(table2) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(["keep"]) = bag.lookup(table2, key: "k")
   let assert Ok(Nil) = bag.close(table2)
   cleanup(path)
@@ -119,7 +129,8 @@ pub fn bag_delete_object_persistence_test() {
 
 pub fn bag_delete_object_large_test() {
   let path = "test_bag_del_obj_large.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Insert 100 distinct values for one key
   range(0, 99)
   |> list.each(fn(i) {
@@ -142,7 +153,12 @@ pub fn bag_delete_object_large_test() {
 
 pub fn dupbag_delete_object_removes_all_copies_test() {
   let path = "test_dupbag_del_obj.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "b")
@@ -157,7 +173,12 @@ pub fn dupbag_delete_object_removes_all_copies_test() {
 
 pub fn dupbag_delete_object_preserves_other_duplicates_test() {
   let path = "test_dupbag_del_obj_other.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "b")
@@ -173,7 +194,12 @@ pub fn dupbag_delete_object_preserves_other_duplicates_test() {
 
 pub fn dupbag_delete_object_wrong_value_test() {
   let path = "test_dupbag_del_obj_wrong.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "z")
@@ -184,13 +210,23 @@ pub fn dupbag_delete_object_wrong_value_test() {
 
 pub fn dupbag_delete_object_persistence_test() {
   let path = "test_dupbag_del_obj_persist.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "keep")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "keep")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "remove")
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "remove")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(table2) = duplicate_bag.open(path)
+  let assert Ok(table2) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
   values |> expect.to_equal(["keep", "keep"])
   let assert Ok(Nil) = duplicate_bag.close(table2)
@@ -199,7 +235,12 @@ pub fn dupbag_delete_object_persistence_test() {
 
 pub fn dupbag_delete_object_empty_table_test() {
   let path = "test_dupbag_del_obj_empty.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "v")
   duplicate_bag.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = duplicate_bag.close(table)
@@ -208,7 +249,12 @@ pub fn dupbag_delete_object_empty_table_test() {
 
 pub fn dupbag_delete_object_preserves_other_keys_test() {
   let path = "test_dupbag_del_obj_okeys.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k1", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k1", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k2", "b")

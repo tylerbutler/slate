@@ -6,19 +6,24 @@
 /// ## Example
 ///
 /// ```gleam
+/// import gleam/dynamic/decode
 /// import slate/set
 ///
-/// let assert Ok(table) = set.open("users.dets")
+/// let assert Ok(table) = set.open("users.dets",
+///   key_decoder: decode.string, value_decoder: decode.int)
 /// let assert Ok(Nil) = set.insert(table, "alice", 42)
 /// let assert Ok(42) = set.lookup(table, "alice")
 /// let assert Ok(Nil) = set.close(table)
 /// ```
 ///
+import gleam/dynamic/decode.{type Decoder, type Dynamic}
+import gleam/list
+import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS set table with typed keys and values.
 pub opaque type Set(k, v) {
-  Set(ref: TableRef)
+  Set(ref: TableRef, key_decoder: Decoder(k), value_decoder: Decoder(v))
 }
 
 /// Internal reference to the DETS table (Erlang atom).
@@ -28,24 +33,32 @@ type TableRef
 
 /// Open or create a DETS set table at the given file path.
 ///
-/// If the file exists, it is opened. If it does not exist, a new table
-/// is created. The table must be closed with `close` when no longer needed.
+/// Decoders are used to validate data read from disk, ensuring type safety
+/// even when opening files created by other code or previous runs.
 ///
 /// ```gleam
-/// let assert Ok(table) = set.open("data/cache.dets")
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = set.open("data/cache.dets",
+///   key_decoder: decode.string, value_decoder: decode.int)
 /// ```
 ///
-pub fn open(path: String) -> Result(Set(k, v), DetsError) {
-  open_with(path, AutoRepair)
+pub fn open(
+  path: String,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+) -> Result(Set(k, v), DetsError) {
+  open_with(path, AutoRepair, key_decoder:, value_decoder:)
 }
 
 /// Open or create a DETS set table with repair options.
 pub fn open_with(
   path: String,
   repair: RepairPolicy,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
 ) -> Result(Set(k, v), DetsError) {
   case ffi_open_set(path, repair) {
-    Ok(ref) -> Ok(Set(ref:))
+    Ok(ref) -> Ok(Set(ref:, key_decoder:, value_decoder:))
     Error(err) -> Error(err)
   }
 }
@@ -56,7 +69,9 @@ pub fn open_with(
 /// on a read-only table will return `Error(AccessDenied)`.
 ///
 /// ```gleam
-/// let assert Ok(table) = set.open_with_access(path, AutoRepair, ReadOnly)
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = set.open_with_access(path, AutoRepair, ReadOnly,
+///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(val) = set.lookup(table, key: "key")
 /// // set.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
@@ -65,9 +80,11 @@ pub fn open_with_access(
   path: String,
   repair: RepairPolicy,
   access: AccessMode,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
 ) -> Result(Set(k, v), DetsError) {
   case ffi_open_set_with_access(path, repair, access) {
-    Ok(ref) -> Ok(Set(ref:))
+    Ok(ref) -> Ok(Set(ref:, key_decoder:, value_decoder:))
     Error(err) -> Error(err)
   }
 }
@@ -89,15 +106,19 @@ pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
 /// This is the recommended way to use DETS tables for short-lived operations.
 ///
 /// ```gleam
-/// use table <- set.with_table("data/cache.dets")
+/// import gleam/dynamic/decode
+/// use table <- set.with_table("data/cache.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
 /// set.insert(table, "key", "value")
 /// ```
 ///
 pub fn with_table(
   path: String,
-  fun: fn(Set(k, v)) -> Result(a, DetsError),
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  fun fun: fn(Set(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
-  case open(path) {
+  case open(path, key_decoder:, value_decoder:) {
     Ok(table) -> {
       let result = fun(table)
       let _ = close(table)
@@ -112,8 +133,15 @@ pub fn with_table(
 /// Look up the value for a key.
 ///
 /// Returns `Error(NotFound)` if the key does not exist.
+/// Returns `Error(DecodeErrors(_))` if the stored value doesn't match the
+/// expected type.
 pub fn lookup(from table: Set(k, v), key key: k) -> Result(v, DetsError) {
-  ffi_lookup(table.ref, key)
+  case ffi_lookup(table.ref, key) {
+    Ok(dynamic_value) ->
+      decode.run(dynamic_value, table.value_decoder)
+      |> result.map_error(slate.DecodeErrors)
+    Error(err) -> Error(err)
+  }
 }
 
 /// Check if a key exists without returning the value.
@@ -124,20 +152,38 @@ pub fn member(of table: Set(k, v), key key: k) -> Result(Bool, DetsError) {
 /// Return all key-value pairs as a list.
 ///
 /// **Warning**: loads entire table into memory.
+/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// expected types.
 pub fn to_list(from table: Set(k, v)) -> Result(List(#(k, v)), DetsError) {
-  ffi_to_list(table.ref)
+  case ffi_to_list(table.ref) {
+    Ok(entries) ->
+      decode_entries(entries, table.key_decoder, table.value_decoder)
+    Error(err) -> Error(err)
+  }
 }
 
 /// Fold over all entries. Order is unspecified.
+///
+/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// expected types. The fold stops at the first decode error.
 pub fn fold(
   over table: Set(k, v),
   from initial: acc,
   with fun: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
-  let wrapper = fn(entry: #(k, v), acc: acc) -> acc {
-    fun(acc, entry.0, entry.1)
+  let entry_decoder = tuple_decoder(table.key_decoder, table.value_decoder)
+  let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
+    case acc_result {
+      Error(err) -> Error(err)
+      Ok(acc) ->
+        case decode.run(entry, entry_decoder) {
+          Ok(#(k, v)) -> Ok(fun(acc, k, v))
+          Error(errors) -> Error(slate.DecodeErrors(errors))
+        }
+    }
   }
-  ffi_fold(table.ref, wrapper, initial)
+  ffi_fold(table.ref, wrapper, Ok(initial))
+  |> result.flatten
 }
 
 /// Return the number of objects stored.
@@ -209,7 +255,9 @@ pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
 /// Returns an error if the key doesn't exist or the value is not an integer.
 ///
 /// ```gleam
-/// let assert Ok(table) = set.open("counters.dets")
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = set.open("counters.dets",
+///   key_decoder: decode.string, value_decoder: decode.int)
 /// let assert Ok(Nil) = set.insert(table, "hits", 0)
 /// let assert Ok(1) = set.update_counter(table, "hits", 1)
 /// let assert Ok(3) = set.update_counter(table, "hits", 2)
@@ -237,6 +285,29 @@ pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
     Error(err), _ -> Error(err)
     _, Error(err) -> Error(err)
   }
+}
+
+// ── Internal helpers ─────────────────────────────────────────────────────
+
+fn tuple_decoder(
+  key_decoder: Decoder(k),
+  value_decoder: Decoder(v),
+) -> Decoder(#(k, v)) {
+  use k <- decode.field(0, key_decoder)
+  use v <- decode.field(1, value_decoder)
+  decode.success(#(k, v))
+}
+
+fn decode_entries(
+  entries: List(Dynamic),
+  key_decoder: Decoder(k),
+  value_decoder: Decoder(v),
+) -> Result(List(#(k, v)), DetsError) {
+  let decoder = tuple_decoder(key_decoder, value_decoder)
+  list.try_map(entries, fn(entry) {
+    decode.run(entry, decoder)
+    |> result.map_error(slate.DecodeErrors)
+  })
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────
@@ -273,18 +344,18 @@ fn ffi_insert_list(
 fn ffi_insert_new(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "lookup")
-fn ffi_lookup(ref: TableRef, key: k) -> Result(v, DetsError)
+fn ffi_lookup(ref: TableRef, key: k) -> Result(Dynamic, DetsError)
 
 @external(erlang, "dets_ffi", "member")
 fn ffi_member(ref: TableRef, key: k) -> Result(Bool, DetsError)
 
 @external(erlang, "dets_ffi", "to_list")
-fn ffi_to_list(ref: TableRef) -> Result(List(#(k, v)), DetsError)
+fn ffi_to_list(ref: TableRef) -> Result(List(Dynamic), DetsError)
 
 @external(erlang, "dets_ffi", "fold")
 fn ffi_fold(
   ref: TableRef,
-  fun: fn(#(k, v), acc) -> acc,
+  fun: fn(Dynamic, acc) -> acc,
   acc: acc,
 ) -> Result(acc, DetsError)
 

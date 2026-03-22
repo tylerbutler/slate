@@ -1,5 +1,6 @@
 /// Tests for the is_dets_file utility function.
 /// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
+import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
@@ -10,7 +11,8 @@ import test_helpers.{cleanup}
 pub fn is_dets_file_valid_test() {
   let path = "test_is_dets_valid.dets"
   // Create a DETS file
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
   // Check it
@@ -32,7 +34,8 @@ pub fn is_dets_file_not_dets_test() {
 
 pub fn is_dets_file_empty_table_test() {
   let path = "test_is_dets_empty.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
   cleanup(path)
@@ -56,7 +59,8 @@ pub fn is_dets_file_nonexistent_test() {
 
 pub fn is_dets_file_after_use_test() {
   let path = "test_is_dets_used.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.insert(table, "b", 2)
   let assert Ok(Nil) = set.insert(table, "c", 3)

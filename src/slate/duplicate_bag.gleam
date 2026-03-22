@@ -6,9 +6,11 @@
 /// ## Example
 ///
 /// ```gleam
+/// import gleam/dynamic/decode
 /// import slate/duplicate_bag
 ///
-/// let assert Ok(table) = duplicate_bag.open("events.dets")
+/// let assert Ok(table) = duplicate_bag.open("events.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
 /// let assert Ok(["button_a", "button_a"]) =
@@ -16,11 +18,18 @@
 /// let assert Ok(Nil) = duplicate_bag.close(table)
 /// ```
 ///
+import gleam/dynamic/decode.{type Decoder, type Dynamic}
+import gleam/list
+import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 
 /// An open DETS duplicate bag table with typed keys and values.
 pub opaque type DuplicateBag(k, v) {
-  DuplicateBag(ref: TableRef)
+  DuplicateBag(
+    ref: TableRef,
+    key_decoder: Decoder(k),
+    value_decoder: Decoder(v),
+  )
 }
 
 /// Internal reference to the DETS table (Erlang atom).
@@ -29,17 +38,33 @@ type TableRef
 // ── Lifecycle ───────────────────────────────────────────────────────────
 
 /// Open or create a DETS duplicate bag table at the given file path.
-pub fn open(path: String) -> Result(DuplicateBag(k, v), DetsError) {
-  open_with(path, AutoRepair)
+///
+/// Decoders are used to validate data read from disk, ensuring type safety
+/// even when opening files created by other code or previous runs.
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = duplicate_bag.open("data/events.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// ```
+///
+pub fn open(
+  path: String,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+) -> Result(DuplicateBag(k, v), DetsError) {
+  open_with(path, AutoRepair, key_decoder:, value_decoder:)
 }
 
 /// Open or create a DETS duplicate bag table with repair options.
 pub fn open_with(
   path: String,
   repair: RepairPolicy,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
   case ffi_open_duplicate_bag(path, repair) {
-    Ok(ref) -> Ok(DuplicateBag(ref:))
+    Ok(ref) -> Ok(DuplicateBag(ref:, key_decoder:, value_decoder:))
     Error(err) -> Error(err)
   }
 }
@@ -47,13 +72,23 @@ pub fn open_with(
 /// Open a DETS duplicate bag table with repair and access mode options.
 ///
 /// Use `ReadOnly` to open a table for reading only.
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = duplicate_bag.open_with_access(path, AutoRepair, ReadOnly,
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// let assert Ok(vals) = duplicate_bag.lookup(table, key: "key")
+/// ```
+///
 pub fn open_with_access(
   path: String,
   repair: RepairPolicy,
   access: AccessMode,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
   case ffi_open_duplicate_bag_with_access(path, repair, access) {
-    Ok(ref) -> Ok(DuplicateBag(ref:))
+    Ok(ref) -> Ok(DuplicateBag(ref:, key_decoder:, value_decoder:))
     Error(err) -> Error(err)
   }
 }
@@ -69,11 +104,23 @@ pub fn sync(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
 }
 
 /// Use a table within a callback, ensuring it is closed afterward.
+///
+/// This is the recommended way to use DETS tables for short-lived operations.
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// use table <- duplicate_bag.with_table("data/events.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// duplicate_bag.insert(table, "click", "button_a")
+/// ```
+///
 pub fn with_table(
   path: String,
-  fun: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  fun fun: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
-  case open(path) {
+  case open(path, key_decoder:, value_decoder:) {
     Ok(table) -> {
       let result = fun(table)
       let _ = close(table)
@@ -86,11 +133,21 @@ pub fn with_table(
 // ── Read ────────────────────────────────────────────────────────────────
 
 /// Look up all values for a key. Returns an empty list if key not found.
+///
+/// Returns `Error(DecodeErrors(_))` if any stored value doesn't match the
+/// expected type.
 pub fn lookup(
   from table: DuplicateBag(k, v),
   key key: k,
 ) -> Result(List(v), DetsError) {
-  ffi_lookup_all(table.ref, key)
+  case ffi_lookup_all(table.ref, key) {
+    Ok(dynamic_values) ->
+      list.try_map(dynamic_values, fn(dv) {
+        decode.run(dv, table.value_decoder)
+        |> result.map_error(slate.DecodeErrors)
+      })
+    Error(err) -> Error(err)
+  }
 }
 
 /// Check if a key exists without returning the values.
@@ -104,22 +161,40 @@ pub fn member(
 /// Return all key-value pairs as a list.
 ///
 /// **Warning**: loads entire table into memory.
+/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// expected types.
 pub fn to_list(
   from table: DuplicateBag(k, v),
 ) -> Result(List(#(k, v)), DetsError) {
-  ffi_to_list(table.ref)
+  case ffi_to_list(table.ref) {
+    Ok(entries) ->
+      decode_entries(entries, table.key_decoder, table.value_decoder)
+    Error(err) -> Error(err)
+  }
 }
 
 /// Fold over all entries. Order is unspecified.
+///
+/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// expected types. The fold stops at the first decode error.
 pub fn fold(
   over table: DuplicateBag(k, v),
   from initial: acc,
   with fun: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
-  let wrapper = fn(entry: #(k, v), acc: acc) -> acc {
-    fun(acc, entry.0, entry.1)
+  let entry_decoder = tuple_decoder(table.key_decoder, table.value_decoder)
+  let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
+    case acc_result {
+      Error(err) -> Error(err)
+      Ok(acc) ->
+        case decode.run(entry, entry_decoder) {
+          Ok(#(k, v)) -> Ok(fun(acc, k, v))
+          Error(errors) -> Error(slate.DecodeErrors(errors))
+        }
+    }
   }
-  ffi_fold(table.ref, wrapper, initial)
+  ffi_fold(table.ref, wrapper, Ok(initial))
+  |> result.flatten
 }
 
 /// Return the number of objects stored.
@@ -162,7 +237,9 @@ pub fn delete_key(
 /// Other values (or different duplicates) for the same key are preserved.
 ///
 /// ```gleam
-/// let assert Ok(table) = duplicate_bag.open("events.dets")
+/// import gleam/dynamic/decode
+/// let assert Ok(table) = duplicate_bag.open("events.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
 /// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_b")
@@ -199,6 +276,29 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
   }
 }
 
+// ── Internal helpers ─────────────────────────────────────────────────────
+
+fn tuple_decoder(
+  key_decoder: Decoder(k),
+  value_decoder: Decoder(v),
+) -> Decoder(#(k, v)) {
+  use k <- decode.field(0, key_decoder)
+  use v <- decode.field(1, value_decoder)
+  decode.success(#(k, v))
+}
+
+fn decode_entries(
+  entries: List(Dynamic),
+  key_decoder: Decoder(k),
+  value_decoder: Decoder(v),
+) -> Result(List(#(k, v)), DetsError) {
+  let decoder = tuple_decoder(key_decoder, value_decoder)
+  list.try_map(entries, fn(entry) {
+    decode.run(entry, decoder)
+    |> result.map_error(slate.DecodeErrors)
+  })
+}
+
 // ── FFI bindings ────────────────────────────────────────────────────────
 
 @external(erlang, "dets_ffi", "open_duplicate_bag")
@@ -230,18 +330,18 @@ fn ffi_insert_list(
 ) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "lookup_all")
-fn ffi_lookup_all(ref: TableRef, key: k) -> Result(List(v), DetsError)
+fn ffi_lookup_all(ref: TableRef, key: k) -> Result(List(Dynamic), DetsError)
 
 @external(erlang, "dets_ffi", "member")
 fn ffi_member(ref: TableRef, key: k) -> Result(Bool, DetsError)
 
 @external(erlang, "dets_ffi", "to_list")
-fn ffi_to_list(ref: TableRef) -> Result(List(#(k, v)), DetsError)
+fn ffi_to_list(ref: TableRef) -> Result(List(Dynamic), DetsError)
 
 @external(erlang, "dets_ffi", "fold")
 fn ffi_fold(
   ref: TableRef,
-  fun: fn(#(k, v), acc) -> acc,
+  fun: fn(Dynamic, acc) -> acc,
   acc: acc,
 ) -> Result(acc, DetsError)
 
