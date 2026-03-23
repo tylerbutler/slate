@@ -1,0 +1,7 @@
+kind: Fixed
+body: |-
+    Fix `with_table/3` not closing the table handle when callback throws an exception
+
+    `with_table` now ensures the table is always closed even when the
+    user-supplied callback raises an exception, preventing table handle leaks.
+time: 2026-03-22T12:00:00.000000+00:00

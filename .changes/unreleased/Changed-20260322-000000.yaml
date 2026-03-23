@@ -1,0 +1,9 @@
+kind: Changed
+body: |-
+    `bag.insert/3` now returns `Error(KeyAlreadyPresent)` for duplicate key-value pairs.
+
+    Previously, inserting a key-value pair that already existed in a bag table was
+    silently ignored and returned `Ok(Nil)`. It now returns `Error(KeyAlreadyPresent)`
+    to make the behavior explicit and allow callers to distinguish between a successful
+    insert and a no-op duplicate.
+time: 2026-03-22T00:00:00.000000-00:00
