@@ -63,10 +63,8 @@ pub fn open_with(
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
-  case ffi_open_duplicate_bag(path, repair) {
-    Ok(ref) -> Ok(DuplicateBag(ref:, key_decoder:, value_decoder:))
-    Error(err) -> Error(err)
-  }
+  ffi_open_duplicate_bag(path, repair)
+  |> result.map(fn(ref) { DuplicateBag(ref:, key_decoder:, value_decoder:) })
 }
 
 /// Open a DETS duplicate bag table with repair and access mode options.
@@ -87,10 +85,8 @@ pub fn open_with_access(
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
-  case ffi_open_duplicate_bag_with_access(path, repair, access) {
-    Ok(ref) -> Ok(DuplicateBag(ref:, key_decoder:, value_decoder:))
-    Error(err) -> Error(err)
-  }
+  ffi_open_duplicate_bag_with_access(path, repair, access)
+  |> result.map(fn(ref) { DuplicateBag(ref:, key_decoder:, value_decoder:) })
 }
 
 /// Close the table, flushing all pending writes to disk.
