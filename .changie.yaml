@@ -19,6 +19,8 @@ body:
 kinds:
     - label: Added
       auto: minor
+    - label: Breaking
+      auto: minor
     - label: Changed
       auto: patch
     - label: Deprecated
