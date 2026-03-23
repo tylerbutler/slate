@@ -24,7 +24,7 @@ DETS is built into OTP — no external database or dependency is needed. slate f
 
 - **Three table types**: `set` (unique keys), `bag` (multiple distinct values per key), `duplicate_bag` (duplicates allowed)
 - **Automatic persistence**: Data survives process crashes and node restarts
-- **Safe resource management**: `with_table` callbacks ensure tables are always properly closed
+- **Convenient short-lived lifecycle**: `with_table` closes tables when the callback returns and attempts cleanup if the callback raises
 - **Zero external dependencies**: Built entirely on OTP's DETS module
 - **Erlang target**: Runs on the BEAM virtual machine
 

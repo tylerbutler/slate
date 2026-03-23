@@ -115,11 +115,7 @@ pub fn with_table(
   fun fun: fn(Set(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open(path, key_decoder:, value_decoder:) {
-    Ok(table) -> {
-      let callback_result = fun(table)
-      let close_result = close(table)
-      finalize_with_close(callback_result, close_result)
-    }
+    Ok(table) -> ffi_with_close(table, fun, close)
     Error(err) -> Error(err)
   }
 }
@@ -284,19 +280,6 @@ pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
   }
 }
 
-// ── Internal helpers ─────────────────────────────────────────────────────
-
-fn finalize_with_close(
-  callback_result: Result(a, DetsError),
-  close_result: Result(Nil, DetsError),
-) -> Result(a, DetsError) {
-  case callback_result, close_result {
-    Ok(value), Ok(_) -> Ok(value)
-    Ok(_), Error(close_err) -> Error(close_err)
-    Error(callback_err), _ -> Error(callback_err)
-  }
-}
-
 fn tuple_decoder(
   key_decoder: Decoder(k),
   value_decoder: Decoder(v),
@@ -335,6 +318,13 @@ fn ffi_open_set_with_access(
 
 @external(erlang, "dets_ffi", "close")
 fn ffi_close(ref: TableRef) -> Result(Nil, DetsError)
+
+@external(erlang, "with_table_ffi", "with_close")
+fn ffi_with_close(
+  table: Set(k, v),
+  fun: fn(Set(k, v)) -> Result(a, DetsError),
+  close: fn(Set(k, v)) -> Result(Nil, DetsError),
+) -> Result(a, DetsError)
 
 @external(erlang, "dets_ffi", "sync")
 fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)

@@ -34,12 +34,13 @@ just clean        # Remove build artifacts
 
 ```
 src/
-├── slate.gleam            # Shared types (DetsError, Kind, RepairPolicy, TableInfo)
-├── dets_ffi.erl                # Erlang FFI for DETS operations
+├── slate.gleam                # Shared types (DetsError, Kind, RepairPolicy, TableInfo)
+├── dets_ffi.erl              # Erlang FFI for DETS operations
+├── with_table_ffi.erl        # Close-on-exit helper used by with_table
 └── slate/
-    ├── set.gleam               # Set tables (unique keys)
-    ├── bag.gleam               # Bag tables (multiple distinct values per key)
-    └── duplicate_bag.gleam     # Duplicate bag tables (duplicates allowed)
+    ├── set.gleam             # Set tables (unique keys)
+    ├── bag.gleam             # Bag tables (multiple distinct values per key)
+    └── duplicate_bag.gleam   # Duplicate bag tables (duplicates allowed)
 test/
 ├── slate_test.gleam            # Test entry point (startest.run)
 ├── test_helpers.gleam          # Shared test utilities (cleanup, unique paths)
@@ -67,6 +68,7 @@ test/
 - **`slate/bag`**: Bag tables — multiple distinct values per key
 - **`slate/duplicate_bag`**: Duplicate bag tables — allows duplicate key-value pairs
 - **`dets_ffi.erl`**: Erlang FFI wrapping `dets:*` calls with try-catch error translation
+- **`with_table_ffi.erl`**: Erlang helper that closes tables when `with_table` callbacks return or raise
 
 ### FFI Pattern
 
@@ -88,8 +90,8 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 
 - **Module name**: `slate` (not `dets`) to avoid Erlang module name collision
 - **Opaque table handles**: `Set(k, v)`, `Bag(k, v)`, `DuplicateBag(k, v)` enforce type safety
-- **Table name = path atom**: DETS table names are derived from the file path converted to an atom
-- **`with_table` helper**: Ensures tables are closed even if the callback fails
+- **Bounded table-name pool**: `dets_ffi.erl` reuses a fixed internal pool of DETS table names instead of creating one atom per path
+- **`with_table` helper**: Closes when the callback returns and also attempts cleanup if the callback raises; it always uses the default `AutoRepair` + `ReadWrite` open path and is still not crash-proof if the owning process is killed outright
 
 ## Dependencies
 
@@ -151,5 +153,5 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 - **2 GB maximum file size** per table
 - **No `ordered_set`** table type (unlike ETS)
 - **Disk I/O** on every operation — not suitable for high-frequency reads
-- **Tables must be closed properly** — use `with_table` for safety
-- **Atom exhaustion risk** — each unique path creates an atom for the table name
+- **Tables must be closed properly** — `with_table` closes on callback return and attempts cleanup on callback failure, but abrupt process exits can still leave DETS needing repair
+- **Bounded table-name pool** — slate avoids unbounded atom growth, but only a bounded number of distinct tables can be open at once

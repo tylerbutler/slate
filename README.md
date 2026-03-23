@@ -69,14 +69,20 @@ import gleam/dynamic/decode
 import slate/set
 
 pub fn main() {
-  // Table is automatically closed when the callback returns
-  let assert Ok(result) = set.with_table("data/config.dets",
+  // Table is closed after the callback returns
+  let assert Ok(Nil) = set.with_table("data/config.dets",
     key_decoder: decode.string, value_decoder: decode.string,
     fun: fn(table) {
       set.insert(table, "theme", "dark")
     })
 }
 ```
+
+Use `with_table` for short-lived operations. It opens with the default
+`AutoRepair` + `ReadWrite` settings, closes when the callback returns, and also
+attempts cleanup if the callback raises. It still does not make DETS
+crash-proof — if the owning process is terminated before cleanup runs, DETS may
+still need repair on the next open.
 
 ### Bag tables (multiple values per key)
 
@@ -150,7 +156,7 @@ All three table types (`set`, `bag`, `duplicate_bag`) share the same API surface
 | `open_with_access(path, repair, access, key_decoder, value_decoder)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
-| `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback |
+| `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
 | `insert_new(table, key, value)` | Insert if key absent (set only) |
@@ -176,7 +182,7 @@ The `slate` module also provides:
 - **2 GB maximum file size** per table — a hard limit in DETS
 - **No `ordered_set`** — DETS only supports `set`, `bag`, and `duplicate_bag`
 - **Disk I/O** on every operation — for high-frequency reads, load into ETS at startup
-- **Must close properly** — use `with_table` or ensure `close` is called
+- **Must close properly** — `with_table` closes on callback return and attempts cleanup on callback failure, otherwise ensure `close` is called
 - **Bounded table name pool** — slate uses an internal bounded set of DETS table names to avoid unbounded atom growth. Opening too many distinct tables at once can fail; close tables when no longer needed
 - **Erlang only** — DETS is a BEAM feature, no JavaScript target support
 

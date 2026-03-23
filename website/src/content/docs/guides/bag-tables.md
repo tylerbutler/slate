@@ -10,16 +10,18 @@ Bag tables are provided by the `slate/bag` module and correspond to the `bag` ta
 ## Opening and closing
 
 ```gleam
+import gleam/dynamic/decode
 import slate/bag
 
-let assert Ok(table) = bag.open("data/tags.dets")
+let assert Ok(table) = bag.open("data/tags.dets",
+  key_decoder: decode.string, value_decoder: decode.string)
 
 // ... use the table ...
 
 let assert Ok(Nil) = bag.close(table)
 ```
 
-For safer lifecycle management, use [`with_table`](/advanced/with-table/) instead.
+For short-lived operations, use [`with_table`](/advanced/with-table/) to close the table when the callback returns.
 
 ## Inserting data
 
@@ -110,16 +112,20 @@ let assert Ok(info) = bag.info(table)
 
 ```gleam
 import slate.{AutoRepair, ForceRepair, NoRepair}
+import gleam/dynamic/decode
 
-let assert Ok(table) = bag.open_with("data/tags.dets", AutoRepair)
+let assert Ok(table) = bag.open_with("data/tags.dets", AutoRepair,
+  key_decoder: decode.string, value_decoder: decode.string)
 ```
 
 ### Access mode
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
+import gleam/dynamic/decode
 
-let assert Ok(table) = bag.open_with_access("data/tags.dets", AutoRepair, ReadOnly)
+let assert Ok(table) = bag.open_with_access("data/tags.dets", AutoRepair, ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.string)
 ```
 
 ## When to use bag tables

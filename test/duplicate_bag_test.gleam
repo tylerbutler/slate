@@ -4,7 +4,7 @@ import gleam/list
 import slate
 import slate/duplicate_bag
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers.{cleanup, did_panic, is_table_open, range}
 
 // ── DuplicateBag: Open / Close ──────────────────────────────────────────
 
@@ -296,6 +296,47 @@ pub fn duplicate_bag_with_table_close_error_propagates_test() {
   }
   close_error_propagated |> expect.to_be_true()
   cleanup(path)
+}
+
+pub fn duplicate_bag_with_table_panic_still_closes_test() {
+  let path = "test_dupbag_with_panic.dets"
+  did_panic(fn() {
+    let _ =
+      duplicate_bag.with_table(
+        path,
+        key_decoder: decode.string,
+        value_decoder: decode.string,
+        fun: fn(table) {
+          let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
+          panic as "boom"
+        },
+      )
+    Nil
+  })
+  |> expect.to_be_true()
+  is_table_open(path) |> expect.to_equal(False)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  let assert Ok(["val"]) = duplicate_bag.lookup(table, key: "key")
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  cleanup(path)
+}
+
+pub fn duplicate_bag_with_table_open_error_test() {
+  let path =
+    "missing_dupbag_with_table_dir/test_dupbag_with_table_open_error.dets"
+  duplicate_bag.with_table(
+    path,
+    key_decoder: decode.string,
+    value_decoder: decode.string,
+    fun: fn(_table) { Ok(Nil) },
+  )
+  |> expect.to_equal(Error(slate.FileNotFound))
+  is_table_open(path) |> expect.to_equal(False)
 }
 
 pub fn duplicate_bag_repair_policies_test() {

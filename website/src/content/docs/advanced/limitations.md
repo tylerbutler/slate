@@ -27,7 +27,7 @@ The related library [shelf](https://github.com/tylerbutler/shelf) automates this
 
 ## Tables must be closed properly
 
-If a DETS table is not closed properly (e.g., due to a crash), pending writes may be lost and the file may need repair on the next open. Use [`with_table`](/advanced/with-table/) for short-lived operations to ensure tables are always closed.
+If a DETS table is not closed properly (for example, because the owning process exits unexpectedly), pending writes may be lost and the file may need repair on the next open. Use [`with_table`](/advanced/with-table/) for short-lived operations that should clean up when the callback returns or raises, or call `close` yourself for longer-lived tables.
 
 By default, slate uses `AutoRepair`, which automatically repairs improperly closed tables. You can also use `ForceRepair` to always repair, or `NoRepair` to return an error instead.
 
@@ -35,9 +35,9 @@ By default, slate uses `AutoRepair`, which automatically repairs improperly clos
 
 DETS is a BEAM feature. slate only works with Gleam's **Erlang target** — there is no JavaScript target support.
 
-## Atom exhaustion
+## Bounded table-name pool
 
-DETS table names are derived from the file path, converted to an Erlang atom. Erlang atoms are never garbage collected, so each unique file path permanently consumes an atom. This is rarely a problem in practice, but avoid opening tables with dynamically generated paths in a loop.
+slate uses a bounded internal pool of DETS table names instead of creating one atom per path. That avoids unbounded atom growth, but it also means only a bounded number of distinct tables can be open at once. If you open too many different paths concurrently, new opens can fail until some tables are closed.
 
 ## No concurrent access from multiple OS processes
 

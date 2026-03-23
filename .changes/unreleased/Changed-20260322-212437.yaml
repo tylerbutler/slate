@@ -1,0 +1,8 @@
+kind: Changed
+body: |-
+    Improved lifecycle safety and error handling for DETS-backed tables.
+
+    - `with_table` now always attempts to close the table, even if the callback raises
+    - normalized stale-handle/info/update_counter error behavior
+    - clarified bounded table-name pool and `with_table` lifecycle guarantees in the docs
+time: 2026-03-22T21:24:37-07:00

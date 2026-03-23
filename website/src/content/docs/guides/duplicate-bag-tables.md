@@ -10,16 +10,18 @@ Duplicate bag tables are provided by the `slate/duplicate_bag` module and corres
 ## Opening and closing
 
 ```gleam
+import gleam/dynamic/decode
 import slate/duplicate_bag
 
-let assert Ok(table) = duplicate_bag.open("data/events.dets")
+let assert Ok(table) = duplicate_bag.open("data/events.dets",
+  key_decoder: decode.string, value_decoder: decode.string)
 
 // ... use the table ...
 
 let assert Ok(Nil) = duplicate_bag.close(table)
 ```
 
-For safer lifecycle management, use [`with_table`](/advanced/with-table/) instead.
+For short-lived operations, use [`with_table`](/advanced/with-table/) to close the table when the callback returns.
 
 ## Inserting data
 
@@ -108,16 +110,20 @@ let assert Ok(info) = duplicate_bag.info(table)
 
 ```gleam
 import slate.{AutoRepair}
+import gleam/dynamic/decode
 
-let assert Ok(table) = duplicate_bag.open_with("data/events.dets", AutoRepair)
+let assert Ok(table) = duplicate_bag.open_with("data/events.dets", AutoRepair,
+  key_decoder: decode.string, value_decoder: decode.string)
 ```
 
 ### Access mode
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
+import gleam/dynamic/decode
 
-let assert Ok(table) = duplicate_bag.open_with_access("data/events.dets", AutoRepair, ReadOnly)
+let assert Ok(table) = duplicate_bag.open_with_access("data/events.dets", AutoRepair, ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.string)
 ```
 
 ## Bag vs. Duplicate Bag

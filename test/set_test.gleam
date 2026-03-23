@@ -6,7 +6,7 @@ import gleam/string
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, range, unsafe_decoder}
+import test_helpers.{cleanup, did_panic, is_table_open, range, unsafe_decoder}
 
 // ── Set: Open / Close ───────────────────────────────────────────────────
 
@@ -240,6 +240,42 @@ pub fn set_with_table_close_error_propagates_test() {
   }
   close_error_propagated |> expect.to_be_true()
   cleanup(path)
+}
+
+pub fn set_with_table_panic_still_closes_test() {
+  let path = "test_set_with_panic.dets"
+  did_panic(fn() {
+    let _ =
+      set.with_table(
+        path,
+        key_decoder: decode.string,
+        value_decoder: decode.string,
+        fun: fn(table) {
+          let assert Ok(Nil) = set.insert(table, "key", "val")
+          panic as "boom"
+        },
+      )
+    Nil
+  })
+  |> expect.to_be_true()
+  is_table_open(path) |> expect.to_equal(False)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok("val") = set.lookup(table, key: "key")
+  let assert Ok(Nil) = set.close(table)
+  cleanup(path)
+}
+
+pub fn set_with_table_open_error_test() {
+  let path = "missing_set_with_table_dir/test_set_with_table_open_error.dets"
+  set.with_table(
+    path,
+    key_decoder: decode.string,
+    value_decoder: decode.string,
+    fun: fn(_table) { Ok(Nil) },
+  )
+  |> expect.to_equal(Error(slate.FileNotFound))
+  is_table_open(path) |> expect.to_equal(False)
 }
 
 pub fn set_path_alias_shares_open_table_test() {

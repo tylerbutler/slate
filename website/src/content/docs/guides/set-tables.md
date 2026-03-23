@@ -10,16 +10,18 @@ Set tables are provided by the `slate/set` module and correspond to the `set` ta
 ## Opening and closing
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
-let assert Ok(table) = set.open("data/users.dets")
+let assert Ok(table) = set.open("data/users.dets",
+  key_decoder: decode.string, value_decoder: decode.int)
 
 // ... use the table ...
 
 let assert Ok(Nil) = set.close(table)
 ```
 
-For safer lifecycle management, use [`with_table`](/advanced/with-table/) instead.
+For short-lived operations, use [`with_table`](/advanced/with-table/) to close the table when the callback returns.
 
 ## Inserting data
 
@@ -66,7 +68,7 @@ let assert Ok(False) = set.member(table, key: "unknown")
 // Delete a single key
 let assert Ok(Nil) = set.delete_key(table, key: "alice")
 
-// Delete a specific key-value pair (equivalent to delete_key for sets)
+// Delete only if both the key and value match
 let assert Ok(Nil) = set.delete_object(table, key: "bob", value: 37)
 
 // Clear all entries
@@ -130,15 +132,19 @@ Control how slate handles improperly closed tables:
 
 ```gleam
 import slate.{AutoRepair, ForceRepair, NoRepair}
+import gleam/dynamic/decode
 
 // Default: auto-repair if needed
-let assert Ok(table) = set.open_with("data/users.dets", AutoRepair)
+let assert Ok(table) = set.open_with("data/users.dets", AutoRepair,
+  key_decoder: decode.string, value_decoder: decode.int)
 
 // Force repair even if file appears clean
-let assert Ok(table) = set.open_with("data/users.dets", ForceRepair)
+let assert Ok(table) = set.open_with("data/users.dets", ForceRepair,
+  key_decoder: decode.string, value_decoder: decode.int)
 
 // Return an error instead of repairing
-let assert Ok(table) = set.open_with("data/users.dets", NoRepair)
+let assert Ok(table) = set.open_with("data/users.dets", NoRepair,
+  key_decoder: decode.string, value_decoder: decode.int)
 ```
 
 ### Access mode
@@ -147,8 +153,10 @@ Open a table as read-only to prevent accidental writes:
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
+import gleam/dynamic/decode
 
-let assert Ok(table) = set.open_with_access("data/users.dets", AutoRepair, ReadOnly)
+let assert Ok(table) = set.open_with_access("data/users.dets", AutoRepair, ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.int)
 let assert Ok(42) = set.lookup(table, key: "alice")
 // set.insert(table, "alice", 99) would return Error(AccessDenied)
 ```

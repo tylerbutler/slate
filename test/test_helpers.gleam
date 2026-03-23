@@ -7,6 +7,16 @@ pub fn cleanup(path: String) {
   Nil
 }
 
+/// Returns `True` when the provided function exits abnormally.
+pub fn did_panic(fun: fn() -> a) -> Bool {
+  ffi_did_panic(fun)
+}
+
+/// Returns `True` when the DETS table for `path` is currently open.
+pub fn is_table_open(path: String) -> Bool {
+  ffi_is_table_open(path)
+}
+
 /// Build an inclusive integer range from `from` to `to`.
 ///
 /// Returns an empty list when `from > to`.
@@ -38,6 +48,12 @@ fn delete_file(path: String) -> Result(Nil, DynError)
 
 /// Dynamic Erlang error returned by `file:delete/1`.
 type DynError
+
+@external(erlang, "test_helpers_ffi", "did_panic")
+fn ffi_did_panic(fun: fn() -> a) -> Bool
+
+@external(erlang, "test_helpers_ffi", "is_table_open")
+fn ffi_is_table_open(path: String) -> Bool
 
 @external(erlang, "test_helpers_ffi", "identity")
 fn unsafe_coerce(value: Dynamic) -> a

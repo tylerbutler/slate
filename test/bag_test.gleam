@@ -5,7 +5,7 @@ import gleam/string
 import slate
 import slate/bag
 import startest/expect
-import test_helpers.{cleanup, range, unsafe_decoder}
+import test_helpers.{cleanup, did_panic, is_table_open, range, unsafe_decoder}
 
 // ── Bag: Open / Close ───────────────────────────────────────────────────
 
@@ -290,6 +290,42 @@ pub fn bag_with_table_close_error_propagates_test() {
   }
   close_error_propagated |> expect.to_be_true()
   cleanup(path)
+}
+
+pub fn bag_with_table_panic_still_closes_test() {
+  let path = "test_bag_with_panic.dets"
+  did_panic(fn() {
+    let _ =
+      bag.with_table(
+        path,
+        key_decoder: decode.string,
+        value_decoder: decode.string,
+        fun: fn(table) {
+          let assert Ok(Nil) = bag.insert(table, "key", "val")
+          panic as "boom"
+        },
+      )
+    Nil
+  })
+  |> expect.to_be_true()
+  is_table_open(path) |> expect.to_equal(False)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(["val"]) = bag.lookup(table, key: "key")
+  let assert Ok(Nil) = bag.close(table)
+  cleanup(path)
+}
+
+pub fn bag_with_table_open_error_test() {
+  let path = "missing_bag_with_table_dir/test_bag_with_table_open_error.dets"
+  bag.with_table(
+    path,
+    key_decoder: decode.string,
+    value_decoder: decode.string,
+    fun: fn(_table) { Ok(Nil) },
+  )
+  |> expect.to_equal(Error(slate.FileNotFound))
+  is_table_open(path) |> expect.to_equal(False)
 }
 
 pub fn bag_repair_policies_test() {

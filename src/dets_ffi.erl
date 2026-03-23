@@ -221,15 +221,18 @@ to_list(Name) ->
 %% ── Info ────────────────────────────────────────────────────────────────
 
 info_size(Name) ->
-    case dets:info(Name, size) of
-        undefined -> {error, {erlang_error, <<"Table does not exist">>}};
-        N -> {ok, N}
-    end.
+    info_integer(Name, size).
 
 info_file_size(Name) ->
-    case dets:info(Name, file_size) of
-        undefined -> {error, {erlang_error, <<"Table does not exist">>}};
-        N -> {ok, N}
+    info_integer(Name, file_size).
+
+info_integer(Name, Item) ->
+    try dets:info(Name, Item) of
+        undefined -> {error, table_does_not_exist};
+        Value when is_integer(Value) -> {ok, Value};
+        Other -> {error, unexpected_error({dets_info, Item, Other})}
+    catch
+        error:Reason -> {error, translate_error(Reason)}
     end.
 
 %% ── Utilities ───────────────────────────────────────────────────────────
@@ -246,10 +249,35 @@ is_dets_file(Path) ->
 update_counter(Name, Key, Increment) ->
     try dets:update_counter(Name, Key, Increment) of
         NewVal when is_integer(NewVal) -> {ok, NewVal};
-        {error, Reason} -> {error, translate_error(Reason)}
+        {error, Reason} -> {error, translate_error(Reason)};
+        Other -> {error, unexpected_error({update_counter, Other})}
     catch
-        error:badarg -> {error, {erlang_error, <<"update_counter failed: key not found or value not an integer">>}};
-        _:Reason -> {error, translate_error(Reason)}
+        error:badarg -> classify_update_counter_badarg(Name, Key);
+        error:Reason -> {error, translate_error(Reason)}
+    end.
+
+classify_update_counter_badarg(Name, Key) ->
+    case info_integer(Name, size) of
+        {error, table_does_not_exist} ->
+            {error, table_does_not_exist};
+        {ok, _} ->
+            classify_update_counter_lookup(Name, Key);
+        {error, Reason} ->
+            {error, Reason}
+    end.
+
+classify_update_counter_lookup(Name, Key) ->
+    try dets:lookup(Name, Key) of
+        [] ->
+            {error, not_found};
+        [{_, Value} | _] when is_integer(Value) ->
+            {error, unexpected_error(update_counter_badarg)};
+        [{_, _} | _] ->
+            {error, {erlang_error, <<"update_counter requires an integer value">>}};
+        Other ->
+            {error, unexpected_error({update_counter_lookup, Other})}
+    catch
+        error:Reason -> {error, translate_error(Reason)}
     end.
 
 %% ── Error translation ──────────────────────────────────────────────────
@@ -271,4 +299,7 @@ translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->
+    unexpected_error(Reason).
+
+unexpected_error(Reason) ->
     {erlang_error, list_to_binary(io_lib:format("~p", [Reason]))}.

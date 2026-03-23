@@ -18,11 +18,13 @@ gleam add slate
 ## 2. Open a table and store data
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
 pub fn main() {
   // Open or create a table
-  let assert Ok(users) = set.open("data/users.dets")
+  let assert Ok(users) = set.open("data/users.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
 
   // Insert key-value pairs
   let assert Ok(Nil) = set.insert(users, "alice", 42)
@@ -40,16 +42,19 @@ pub fn main() {
 ## 3. Data persists across restarts
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
 pub fn write() {
-  let assert Ok(table) = set.open("data/state.dets")
+  let assert Ok(table) = set.open("data/state.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "counter", 42)
   let assert Ok(Nil) = set.close(table)
 }
 
 pub fn read() {
-  let assert Ok(table) = set.open("data/state.dets")
+  let assert Ok(table) = set.open("data/state.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(42) = set.lookup(table, key: "counter")
   let assert Ok(Nil) = set.close(table)
 }
@@ -60,4 +65,4 @@ pub fn read() {
 - Learn about [Set Tables](/guides/set-tables/) for unique key-value storage
 - Use [Bag Tables](/guides/bag-tables/) for multiple values per key
 - Explore [Duplicate Bag Tables](/guides/duplicate-bag-tables/) for allowing duplicates
-- Use [`with_table`](/advanced/with-table/) for safe resource management
+- Use [`with_table`](/advanced/with-table/) for short-lived operations that close on return
