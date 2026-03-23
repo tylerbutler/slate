@@ -127,6 +127,29 @@ pub fn type_mismatch_dupbag_as_bag_test() {
   cleanup(path)
 }
 
+pub fn already_open_with_conflicting_access_test() {
+  let path = "test_already_open_access.dets"
+  let assert Ok(table) =
+    set.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadWrite,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  let result =
+    set.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  result |> expect.to_equal(Error(slate.AlreadyOpen))
+  let assert Ok(Nil) = set.close(table)
+  cleanup(path)
+}
+
 // ── insert_new on bag tables (OTP insert_new test) ──────────────────────
 // OTP: insert_new on bag returns false if key already exists,
 // even if the value is different.

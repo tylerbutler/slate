@@ -272,6 +272,26 @@ pub fn bag_with_table_test() {
   cleanup(path)
 }
 
+pub fn bag_with_table_close_error_propagates_test() {
+  let path = "test_bag_with_close_err.dets"
+  let result =
+    bag.with_table(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+      fun: fn(table) {
+        let assert Ok(Nil) = bag.close(table)
+        Ok(Nil)
+      },
+    )
+  let close_error_propagated = case result {
+    Error(_) -> True
+    Ok(_) -> False
+  }
+  close_error_propagated |> expect.to_be_true()
+  cleanup(path)
+}
+
 pub fn bag_repair_policies_test() {
   let path = "test_bag_repair.dets"
   let assert Ok(table) =

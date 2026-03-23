@@ -36,6 +36,8 @@ pub fn truncated_file_auto_repair_test() {
   case result {
     Ok(table2) -> {
       // Table opened (possibly with some data lost)
+      let assert Ok(size) = set.size(table2)
+      { size <= 100 } |> expect.to_be_true()
       let assert Ok(Nil) = set.close(table2)
       Nil
     }
@@ -69,9 +71,9 @@ pub fn no_repair_rejects_corrupted_file_test() {
   case result {
     Error(_) -> Nil
     Ok(table2) -> {
-      // If it opened, the corruption wasn't detected at the flag level
       let assert Ok(Nil) = set.close(table2)
-      Nil
+      cleanup(path)
+      panic as "NoRepair should reject a corrupted DETS file"
     }
   }
   cleanup(path)

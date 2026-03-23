@@ -29,9 +29,9 @@
 /// - No `ordered_set` table type (unlike ETS)
 /// - Disk I/O on every operation (use ETS for high-frequency reads)
 /// - Tables must be closed properly or data may be lost
-/// - **Atom exhaustion**: each unique file path permanently consumes an
-///   Erlang atom (atoms are never garbage collected). Avoid opening tables
-///   with unbounded dynamic paths (e.g., user-generated filenames)
+/// - **Bounded table name pool**: slate uses a bounded set of internal
+///   DETS table names to avoid unbounded atom growth. Opening too many
+///   distinct tables at once may fail; close unused tables promptly
 ///
 /// Errors that can occur during DETS operations.
 import gleam/dynamic/decode

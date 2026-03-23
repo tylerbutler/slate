@@ -278,6 +278,26 @@ pub fn duplicate_bag_with_table_test() {
   cleanup(path)
 }
 
+pub fn duplicate_bag_with_table_close_error_propagates_test() {
+  let path = "test_dupbag_with_close_err.dets"
+  let result =
+    duplicate_bag.with_table(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+      fun: fn(table) {
+        let assert Ok(Nil) = duplicate_bag.close(table)
+        Ok(Nil)
+      },
+    )
+  let close_error_propagated = case result {
+    Error(_) -> True
+    Ok(_) -> False
+  }
+  close_error_propagated |> expect.to_be_true()
+  cleanup(path)
+}
+
 pub fn duplicate_bag_repair_policies_test() {
   let path = "test_dupbag_repair.dets"
   let assert Ok(table) =

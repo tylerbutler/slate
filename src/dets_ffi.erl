@@ -9,6 +9,8 @@
     is_dets_file/1, update_counter/3
 ]).
 
+-define(TABLE_NAME_POOL_SIZE, 4096).
+
 %% ── Open ────────────────────────────────────────────────────────────────
 
 open_set(Path, Repair) ->
@@ -30,15 +32,18 @@ open_duplicate_bag_with_access(Path, Repair, Access) ->
     do_open(Path, duplicate_bag, Repair, Access).
 
 do_open(Path, Type, Repair, Access) ->
-    Name = binary_to_atom(Path, utf8),
-    RepairVal = repair_value(Repair),
-    AccessVal = access_value(Access),
-    Opts = [{file, binary_to_list(Path)}, {type, Type}, {repair, RepairVal}, {access, AccessVal}],
-    try dets:open_file(Name, Opts) of
-        {ok, Name} -> {ok, Name};
-        {error, Reason} -> {error, translate_error(Reason)}
+    try
+        CanonicalPath = canonicalize_path(Path),
+        Name = table_name_for_path(CanonicalPath),
+        RepairVal = repair_value(Repair),
+        AccessVal = access_value(Access),
+        Opts = [{file, CanonicalPath}, {type, Type}, {repair, RepairVal}, {access, AccessVal}],
+        case dets:open_file(Name, Opts) of
+            {ok, Name} -> {ok, Name};
+            {error, OpenReason} -> {error, translate_error(OpenReason)}
+        end
     catch
-        _:Reason -> {error, translate_error(Reason)}
+        _:CatchReason -> {error, translate_error(CatchReason)}
     end.
 
 %% Gleam RepairPolicy constructors map to these atoms:
@@ -51,6 +56,56 @@ repair_value(no_repair) -> false.
 %%   read_write -> read_write, read_only -> read
 access_value(read_write) -> read_write;
 access_value(read_only) -> read.
+
+canonicalize_path(Path) when is_binary(Path) ->
+    filename:absname(binary_to_list(Path));
+canonicalize_path(Path) when is_list(Path) ->
+    filename:absname(Path).
+
+table_name_for_path(CanonicalPath) ->
+    case find_open_table_for_path(CanonicalPath) of
+        {ok, Name} -> Name;
+        error -> allocate_table_name(CanonicalPath)
+    end.
+
+find_open_table_for_path(CanonicalPath) ->
+    find_open_table_for_path(dets:all(), CanonicalPath).
+
+find_open_table_for_path([], _CanonicalPath) ->
+    error;
+find_open_table_for_path([Name | Rest], CanonicalPath) ->
+    case dets:info(Name, filename) of
+        undefined ->
+            find_open_table_for_path(Rest, CanonicalPath);
+        OpenPath ->
+            case canonicalize_path(OpenPath) of
+                CanonicalPath -> {ok, Name};
+                _ -> find_open_table_for_path(Rest, CanonicalPath)
+            end
+    end.
+
+allocate_table_name(CanonicalPath) ->
+    Start = erlang:phash2(CanonicalPath, ?TABLE_NAME_POOL_SIZE),
+    allocate_table_name(CanonicalPath, Start, 0).
+
+allocate_table_name(_CanonicalPath, _Start, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
+    erlang:error(no_available_table_name);
+allocate_table_name(CanonicalPath, Start, Attempts) ->
+    Index = (Start + Attempts) rem ?TABLE_NAME_POOL_SIZE,
+    Name = table_name_atom(Index),
+    case dets:info(Name, filename) of
+        undefined ->
+            Name;
+        OpenPath ->
+            case canonicalize_path(OpenPath) of
+                CanonicalPath -> Name;
+                _ -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
+            end
+    end.
+
+table_name_atom(Index) ->
+    %% Bounded atom creation: creates at most TABLE_NAME_POOL_SIZE atoms.
+    list_to_atom("slate_dets_" ++ integer_to_list(Index)).
 
 %% ── Close / Sync ───────────────────────────────────────────────────────
 
@@ -203,14 +258,17 @@ update_counter(Name, Key, Increment) ->
 translate_error(not_found) -> not_found;
 translate_error(key_already_present) -> key_already_present;
 translate_error({file_error, _, enoent}) -> file_not_found;
-translate_error({file_error, _, eacces}) -> file_not_found;
+translate_error({file_error, _, eacces}) -> access_denied;
+translate_error({file_error, _, {error, eacces}}) -> access_denied;
+translate_error({file_error, _, {error, einval}}) -> access_denied;
 translate_error({access_mode, _}) -> access_denied;
 translate_error({type_mismatch, _}) -> type_mismatch;
 translate_error({keypos_mismatch, _}) -> type_mismatch;
-translate_error({incompatible_arguments, _}) -> type_mismatch;
-translate_error(incompatible_arguments) -> type_mismatch;
+translate_error({incompatible_arguments, _}) -> already_open;
+translate_error(incompatible_arguments) -> already_open;
 translate_error(badarg) -> table_does_not_exist;
 translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
 translate_error({error, Reason}) -> translate_error(Reason);
+translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->
     {erlang_error, list_to_binary(io_lib:format("~p", [Reason]))}.

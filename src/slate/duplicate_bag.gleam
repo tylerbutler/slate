@@ -69,13 +69,15 @@ pub fn open_with(
 
 /// Open a DETS duplicate bag table with repair and access mode options.
 ///
-/// Use `ReadOnly` to open a table for reading only.
+/// Use `ReadOnly` to open a table for reading only. Write operations
+/// on a read-only table will return `Error(AccessDenied)`.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
 /// let assert Ok(table) = duplicate_bag.open_with_access(path, AutoRepair, ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(vals) = duplicate_bag.lookup(table, key: "key")
+/// // duplicate_bag.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
 ///
 pub fn open_with_access(
@@ -118,9 +120,9 @@ pub fn with_table(
 ) -> Result(a, DetsError) {
   case open(path, key_decoder:, value_decoder:) {
     Ok(table) -> {
-      let result = fun(table)
-      let _ = close(table)
-      result
+      let callback_result = fun(table)
+      let close_result = close(table)
+      finalize_with_close(callback_result, close_result)
     }
     Error(err) -> Error(err)
   }
@@ -273,6 +275,17 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
 }
 
 // ── Internal helpers ─────────────────────────────────────────────────────
+
+fn finalize_with_close(
+  callback_result: Result(a, DetsError),
+  close_result: Result(Nil, DetsError),
+) -> Result(a, DetsError) {
+  case callback_result, close_result {
+    Ok(value), Ok(_) -> Ok(value)
+    Ok(_), Error(close_err) -> Error(close_err)
+    Error(callback_err), _ -> Error(callback_err)
+  }
+}
 
 fn tuple_decoder(
   key_decoder: Decoder(k),

@@ -222,6 +222,46 @@ pub fn set_with_table_test() {
   cleanup(path)
 }
 
+pub fn set_with_table_close_error_propagates_test() {
+  let path = "test_set_with_close_err.dets"
+  let result =
+    set.with_table(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+      fun: fn(table) {
+        let assert Ok(Nil) = set.close(table)
+        Ok(Nil)
+      },
+    )
+  let close_error_propagated = case result {
+    Error(_) -> True
+    Ok(_) -> False
+  }
+  close_error_propagated |> expect.to_be_true()
+  cleanup(path)
+}
+
+pub fn set_path_alias_shares_open_table_test() {
+  let path = "test_set_alias_path.dets"
+  let alias_path = "./test_set_alias_path.dets"
+  let assert Ok(t1) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(Nil) = set.insert(t1, "key", "v1")
+  let assert Ok(t2) =
+    set.open(
+      alias_path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  let assert Ok("v1") = set.lookup(t2, key: "key")
+  let assert Ok(Nil) = set.insert(t2, "key", "v2")
+  let assert Ok("v2") = set.lookup(t1, key: "key")
+  let assert Ok(Nil) = set.close(t1)
+  let assert Ok(Nil) = set.close(t2)
+  cleanup(path)
+}
+
 // ── Set: Info ───────────────────────────────────────────────────────────
 
 pub fn set_info_test() {

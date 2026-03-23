@@ -1,6 +1,8 @@
 /// Tests for read-only access mode.
 /// Adapted from OTP dets_SUITE access/1 test.
 import gleam/dynamic/decode
+import gleam/list
+import gleam/string
 import slate
 import slate/bag
 import slate/duplicate_bag
@@ -89,8 +91,12 @@ pub fn set_readonly_delete_all_fails_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let _result = set.delete_all(ro)
+  set.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
   let _ = set.close(ro)
+  let assert Ok(rw) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok("val") = set.lookup(rw, key: "key")
+  let assert Ok(Nil) = set.close(rw)
   cleanup(path)
 }
 
@@ -215,6 +221,7 @@ pub fn bag_readonly_lookup_test() {
     )
   let assert Ok(values) = bag.lookup(ro, key: "k")
   values
+  |> list.sort(string.compare)
   |> expect.to_equal(["a", "b"])
   let assert Ok(Nil) = bag.close(ro)
   cleanup(path)
@@ -256,6 +263,29 @@ pub fn bag_readonly_delete_fails_test() {
   let result = bag.delete_key(ro, key: "k")
   result |> expect.to_equal(Error(slate.AccessDenied))
   let assert Ok(Nil) = bag.close(ro)
+  cleanup(path)
+}
+
+pub fn bag_readonly_delete_all_fails_test() {
+  let path = "test_bag_ro_del_all.dets"
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(Nil) = bag.insert(table, "k", "v")
+  let assert Ok(Nil) = bag.close(table)
+  let assert Ok(ro) =
+    bag.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  bag.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
+  let _ = bag.close(ro)
+  let assert Ok(rw) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(["v"]) = bag.lookup(rw, key: "k")
+  let assert Ok(Nil) = bag.close(rw)
   cleanup(path)
 }
 
@@ -306,6 +336,29 @@ pub fn dupbag_readonly_insert_fails_test() {
   let result = duplicate_bag.insert(ro, "k", "v")
   result |> expect.to_equal(Error(slate.AccessDenied))
   let assert Ok(Nil) = duplicate_bag.close(ro)
+  cleanup(path)
+}
+
+pub fn dupbag_readonly_delete_all_fails_test() {
+  let path = "test_dupbag_ro_del_all.dets"
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  let assert Ok(ro) =
+    duplicate_bag.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  duplicate_bag.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
+  let _ = duplicate_bag.close(ro)
   cleanup(path)
 }
 

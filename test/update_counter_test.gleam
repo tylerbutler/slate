@@ -4,7 +4,7 @@ import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup}
+import test_helpers.{cleanup, unsafe_decoder}
 
 // ── Basic increment ─────────────────────────────────────────────────────
 
@@ -146,5 +146,26 @@ pub fn update_counter_large_increment_test() {
   let assert Ok(2_000_000) = set.update_counter(table, "big", 1_000_000)
   let assert Ok(2_000_000) = set.lookup(table, key: "big")
   let assert Ok(Nil) = set.close(table)
+  cleanup(path)
+}
+
+// ── Counter with non-integer value fails ─────────────────────────────────
+
+pub fn update_counter_non_integer_value_test() {
+  let path = "test_counter_nonint.dets"
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+  let assert Ok(Nil) = set.insert(table, "hits", "not_an_int")
+  let assert Ok(Nil) = set.close(table)
+
+  let assert Ok(table2) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  let result = set.update_counter(table2, "hits", 1)
+  let is_erlang_error = case result {
+    Error(slate.ErlangError(_)) -> True
+    _ -> False
+  }
+  is_erlang_error |> expect.to_be_true()
+  let assert Ok(Nil) = set.close(table2)
   cleanup(path)
 }

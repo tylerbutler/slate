@@ -28,6 +28,12 @@ gleam add slate
 
 ## Usage
 
+If you use `data/*.dets` paths from the examples, create the directory first:
+
+```sh
+mkdir -p data
+```
+
 ### Set tables (one value per key)
 
 ```gleam
@@ -140,8 +146,8 @@ All three table types (`set`, `bag`, `duplicate_bag`) share the same API surface
 | Function | Description |
 |----------|-------------|
 | `open(path, key_decoder, value_decoder)` | Open or create a table |
-| `open_with(path, key_decoder, value_decoder, repair)` | Open with repair policy |
-| `open_with_access(path, key_decoder, value_decoder, repair, access)` | Open with repair and access mode |
+| `open_with(path, repair, key_decoder, value_decoder)` | Open with repair policy |
+| `open_with_access(path, repair, access, key_decoder, value_decoder)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
 | `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback |
@@ -171,7 +177,7 @@ The `slate` module also provides:
 - **No `ordered_set`** — DETS only supports `set`, `bag`, and `duplicate_bag`
 - **Disk I/O** on every operation — for high-frequency reads, load into ETS at startup
 - **Must close properly** — use `with_table` or ensure `close` is called
-- **Atom table exhaustion** — each unique file path permanently consumes an Erlang atom. Avoid unbounded dynamic paths (e.g., user-generated filenames)
+- **Bounded table name pool** — slate uses an internal bounded set of DETS table names to avoid unbounded atom growth. Opening too many distinct tables at once can fail; close tables when no longer needed
 - **Erlang only** — DETS is a BEAM feature, no JavaScript target support
 
 ## Related projects
