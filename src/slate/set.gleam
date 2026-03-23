@@ -226,8 +226,9 @@ pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
 
 /// Delete a specific key-value pair from the table.
 ///
-/// For set tables this is equivalent to `delete_key` since each key
-/// has at most one value. Provided for API consistency with bag tables.
+/// Unlike `delete_key`, this only removes the entry if both the key
+/// and value match. For set tables, this acts as a conditional delete:
+/// the entry is removed only when the stored value equals the given value.
 pub fn delete_object(
   from table: Set(k, v),
   key key: k,

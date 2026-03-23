@@ -210,6 +210,7 @@ translate_error({keypos_mismatch, _}) -> type_mismatch;
 translate_error({incompatible_arguments, _}) -> type_mismatch;
 translate_error(incompatible_arguments) -> type_mismatch;
 translate_error(badarg) -> table_does_not_exist;
+translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error(Reason) ->
     {erlang_error, list_to_binary(io_lib:format("~p", [Reason]))}.

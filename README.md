@@ -5,6 +5,8 @@
 
 Type-safe Gleam wrapper for Erlang [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html) (Disk Erlang Term Storage).
 
+> **Erlang target only** — DETS is a BEAM feature with no JavaScript target support.
+
 DETS provides persistent key-value storage backed by files on disk. Tables survive process crashes and node restarts. DETS is built into OTP — no external database or dependency is needed.
 
 ## When to use DETS
@@ -29,11 +31,13 @@ gleam add slate
 ### Set tables (one value per key)
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
 pub fn main() {
   // Open or create a table
-  let assert Ok(users) = set.open("data/users.dets")
+  let assert Ok(users) = set.open("data/users.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
 
   // Insert key-value pairs
   let assert Ok(Nil) = set.insert(users, "alice", 42)
@@ -55,23 +59,28 @@ pub fn main() {
 ### Safe table lifecycle with `with_table`
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
 pub fn main() {
   // Table is automatically closed when the callback returns
-  let assert Ok(result) = set.with_table("data/config.dets", fn(table) {
-    set.insert(table, "theme", "dark")
-  })
+  let assert Ok(result) = set.with_table("data/config.dets",
+    key_decoder: decode.string, value_decoder: decode.string,
+    fun: fn(table) {
+      set.insert(table, "theme", "dark")
+    })
 }
 ```
 
 ### Bag tables (multiple values per key)
 
 ```gleam
+import gleam/dynamic/decode
 import slate/bag
 
 pub fn main() {
-  let assert Ok(tags) = bag.open("data/tags.dets")
+  let assert Ok(tags) = bag.open("data/tags.dets",
+    key_decoder: decode.string, value_decoder: decode.string)
 
   let assert Ok(Nil) = bag.insert(tags, "color", "red")
   let assert Ok(Nil) = bag.insert(tags, "color", "blue")
@@ -86,10 +95,12 @@ pub fn main() {
 ### Duplicate bag tables
 
 ```gleam
+import gleam/dynamic/decode
 import slate/duplicate_bag
 
 pub fn main() {
-  let assert Ok(events) = duplicate_bag.open("data/events.dets")
+  let assert Ok(events) = duplicate_bag.open("data/events.dets",
+    key_decoder: decode.string, value_decoder: decode.string)
 
   let assert Ok(Nil) = duplicate_bag.insert(events, "click", "button_a")
   let assert Ok(Nil) = duplicate_bag.insert(events, "click", "button_a")
@@ -104,16 +115,19 @@ pub fn main() {
 ### Data persists across restarts
 
 ```gleam
+import gleam/dynamic/decode
 import slate/set
 
 pub fn write() {
-  let assert Ok(table) = set.open("data/state.dets")
+  let assert Ok(table) = set.open("data/state.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "counter", 42)
   let assert Ok(Nil) = set.close(table)
 }
 
 pub fn read() {
-  let assert Ok(table) = set.open("data/state.dets")
+  let assert Ok(table) = set.open("data/state.dets",
+    key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(42) = set.lookup(table, key: "counter")
   let assert Ok(Nil) = set.close(table)
 }
@@ -125,12 +139,12 @@ All three table types (`set`, `bag`, `duplicate_bag`) share the same API surface
 
 | Function | Description |
 |----------|-------------|
-| `open(path)` | Open or create a table |
-| `open_with(path, repair)` | Open with repair policy |
-| `open_with_access(path, repair, access)` | Open with repair and access mode |
+| `open(path, key_decoder, value_decoder)` | Open or create a table |
+| `open_with(path, key_decoder, value_decoder, repair)` | Open with repair policy |
+| `open_with_access(path, key_decoder, value_decoder, repair, access)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
-| `with_table(path, fn)` | Auto-closing callback |
+| `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
 | `insert_new(table, key, value)` | Insert if key absent (set only) |
@@ -157,6 +171,7 @@ The `slate` module also provides:
 - **No `ordered_set`** — DETS only supports `set`, `bag`, and `duplicate_bag`
 - **Disk I/O** on every operation — for high-frequency reads, load into ETS at startup
 - **Must close properly** — use `with_table` or ensure `close` is called
+- **Atom table exhaustion** — each unique file path permanently consumes an Erlang atom. Avoid unbounded dynamic paths (e.g., user-generated filenames)
 - **Erlang only** — DETS is a BEAM feature, no JavaScript target support
 
 ## Related projects
