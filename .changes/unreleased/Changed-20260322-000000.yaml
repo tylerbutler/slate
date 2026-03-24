@@ -2,8 +2,28 @@ kind: Changed
 body: |-
     `bag.insert/3` now returns `Error(KeyAlreadyPresent)` for duplicate key-value pairs.
 
-    Previously, inserting a key-value pair that already existed in a bag table was
-    silently ignored and returned `Ok(Nil)`. It now returns `Error(KeyAlreadyPresent)`
-    to make the behavior explicit and allow callers to distinguish between a successful
-    insert and a no-op duplicate.
+    Previously, inserting an identical key-value pair into a bag table was silently
+    ignored. It now returns an error so callers can distinguish between a new insert
+    and a no-op duplicate.
+
+    **Before:**
+
+    ```gleam
+    let assert Ok(Nil) = bag.insert(table, "color", "red")
+    let assert Ok(Nil) = bag.insert(table, "color", "red")  // silently ignored
+    ```
+
+    **After:**
+
+    ```gleam
+    let assert Ok(Nil) = bag.insert(table, "color", "red")
+    let assert Error(slate.KeyAlreadyPresent) = bag.insert(table, "color", "red")
+    ```
+
+    Inserting a different value for the same key still works as expected:
+
+    ```gleam
+    let assert Ok(Nil) = bag.insert(table, "color", "red")
+    let assert Ok(Nil) = bag.insert(table, "color", "blue")  // different value, OK
+    ```
 time: 2026-03-22T00:00:00.000000-00:00
