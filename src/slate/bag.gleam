@@ -305,7 +305,10 @@ fn ffi_with_close(
 fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "insert_new_object")
-fn ffi_insert_new_object(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
+fn ffi_insert_new_object(
+  ref: TableRef,
+  objects: #(k, v),
+) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "insert")
 fn ffi_insert_list(
