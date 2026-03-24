@@ -2,7 +2,7 @@
 -export([
     open_set/2, open_bag/2, open_duplicate_bag/2,
     open_set_with_access/3, open_bag_with_access/3, open_duplicate_bag_with_access/3,
-    close/1, insert/2, insert_new/2,
+    close/1, insert/2, insert_new/2, insert_new_object/2,
     lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
     info_size/1, info_file_size/1,
@@ -140,6 +140,21 @@ insert_new(Name, Objects) ->
         true -> {ok, nil};
         false -> {error, key_already_present};
         {error, Reason} -> {error, translate_error(Reason)}
+    catch
+        _:Reason -> {error, translate_error(Reason)}
+    end.
+
+%% For bag tables: rejects duplicate key-value pairs but allows same key
+%% with different values. Checks if the exact object already exists via
+%% dets:match_object before inserting.
+insert_new_object(Name, Object) ->
+    try dets:match_object(Name, Object) of
+        [] ->
+            insert(Name, Object);
+        [_ | _] ->
+            {error, key_already_present};
+        {error, Reason} ->
+            {error, translate_error(Reason)}
     catch
         _:Reason -> {error, translate_error(Reason)}
     end.

@@ -1,8 +1,0 @@
-kind: Changed
-body: |-
-    `bag.insert/3` now returns `Error(KeyAlreadyPresent)` for duplicate key-value pairs
-
-    Previously, inserting an identical key-value pair into a bag table was silently
-    ignored. It now returns `Error(KeyAlreadyPresent)` to make the duplicate detection
-    explicit and allow callers to handle the case intentionally.
-time: 2026-03-22T21:40:07.000510-07:00

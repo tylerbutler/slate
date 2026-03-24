@@ -18,8 +18,10 @@ pub fn bag_insert_deduplicates_test() {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "color", "red")
-  let assert Ok(Nil) = bag.insert(table, "color", "red")
-  let assert Ok(Nil) = bag.insert(table, "color", "red")
+  bag.insert(table, "color", "red")
+  |> expect.to_equal(Error(slate.KeyAlreadyPresent))
+  bag.insert(table, "color", "red")
+  |> expect.to_equal(Error(slate.KeyAlreadyPresent))
   let assert Ok(values) = bag.lookup(table, key: "color")
   values |> list.length |> expect.to_equal(1)
   let assert Ok(Nil) = bag.close(table)

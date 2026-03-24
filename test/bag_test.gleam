@@ -36,7 +36,8 @@ pub fn bag_no_duplicates_test() {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "key", "val")
-  let assert Ok(Nil) = bag.insert(table, "key", "val")
+  bag.insert(table, "key", "val")
+  |> expect.to_equal(Error(slate.KeyAlreadyPresent))
   let assert Ok(values) = bag.lookup(table, key: "key")
   values |> list.length |> expect.to_equal(1)
   let assert Ok(Nil) = bag.close(table)

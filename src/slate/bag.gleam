@@ -185,13 +185,14 @@ pub fn size(of table: Bag(k, v)) -> Result(Int, DetsError) {
 
 // ── Write ───────────────────────────────────────────────────────────────
 
-/// Insert a key-value pair. Duplicate key-value pairs are ignored.
+/// Insert a key-value pair. Returns `Error(KeyAlreadyPresent)` if the exact
+/// key-value pair already exists in the table.
 pub fn insert(
   into table: Bag(k, v),
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_insert(table.ref, #(key, value))
+  ffi_insert_new_object(table.ref, #(key, value))
 }
 
 /// Insert multiple key-value pairs.
@@ -303,8 +304,8 @@ fn ffi_with_close(
 @external(erlang, "dets_ffi", "sync")
 fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert")
-fn ffi_insert(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "dets_ffi", "insert_new_object")
+fn ffi_insert_new_object(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "insert")
 fn ffi_insert_list(

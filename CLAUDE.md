@@ -80,10 +80,13 @@ Gleam `RepairPolicy` constructors map directly to Erlang atoms:
 DETS error atoms map back to Gleam `DetsError` constructors:
 - `not_found` → `NotFound`
 - `key_already_present` → `KeyAlreadyPresent`
-- `{file_error, _, enoent}` / `{file_error, _, eacces}` → `FileNotFound`
-- `{access_mode, _}` → `AccessDenied`
-- `{type_mismatch, _}` / `{keypos_mismatch, _}` / `{incompatible_arguments, _}` → `TypeMismatch`
+- `{file_error, _, enoent}` → `FileNotFound`
+- `{file_error, _, eacces}` / `{file_error, _, {error, eacces}}` / `{file_error, _, {error, einval}}` / `{access_mode, _}` → `AccessDenied`
+- `{type_mismatch, _}` / `{keypos_mismatch, _}` → `TypeMismatch`
+- `{incompatible_arguments, _}` / `incompatible_arguments` → `AlreadyOpen`
+- `{file_error, _, efbig}` → `FileSizeLimitExceeded`
 - `badarg` → `TableDoesNotExist`
+- `DecodeErrors(List(decode.DecodeError))` — returned by read operations when data on disk doesn't match the provided decoders
 - Any other error → `ErlangError(formatted_string)`
 
 ### Key Design Decisions
