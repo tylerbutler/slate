@@ -271,7 +271,7 @@ pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
   }
 }
 
-// ── Info ────────────────────────────────────────────────────────────────
+// ── FFI bindings ────────────────────────────────────────────────────────
 
 @external(erlang, "dets_ffi", "open_bag")
 fn ffi_open_bag(

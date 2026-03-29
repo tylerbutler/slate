@@ -17,6 +17,7 @@
 /// ```
 ///
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
+
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 import slate/internal

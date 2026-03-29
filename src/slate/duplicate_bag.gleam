@@ -272,7 +272,7 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
   }
 }
 
-// ── Info ────────────────────────────────────────────────────────────────
+// ── FFI bindings ────────────────────────────────────────────────────────
 
 @external(erlang, "dets_ffi", "open_duplicate_bag")
 fn ffi_open_duplicate_bag(

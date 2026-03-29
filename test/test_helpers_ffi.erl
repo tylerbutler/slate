@@ -24,3 +24,4 @@ is_table_open(Path) ->
         end,
         dets:all()
     ).
+
