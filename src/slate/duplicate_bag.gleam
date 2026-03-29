@@ -22,6 +22,7 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/internal
 
 /// An open DETS duplicate bag table with typed keys and values.
 pub opaque type DuplicateBag(k, v) {
@@ -162,7 +163,7 @@ pub fn to_list(
 ) -> Result(List(#(k, v)), DetsError) {
   case ffi_to_list(table.ref) {
     Ok(entries) ->
-      decode_entries(entries, table.key_decoder, table.value_decoder)
+      internal.decode_entries(entries, table.key_decoder, table.value_decoder)
     Error(err) -> Error(err)
   }
 }
@@ -176,7 +177,8 @@ pub fn fold(
   from initial: acc,
   with fun: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
-  let entry_decoder = tuple_decoder(table.key_decoder, table.value_decoder)
+  let entry_decoder =
+    internal.tuple_decoder(table.key_decoder, table.value_decoder)
   let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
     case acc_result {
       Error(err) -> Error(err)
@@ -268,27 +270,6 @@ pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
     Error(err), _ -> Error(err)
     _, Error(err) -> Error(err)
   }
-}
-
-fn tuple_decoder(
-  key_decoder: Decoder(k),
-  value_decoder: Decoder(v),
-) -> Decoder(#(k, v)) {
-  use k <- decode.field(0, key_decoder)
-  use v <- decode.field(1, value_decoder)
-  decode.success(#(k, v))
-}
-
-fn decode_entries(
-  entries: List(Dynamic),
-  key_decoder: Decoder(k),
-  value_decoder: Decoder(v),
-) -> Result(List(#(k, v)), DetsError) {
-  let decoder = tuple_decoder(key_decoder, value_decoder)
-  list.try_map(entries, fn(entry) {
-    decode.run(entry, decoder)
-    |> result.map_error(slate.DecodeErrors)
-  })
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────

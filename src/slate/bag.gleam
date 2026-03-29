@@ -1,7 +1,12 @@
 /// DETS bag tables — multiple distinct values per key.
 ///
 /// Bag tables allow storing multiple values for the same key, but
-/// duplicate key-value pairs are silently ignored.
+/// duplicate key-value pairs are rejected with `Error(KeyAlreadyPresent)`.
+///
+/// > **Note**: This diverges from native DETS behavior, where `dets:insert`
+/// > on a bag silently deduplicates identical key-value pairs. Slate bags
+/// > make the duplicate explicit so callers can distinguish a new insert
+/// > from a no-op.
 ///
 /// ## Example
 ///
@@ -21,6 +26,7 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/internal
 
 /// An open DETS bag table with typed keys and values.
 pub opaque type Bag(k, v) {
@@ -149,7 +155,7 @@ pub fn member(of table: Bag(k, v), key key: k) -> Result(Bool, DetsError) {
 pub fn to_list(from table: Bag(k, v)) -> Result(List(#(k, v)), DetsError) {
   case ffi_to_list(table.ref) {
     Ok(entries) ->
-      decode_entries(entries, table.key_decoder, table.value_decoder)
+      internal.decode_entries(entries, table.key_decoder, table.value_decoder)
     Error(err) -> Error(err)
   }
 }
@@ -163,7 +169,8 @@ pub fn fold(
   from initial: acc,
   with fun: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
-  let entry_decoder = tuple_decoder(table.key_decoder, table.value_decoder)
+  let entry_decoder =
+    internal.tuple_decoder(table.key_decoder, table.value_decoder)
   let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
     case acc_result {
       Error(err) -> Error(err)
@@ -187,6 +194,11 @@ pub fn size(of table: Bag(k, v)) -> Result(Int, DetsError) {
 
 /// Insert a key-value pair. Returns `Error(KeyAlreadyPresent)` if the exact
 /// key-value pair already exists in the table.
+///
+/// > **Note**: Native DETS `dets:insert` on a bag silently deduplicates
+/// > identical objects. Slate makes duplicates explicit so callers can detect
+/// > no-op inserts. Use `insert_list` for batch inserts that follow the native
+/// > DETS silent-dedup behavior.
 pub fn insert(
   into table: Bag(k, v),
   key key: k,
@@ -196,6 +208,10 @@ pub fn insert(
 }
 
 /// Insert multiple key-value pairs.
+///
+/// Unlike `insert`, this uses the native DETS batch insert, which silently
+/// deduplicates any key-value pair that already exists in the table. Use
+/// this for efficient bulk loading where duplicate detection is not needed.
 pub fn insert_list(
   into table: Bag(k, v),
   entries entries: List(#(k, v)),
@@ -253,27 +269,6 @@ pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
     Error(err), _ -> Error(err)
     _, Error(err) -> Error(err)
   }
-}
-
-fn tuple_decoder(
-  key_decoder: Decoder(k),
-  value_decoder: Decoder(v),
-) -> Decoder(#(k, v)) {
-  use k <- decode.field(0, key_decoder)
-  use v <- decode.field(1, value_decoder)
-  decode.success(#(k, v))
-}
-
-fn decode_entries(
-  entries: List(Dynamic),
-  key_decoder: Decoder(k),
-  value_decoder: Decoder(v),
-) -> Result(List(#(k, v)), DetsError) {
-  let decoder = tuple_decoder(key_decoder, value_decoder)
-  list.try_map(entries, fn(entry) {
-    decode.run(entry, decoder)
-    |> result.map_error(slate.DecodeErrors)
-  })
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────

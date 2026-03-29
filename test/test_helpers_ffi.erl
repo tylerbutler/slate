@@ -14,18 +14,14 @@ did_panic(Fun) ->
     end.
 
 is_table_open(Path) ->
-    CanonicalPath = canonicalize_path(Path),
+    CanonicalPath = dets_ffi:canonicalize_path(Path),
     lists:any(
         fun(Name) ->
             case dets:info(Name, filename) of
                 undefined -> false;
-                OpenPath -> canonicalize_path(OpenPath) =:= CanonicalPath
+                OpenPath -> dets_ffi:canonicalize_path(OpenPath) =:= CanonicalPath
             end
         end,
         dets:all()
     ).
 
-canonicalize_path(Path) when is_binary(Path) ->
-    filename:absname(binary_to_list(Path));
-canonicalize_path(Path) when is_list(Path) ->
-    filename:absname(Path).

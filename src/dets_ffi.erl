@@ -6,7 +6,8 @@
     lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
     info_size/1, info_file_size/1,
-    is_dets_file/1, update_counter/3
+    is_dets_file/1, update_counter/3,
+    canonicalize_path/1
 ]).
 
 -define(TABLE_NAME_POOL_SIZE, 4096).
