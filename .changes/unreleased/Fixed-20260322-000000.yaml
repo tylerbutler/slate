@@ -1,8 +1,0 @@
-kind: Fixed
-body: |-
-    `with_table/3` now closes the table handle when the callback throws an exception.
-
-    Previously, if the user-supplied callback raised an exception, the DETS table
-    handle would be left open. The table is now closed in all cases, including
-    when the callback throws.
-time: 2026-03-22T00:00:00.000000-00:00
