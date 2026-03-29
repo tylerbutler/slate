@@ -1,17 +1,23 @@
 /// Tests adapted from the Erlang/OTP dets_SUITE.erl test suite for duplicate_bag.
+import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/string
 import slate
 import slate/duplicate_bag
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers.{cleanup, range, unsafe_decoder}
 
 // ── Duplicates are fully preserved (OTP core duplicate_bag test) ────────
 
 pub fn dupbag_exact_duplicate_count_test() {
   let path = "test_dupbag_exact_count.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   // Insert the exact same pair 5 times
   range(1, 5)
   |> list.each(fn(_) {
@@ -35,7 +41,12 @@ pub fn dupbag_exact_duplicate_count_test() {
 
 pub fn dupbag_mixed_duplicates_and_distinct_test() {
   let path = "test_dupbag_mixed.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) =
     duplicate_bag.insert_list(table, [
       #("k", "a"),
@@ -67,7 +78,12 @@ pub fn dupbag_mixed_duplicates_and_distinct_test() {
 
 pub fn dupbag_int_key_test() {
   let path = "test_dupbag_int_key.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.int,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, 1, "int_a")
   let assert Ok(Nil) = duplicate_bag.insert(table, 1, "int_a")
   let assert Ok(vals) = duplicate_bag.lookup(table, key: 1)
@@ -78,7 +94,12 @@ pub fn dupbag_int_key_test() {
 
 pub fn dupbag_float_key_test() {
   let path = "test_dupbag_float_key.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.float,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, 1.0, "float_a")
   let assert Ok(Nil) = duplicate_bag.insert(table, 1.0, "float_a")
   let assert Ok(vals) = duplicate_bag.lookup(table, key: 1.0)
@@ -91,7 +112,12 @@ pub fn dupbag_float_key_test() {
 
 pub fn dupbag_unicode_test() {
   let path = "test_dupbag_unicode.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "🔑", "🎉")
   let assert Ok(Nil) = duplicate_bag.insert(table, "🔑", "🎉")
   let assert Ok(Nil) = duplicate_bag.insert(table, "🔑", "🚀")
@@ -105,7 +131,12 @@ pub fn dupbag_unicode_test() {
 
 pub fn dupbag_large_values_test() {
   let path = "test_dupbag_large_vals.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let big = string.repeat("X", 5000)
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", big)
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", big)
@@ -124,12 +155,22 @@ pub fn dupbag_large_values_test() {
 
 pub fn dupbag_persistence_preserves_duplicates_test() {
   let path = "test_dupbag_persist_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(table2) = duplicate_bag.open(path)
+  let assert Ok(table2) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
   values |> list.length |> expect.to_equal(3)
   let assert Ok(Nil) = duplicate_bag.close(table2)
@@ -140,7 +181,12 @@ pub fn dupbag_persistence_preserves_duplicates_test() {
 
 pub fn dupbag_delete_key_all_duplicates_test() {
   let path = "test_dupbag_del_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let entries = range(1, 20) |> list.map(fn(_) { #("k", "same") })
   let assert Ok(Nil) = duplicate_bag.insert_list(table, entries)
   duplicate_bag.size(table) |> expect.to_equal(Ok(20))
@@ -155,7 +201,12 @@ pub fn dupbag_delete_key_all_duplicates_test() {
 
 pub fn dupbag_size_counts_all_duplicates_test() {
   let path = "test_dupbag_size_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 2)
@@ -171,7 +222,12 @@ pub fn dupbag_size_counts_all_duplicates_test() {
 
 pub fn dupbag_fold_counts_duplicates_test() {
   let path = "test_dupbag_fold_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 5)
@@ -185,7 +241,12 @@ pub fn dupbag_fold_counts_duplicates_test() {
 
 pub fn dupbag_to_list_includes_duplicates_test() {
   let path = "test_dupbag_to_list_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "other", "w")
@@ -203,7 +264,12 @@ pub fn dupbag_to_list_includes_duplicates_test() {
 
 pub fn dupbag_negative_keys_test() {
   let path = "test_dupbag_neg_keys.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.int,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, -42, "val")
   let assert Ok(Nil) = duplicate_bag.insert(table, -42, "val")
   let assert Ok(values) = duplicate_bag.lookup(table, key: -42)
@@ -216,7 +282,12 @@ pub fn dupbag_negative_keys_test() {
 
 pub fn dupbag_tuple_keys_test() {
   let path = "test_dupbag_tuple_keys.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: unsafe_decoder(),
+      value_decoder: decode.int,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, #("event", "click"), 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, #("event", "click"), 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, #("event", "click"), 2)
@@ -232,12 +303,22 @@ pub fn dupbag_many_open_close_cycles_test() {
   let path = "test_dupbag_many_cycles.dets"
   range(1, 10)
   |> list.each(fn(i) {
-    let assert Ok(table) = duplicate_bag.open(path)
+    let assert Ok(table) =
+      duplicate_bag.open(
+        path,
+        key_decoder: decode.string,
+        value_decoder: decode.int,
+      )
     let assert Ok(Nil) = duplicate_bag.insert(table, "round", i)
     let assert Ok(Nil) = duplicate_bag.close(table)
     Nil
   })
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(values) = duplicate_bag.lookup(table, key: "round")
   // Duplicate bag stores all, so 10 entries
   values |> list.length |> expect.to_equal(10)
@@ -249,12 +330,22 @@ pub fn dupbag_many_open_close_cycles_test() {
 
 pub fn dupbag_delete_all_persists_test() {
   let path = "test_dupbag_del_all_persist.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.delete_all(table)
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(table2) = duplicate_bag.open(path)
+  let assert Ok(table2) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   duplicate_bag.size(table2) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = duplicate_bag.close(table2)
   cleanup(path)
@@ -264,7 +355,12 @@ pub fn dupbag_delete_all_persists_test() {
 
 pub fn dupbag_large_with_heavy_duplicates_test() {
   let path = "test_dupbag_heavy_dupes.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   // 50 keys × 20 duplicates each = 1000 objects
   let entries =
     range(0, 49)
@@ -286,9 +382,12 @@ pub fn dupbag_large_with_heavy_duplicates_test() {
 pub fn dupbag_with_table_error_propagation_test() {
   let path = "test_dupbag_with_err.dets"
   let result =
-    duplicate_bag.with_table(path, fn(_table) {
-      Error(slate.ErlangError("test error"))
-    })
+    duplicate_bag.with_table(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+      fun: fn(_table) { Error(slate.ErlangError("test error")) },
+    )
   result |> expect.to_equal(Error(slate.ErlangError("test error")))
   cleanup(path)
 }
@@ -297,12 +396,22 @@ pub fn dupbag_with_table_error_propagation_test() {
 
 pub fn dupbag_sync_then_reopen_test() {
   let path = "test_dupbag_sync_reopen.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "synced")
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "synced")
   let assert Ok(Nil) = duplicate_bag.sync(table)
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(table2) = duplicate_bag.open(path)
+  let assert Ok(table2) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "key")
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = duplicate_bag.close(table2)
@@ -313,7 +422,12 @@ pub fn dupbag_sync_then_reopen_test() {
 
 pub fn dupbag_bool_values_test() {
   let path = "test_dupbag_bool_vals.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.bool,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "flag", True)
   let assert Ok(Nil) = duplicate_bag.insert(table, "flag", True)
   let assert Ok(Nil) = duplicate_bag.insert(table, "flag", False)

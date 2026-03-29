@@ -1,0 +1,30 @@
+kind: Breaking
+body: |-
+    All table-opening functions now require `key_decoder` and `value_decoder` parameters.
+
+    Decoders validate data read from disk against expected Gleam types, catching type
+    mismatches at runtime instead of silently returning corrupt values. A new
+    `DecodeErrors(List(decode.DecodeError))` variant is added to `DetsError`.
+
+    **Before:**
+
+    ```gleam
+    let assert Ok(table) = set.open("cache.dets")
+    let assert Ok(value) = set.lookup(table, "key")
+    // value is Dynamic — no type safety, silent mismatches possible
+    ```
+
+    **After:**
+
+    ```gleam
+    import gleam/dynamic/decode
+
+    let assert Ok(table) = set.open("cache.dets",
+      key_decoder: decode.string, value_decoder: decode.int)
+    let assert Ok(value) = set.lookup(table, "key")
+    // value is Int — validated on read, DecodeErrors on mismatch
+    ```
+
+    Affected functions: `open`, `open_with`, `open_with_access`, and `with_table`
+    on all table types (`set`, `bag`, `duplicate_bag`).
+time: 2026-03-22T16:45:09.526532958-07:00

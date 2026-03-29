@@ -1,5 +1,6 @@
 /// Tests for error handling edge cases.
 /// Adapted from OTP dets_SUITE badarg, repair, and access tests.
+import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import slate
@@ -15,11 +16,13 @@ import test_helpers.{cleanup, range}
 pub fn type_mismatch_set_as_bag_test() {
   let path = "test_type_mismatch_sb.dets"
   // Create as set
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
   // Try to open as bag — should fail
-  let result = bag.open(path)
+  let result =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
@@ -30,10 +33,16 @@ pub fn type_mismatch_set_as_bag_test() {
 
 pub fn type_mismatch_set_as_dupbag_test() {
   let path = "test_type_mismatch_sd.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
-  let result = duplicate_bag.open(path)
+  let result =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
@@ -44,10 +53,12 @@ pub fn type_mismatch_set_as_dupbag_test() {
 
 pub fn type_mismatch_bag_as_set_test() {
   let path = "test_type_mismatch_bs.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "key", "val")
   let assert Ok(Nil) = bag.close(table)
-  let result = set.open(path)
+  let result =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
@@ -58,10 +69,16 @@ pub fn type_mismatch_bag_as_set_test() {
 
 pub fn type_mismatch_bag_as_dupbag_test() {
   let path = "test_type_mismatch_bd.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "key", "val")
   let assert Ok(Nil) = bag.close(table)
-  let result = duplicate_bag.open(path)
+  let result =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
@@ -72,10 +89,16 @@ pub fn type_mismatch_bag_as_dupbag_test() {
 
 pub fn type_mismatch_dupbag_as_set_test() {
   let path = "test_type_mismatch_ds.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let result = set.open(path)
+  let result =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
@@ -86,15 +109,44 @@ pub fn type_mismatch_dupbag_as_set_test() {
 
 pub fn type_mismatch_dupbag_as_bag_test() {
   let path = "test_type_mismatch_db.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let result = bag.open(path)
+  let result =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
     Error(slate.ErlangError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
+  cleanup(path)
+}
+
+pub fn already_open_with_conflicting_access_test() {
+  let path = "test_already_open_access.dets"
+  let assert Ok(table) =
+    set.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadWrite,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  let result =
+    set.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  result |> expect.to_equal(Error(slate.AlreadyOpen))
+  let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
 
@@ -106,7 +158,8 @@ pub fn type_mismatch_dupbag_as_bag_test() {
 
 pub fn bag_insert_same_key_different_values_test() {
   let path = "test_bag_insert_diff.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "first")
   let assert Ok(Nil) = bag.insert(table, "k", "second")
   let assert Ok(values) = bag.lookup(table, key: "k")
@@ -125,7 +178,8 @@ pub fn bag_insert_same_key_different_values_test() {
 pub fn set_large_key_count_stress_test() {
   let path = "test_set_stress.dets"
   let n = 5000
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let entries = range(0, n - 1) |> list.map(fn(i) { #(i, i * 3) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   set.size(table) |> expect.to_equal(Ok(n))
@@ -149,12 +203,14 @@ pub fn set_large_key_count_stress_test() {
 pub fn set_large_key_count_persistence_test() {
   let path = "test_set_stress_persist.dets"
   let n = 3000
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let entries = range(0, n - 1) |> list.map(fn(i) { #(i, i) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(Nil) = set.close(table)
   // Reopen and verify all entries survived
-  let assert Ok(table2) = set.open(path)
+  let assert Ok(table2) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   set.size(table2) |> expect.to_equal(Ok(n))
   let assert Ok(0) = set.lookup(table2, key: 0)
   let assert Ok(1500) = set.lookup(table2, key: 1500)
@@ -168,7 +224,8 @@ pub fn set_large_key_count_persistence_test() {
 pub fn set_fold_large_dataset_test() {
   let path = "test_set_fold_large.dets"
   let n = 2000
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let entries = range(1, n) |> list.map(fn(i) { #(int.to_string(i), i) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(sum) = set.fold(table, 0, fn(acc, _k, v) { acc + v })
@@ -182,7 +239,8 @@ pub fn set_fold_large_dataset_test() {
 
 pub fn bag_fold_large_dataset_test() {
   let path = "test_bag_fold_large.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   // 200 keys × 5 values each = 1000 entries
   range(0, 199)
   |> list.each(fn(key) {
@@ -203,7 +261,8 @@ pub fn bag_fold_large_dataset_test() {
 
 pub fn set_delete_object_preserves_on_mismatch_test() {
   let path = "test_set_del_obj_mismatch.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "x", 42)
   // Try to delete with wrong value
   let assert Ok(Nil) = set.delete_object(table, "x", 99)
@@ -218,7 +277,8 @@ pub fn set_delete_object_preserves_on_mismatch_test() {
 
 pub fn bag_insert_list_empty_test() {
   let path = "test_bag_ins_list_empty.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert_list(table, [])
   bag.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = bag.close(table)
@@ -227,7 +287,12 @@ pub fn bag_insert_list_empty_test() {
 
 pub fn dupbag_insert_list_empty_test() {
   let path = "test_dupbag_ins_list_empty.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(Nil) = duplicate_bag.insert_list(table, [])
   duplicate_bag.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = duplicate_bag.close(table)
@@ -238,7 +303,8 @@ pub fn dupbag_insert_list_empty_test() {
 
 pub fn bag_to_list_test() {
   let path = "test_bag_to_list_full.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert(table, "a", 1)
   let assert Ok(Nil) = bag.insert(table, "a", 2)
   let assert Ok(Nil) = bag.insert(table, "b", 3)
@@ -252,7 +318,8 @@ pub fn bag_to_list_test() {
 
 pub fn bag_to_list_empty_test() {
   let path = "test_bag_to_list_empty.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   bag.to_list(table) |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = bag.close(table)
   cleanup(path)
@@ -262,7 +329,12 @@ pub fn bag_to_list_empty_test() {
 
 pub fn dupbag_to_list_empty_test() {
   let path = "test_dupbag_to_list_empty.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   duplicate_bag.to_list(table) |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = duplicate_bag.close(table)
   cleanup(path)
@@ -272,7 +344,8 @@ pub fn dupbag_to_list_empty_test() {
 
 pub fn bag_multiple_insert_list_test() {
   let path = "test_bag_multi_ins_list.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert_list(table, [#("k", 1), #("k", 2)])
   let assert Ok(Nil) = bag.insert_list(table, [#("k", 3), #("k", 4)])
   let assert Ok(values) = bag.lookup(table, key: "k")
@@ -283,7 +356,12 @@ pub fn bag_multiple_insert_list_test() {
 
 pub fn dupbag_multiple_insert_list_test() {
   let path = "test_dupbag_multi_ins_list.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(Nil) = duplicate_bag.insert_list(table, [#("k", 1), #("k", 1)])
   let assert Ok(Nil) = duplicate_bag.insert_list(table, [#("k", 1), #("k", 2)])
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k")
@@ -299,9 +377,12 @@ pub fn dupbag_multiple_insert_list_test() {
 
 pub fn set_shared_write_read_test() {
   let path = "test_set_shared_wr.dets"
-  let assert Ok(t1) = set.open(path)
-  let assert Ok(t2) = set.open(path)
-  let assert Ok(t3) = set.open(path)
+  let assert Ok(t1) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(t2) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(t3) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Write from t1
   let assert Ok(Nil) = set.insert(t1, "key1", "from_t1")
   // Write from t2
@@ -322,8 +403,10 @@ pub fn set_shared_write_read_test() {
 
 pub fn set_shared_overwrite_test() {
   let path = "test_set_shared_ow.dets"
-  let assert Ok(t1) = set.open(path)
-  let assert Ok(t2) = set.open(path)
+  let assert Ok(t1) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(t2) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(t1, "key", "v1")
   let assert Ok(Nil) = set.insert(t2, "key", "v2")
   // Last write wins
@@ -336,8 +419,10 @@ pub fn set_shared_overwrite_test() {
 
 pub fn set_shared_delete_visible_test() {
   let path = "test_set_shared_del.dets"
-  let assert Ok(t1) = set.open(path)
-  let assert Ok(t2) = set.open(path)
+  let assert Ok(t1) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(t2) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(t1, "key", "val")
   let assert Ok(Nil) = set.delete_key(t2, key: "key")
   // Delete from t2 is visible to t1
@@ -349,8 +434,10 @@ pub fn set_shared_delete_visible_test() {
 
 pub fn bag_shared_accumulate_test() {
   let path = "test_bag_shared_acc.dets"
-  let assert Ok(t1) = bag.open(path)
-  let assert Ok(t2) = bag.open(path)
+  let assert Ok(t1) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(t2) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(t1, "k", "a")
   let assert Ok(Nil) = bag.insert(t2, "k", "b")
   let assert Ok(Nil) = bag.insert(t1, "k", "c")
@@ -367,11 +454,18 @@ pub fn bag_shared_accumulate_test() {
 
 pub fn set_force_repair_preserves_data_test() {
   let path = "test_set_force_repair_data.dets"
-  let assert Ok(table) = set.open(path)
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert_list(table, [#("a", 1), #("b", 2), #("c", 3)])
   let assert Ok(Nil) = set.close(table)
   // Force repair
-  let assert Ok(table2) = set.open_with(path, slate.ForceRepair)
+  let assert Ok(table2) =
+    set.open_with(
+      path,
+      slate.ForceRepair,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
   let assert Ok(1) = set.lookup(table2, key: "a")
   let assert Ok(2) = set.lookup(table2, key: "b")
   let assert Ok(3) = set.lookup(table2, key: "c")
@@ -382,11 +476,18 @@ pub fn set_force_repair_preserves_data_test() {
 
 pub fn bag_force_repair_preserves_data_test() {
   let path = "test_bag_force_repair_data.dets"
-  let assert Ok(table) = bag.open(path)
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "a")
   let assert Ok(Nil) = bag.insert(table, "k", "b")
   let assert Ok(Nil) = bag.close(table)
-  let assert Ok(table2) = bag.open_with(path, slate.ForceRepair)
+  let assert Ok(table2) =
+    bag.open_with(
+      path,
+      slate.ForceRepair,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(values) = bag.lookup(table2, key: "k")
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table2)
@@ -395,11 +496,22 @@ pub fn bag_force_repair_preserves_data_test() {
 
 pub fn dupbag_force_repair_preserves_data_test() {
   let path = "test_dupbag_force_repair_data.dets"
-  let assert Ok(table) = duplicate_bag.open(path)
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(table2) = duplicate_bag.open_with(path, slate.ForceRepair)
+  let assert Ok(table2) =
+    duplicate_bag.open_with(
+      path,
+      slate.ForceRepair,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = duplicate_bag.close(table2)

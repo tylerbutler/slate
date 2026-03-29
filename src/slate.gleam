@@ -13,9 +13,11 @@
 /// ## Quick Start
 ///
 /// ```gleam
+/// import gleam/dynamic/decode
 /// import slate/set
 ///
-/// let assert Ok(table) = set.open("data/cache.dets")
+/// let assert Ok(table) = set.open("data/cache.dets",
+///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(Nil) = set.insert(table, "key", "value")
 /// let assert Ok(value) = set.lookup(table, "key")
 /// let assert Ok(Nil) = set.close(table)
@@ -27,8 +29,13 @@
 /// - No `ordered_set` table type (unlike ETS)
 /// - Disk I/O on every operation (use ETS for high-frequency reads)
 /// - Tables must be closed properly or data may be lost
+/// - **Bounded table name pool**: slate uses a bounded set of internal
+///   DETS table names to avoid unbounded atom growth. Opening too many
+///   distinct tables at once may fail; close unused tables promptly
 ///
 /// Errors that can occur during DETS operations.
+import gleam/dynamic/decode
+
 pub type DetsError {
   /// No value found for the given key
   NotFound
@@ -46,6 +53,8 @@ pub type DetsError {
   AccessDenied
   /// Table type mismatch (e.g., opening a set file as a bag)
   TypeMismatch
+  /// Data read from disk did not match the expected Gleam types
+  DecodeErrors(List(decode.DecodeError))
   /// Erlang-level error (catch-all)
   ErlangError(String)
 }
