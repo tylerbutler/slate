@@ -32,10 +32,9 @@
 /// - **Bounded table name pool**: slate uses a bounded set of internal
 ///   DETS table names to avoid unbounded atom growth. Opening too many
 ///   distinct tables at once may fail; close unused tables promptly
-///
-/// Errors that can occur during DETS operations.
 import gleam/dynamic/decode
 
+/// Errors that can occur during DETS operations.
 pub type DetsError {
   /// No value found for the given key
   NotFound
