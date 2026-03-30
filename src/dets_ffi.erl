@@ -90,6 +90,8 @@ allocate_table_name(CanonicalPath) ->
     allocate_table_name(CanonicalPath, Start, 0).
 
 allocate_table_name(_CanonicalPath, _Start, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
+    %% Caught by the try-catch in do_open/4; translate_error/1 maps this
+    %% to table_name_pool_exhausted (TableNamePoolExhausted in Gleam).
     erlang:error(no_available_table_name);
 allocate_table_name(CanonicalPath, Start, Attempts) ->
     Index = (Start + Attempts) rem ?TABLE_NAME_POOL_SIZE,
@@ -312,6 +314,7 @@ translate_error({incompatible_arguments, _}) -> already_open;
 translate_error(incompatible_arguments) -> already_open;
 translate_error(badarg) -> table_does_not_exist;
 translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
+translate_error(no_available_table_name) -> table_name_pool_exhausted;
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->

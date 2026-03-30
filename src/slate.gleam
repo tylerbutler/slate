@@ -53,6 +53,8 @@ pub type DetsError {
   AccessDenied
   /// Table type mismatch (e.g., opening a set file as a bag)
   TypeMismatch
+  /// All internal table name slots are in use; close unused tables to free slots
+  TableNamePoolExhausted
   /// Data read from disk did not match the expected Gleam types
   DecodeErrors(List(decode.DecodeError))
   /// Erlang-level error (catch-all)
