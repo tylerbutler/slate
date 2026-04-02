@@ -195,11 +195,7 @@ For details on the underlying storage engine, see the [Erlang DETS documentation
 
 ## Development
 
-```sh
-gleam test   # Run the test suite
-gleam build  # Build the project
-gleam docs build  # Generate documentation
-```
+See [DEV.md](DEV.md) for setup instructions, build tasks, and contribution guidelines.
 
 ## License
 
