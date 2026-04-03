@@ -291,7 +291,7 @@ classify_update_counter_lookup(Name, Key) ->
         [{_, Value} | _] when is_integer(Value) ->
             {error, unexpected_error(update_counter_badarg)};
         [{_, _} | _] ->
-            {error, {erlang_error, <<"update_counter requires an integer value">>}};
+            {error, counter_value_not_integer};
         Other ->
             {error, unexpected_error({update_counter_lookup, Other})}
     catch
@@ -321,4 +321,4 @@ translate_error(Reason) ->
     unexpected_error(Reason).
 
 unexpected_error(Reason) ->
-    {erlang_error, list_to_binary(io_lib:format("~p", [Reason]))}.
+    {unexpected_error, list_to_binary(io_lib:format("~p", [Reason]))}.

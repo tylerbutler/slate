@@ -25,7 +25,7 @@ pub fn type_mismatch_set_as_bag_test() {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)
@@ -45,7 +45,7 @@ pub fn type_mismatch_set_as_dupbag_test() {
     )
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)
@@ -61,7 +61,7 @@ pub fn type_mismatch_bag_as_set_test() {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)
@@ -81,7 +81,7 @@ pub fn type_mismatch_bag_as_dupbag_test() {
     )
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)
@@ -101,7 +101,7 @@ pub fn type_mismatch_dupbag_as_set_test() {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)
@@ -121,7 +121,7 @@ pub fn type_mismatch_dupbag_as_bag_test() {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   case result {
     Error(slate.TypeMismatch) -> Nil
-    Error(slate.ErlangError(_)) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
     other -> other |> expect.to_equal(Error(slate.TypeMismatch))
   }
   cleanup(path)

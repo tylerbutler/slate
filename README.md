@@ -145,9 +145,35 @@ pub fn read() {
 }
 ```
 
+### Error handling
+
+All public operations return `Result(_, slate.DetsError)`.
+
+Match on the specific variants you expect in normal flows, and use the helper
+functions when you want a stable code or a user-facing message:
+
+```gleam
+import slate
+import slate/set
+
+case set.lookup(table, key: "missing") {
+  Ok(value) -> Ok(value)
+  Error(slate.NotFound) -> Ok(default_value)
+  Error(error) -> {
+    let code = slate.error_code(error)
+    let message = slate.error_message(error)
+    // log code/message here
+    Error(error)
+  }
+}
+```
+
+`UnexpectedError(detail)` is intended for diagnostics only; the detail string is
+not a stable API contract.
+
 ## API Overview
 
-All three table types (`set`, `bag`, `duplicate_bag`) share the same API surface:
+The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 
 | Function | Description |
 |----------|-------------|
@@ -159,23 +185,30 @@ All three table types (`set`, `bag`, `duplicate_bag`) share the same API surface
 | `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
-| `insert_new(table, key, value)` | Insert if key absent (set only) |
 | `lookup(table, key)` | Get value(s) for key |
 | `member(table, key)` | Check if key exists |
 | `delete_key(table, key)` | Remove by key |
-| `delete_object(table, key, value)` | Remove a specific key-value pair |
+| `delete_object(table, key, value)` | Remove a specific key-value pair (`duplicate_bag` removes all exact duplicates) |
 | `delete_all(table)` | Clear all entries |
 | `to_list(table)` | Get all entries |
 | `fold(table, acc, fn)` | Fold over entries |
 | `size(table)` | Count entries |
 | `info(table)` | Get table metadata |
-| `update_counter(table, key, amount)` | Atomic counter increment (set only) |
 
-The `slate` module also provides:
+`slate/set` also provides:
+
+| Function | Description |
+|----------|-------------|
+| `insert_new(table, key, value)` | Insert if key is absent |
+| `update_counter(table, key, amount)` | Atomic counter increment |
+
+The top-level `slate` module also provides:
 
 | Function | Description |
 |----------|-------------|
 | `is_dets_file(path)` | Check if a file is a valid DETS file |
+| `error_code(error)` | Stable machine-readable error code |
+| `error_message(error)` | User-facing error message |
 
 ## Limitations
 
@@ -183,7 +216,7 @@ The `slate` module also provides:
 - **No `ordered_set`** — DETS only supports `set`, `bag`, and `duplicate_bag`
 - **Disk I/O** on every operation — for high-frequency reads, load into ETS at startup
 - **Must close properly** — `with_table` closes on callback return and attempts cleanup on callback failure, otherwise ensure `close` is called
-- **Bounded table name pool** — slate uses an internal bounded set of DETS table names to avoid unbounded atom growth. Opening too many distinct tables at once can fail; close tables when no longer needed
+- **Bounded table name pool** — slate uses an internal bounded set of DETS table names to avoid unbounded atom growth. Opening too many distinct tables at once can fail with `TableNamePoolExhausted`; close tables when no longer needed
 - **Erlang only** — DETS is a BEAM feature, no JavaScript target support
 
 ## Related projects

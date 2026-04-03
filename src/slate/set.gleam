@@ -247,7 +247,8 @@ pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
 /// The value associated with the key must be an integer. Returns the
 /// new value after incrementing. The increment can be negative.
 ///
-/// Returns an error if the key doesn't exist or the value is not an integer.
+/// Returns `Error(NotFound)` if the key doesn't exist or
+/// `Error(CounterValueNotInteger)` if the stored value is not an integer.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode

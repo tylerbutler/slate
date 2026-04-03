@@ -168,10 +168,7 @@ pub fn update_counter_non_integer_value_test() {
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table2, "hits", 1)
-  result
-  |> expect.to_equal(
-    Error(slate.ErlangError("update_counter requires an integer value")),
-  )
+  result |> expect.to_equal(Error(slate.CounterValueNotInteger))
   let assert Ok(Nil) = set.close(table2)
   cleanup(path)
 }
