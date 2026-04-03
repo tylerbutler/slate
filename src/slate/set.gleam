@@ -22,6 +22,14 @@ import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 import slate/internal
 
+/// Errors returned by `update_counter`.
+pub type UpdateCounterError {
+  /// `update_counter` requires the stored value to be an integer.
+  CounterValueNotInteger
+  /// A shared DETS table error from the underlying operation.
+  TableError(DetsError)
+}
+
 /// An open DETS set table with typed keys and values.
 pub opaque type Set(k, v) {
   Set(ref: TableRef, key_decoder: Decoder(k), value_decoder: Decoder(v))
@@ -29,6 +37,11 @@ pub opaque type Set(k, v) {
 
 /// Internal reference to the DETS table (Erlang atom).
 type TableRef
+
+type UpdateCounterFfiError {
+  FfiCounterValueNotInteger
+  FfiTableError(DetsError)
+}
 
 // ── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -247,8 +260,9 @@ pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
 /// The value associated with the key must be an integer. Returns the
 /// new value after incrementing. The increment can be negative.
 ///
-/// Returns `Error(NotFound)` if the key doesn't exist or
-/// `Error(CounterValueNotInteger)` if the stored value is not an integer.
+/// Returns `Error(TableError(slate.NotFound))` if the key doesn't exist,
+/// `Error(CounterValueNotInteger)` if the stored value is not an integer,
+/// or `Error(TableError(error))` for other DETS table failures.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -263,8 +277,9 @@ pub fn update_counter(
   in table: Set(k, Int),
   key key: k,
   increment amount: Int,
-) -> Result(Int, DetsError) {
+) -> Result(Int, UpdateCounterError) {
   ffi_update_counter(table.ref, key, amount)
+  |> result.map_error(update_counter_error_from_ffi)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
@@ -350,13 +365,22 @@ fn ffi_update_counter(
   ref: TableRef,
   key: k,
   increment: Int,
-) -> Result(Int, DetsError)
+) -> Result(Int, UpdateCounterFfiError)
 
 @external(erlang, "dets_ffi", "delete_key")
 fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "delete_object")
 fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
+
+fn update_counter_error_from_ffi(
+  error: UpdateCounterFfiError,
+) -> UpdateCounterError {
+  case error {
+    FfiCounterValueNotInteger -> CounterValueNotInteger
+    FfiTableError(error) -> TableError(error)
+  }
+}
 
 @external(erlang, "dets_ffi", "delete_all")
 fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)

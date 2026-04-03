@@ -10,6 +10,14 @@ import slate/set
 import startest/expect
 import test_helpers.{cleanup, range}
 
+fn expect_type_mismatch_open(result: Result(a, slate.DetsError)) {
+  case result {
+    Error(slate.TypeMismatch) -> Nil
+    Error(slate.UnexpectedError(_)) -> Nil
+    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
+  }
+}
+
 // ── Type mismatch: open set file as bag ─────────────────────────────────
 // OTP: {error,{type_mismatch,Fname}}
 
@@ -23,11 +31,7 @@ pub fn type_mismatch_set_as_bag_test() {
   // Try to open as bag — should fail
   let result =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 
@@ -43,11 +47,7 @@ pub fn type_mismatch_set_as_dupbag_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 
@@ -59,11 +59,7 @@ pub fn type_mismatch_bag_as_set_test() {
   let assert Ok(Nil) = bag.close(table)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 
@@ -79,11 +75,7 @@ pub fn type_mismatch_bag_as_dupbag_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 
@@ -99,11 +91,7 @@ pub fn type_mismatch_dupbag_as_set_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 
@@ -119,11 +107,7 @@ pub fn type_mismatch_dupbag_as_bag_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let result =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  case result {
-    Error(slate.TypeMismatch) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    other -> other |> expect.to_equal(Error(slate.TypeMismatch))
-  }
+  expect_type_mismatch_open(result)
   cleanup(path)
 }
 

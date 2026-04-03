@@ -64,8 +64,6 @@ pub type DetsError {
   TableNamePoolExhausted
   /// Data read from disk did not match the expected Gleam types
   DecodeErrors(List(decode.DecodeError))
-  /// `update_counter` requires the stored value to be an integer.
-  CounterValueNotInteger
   /// Unexpected OTP or Erlang-level error for logging and diagnostics only.
   UnexpectedError(String)
 }
@@ -119,7 +117,6 @@ pub fn error_code(of error: DetsError) -> String {
     TypeMismatch -> "type_mismatch"
     TableNamePoolExhausted -> "table_name_pool_exhausted"
     DecodeErrors(_) -> "decode_error"
-    CounterValueNotInteger -> "counter_value_not_integer"
     UnexpectedError(_) -> "unexpected_error"
   }
 }
@@ -141,8 +138,6 @@ pub fn error_message(of error: DetsError) -> String {
     TypeMismatch -> "The file was opened with the wrong DETS table type."
     TableNamePoolExhausted -> "Too many different DETS tables are open at once."
     DecodeErrors(_) -> "Data on disk did not match the expected Gleam types."
-    CounterValueNotInteger ->
-      "`update_counter` requires the stored value to be an integer."
     UnexpectedError(_) -> "An unexpected DETS error occurred."
   }
 }

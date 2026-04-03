@@ -267,36 +267,42 @@ is_dets_file(Path) ->
 update_counter(Name, Key, Increment) ->
     try dets:update_counter(Name, Key, Increment) of
         NewVal when is_integer(NewVal) -> {ok, NewVal};
-        {error, Reason} -> {error, translate_error(Reason)};
-        Other -> {error, unexpected_error({update_counter, Other})}
+        {error, Reason} -> {error, update_counter_table_error(Reason)};
+        Other -> {error, update_counter_table_error({update_counter, Other})}
     catch
         error:badarg -> classify_update_counter_badarg(Name, Key);
-        error:Reason -> {error, translate_error(Reason)}
+        error:Reason -> {error, update_counter_table_error(Reason)}
     end.
 
 classify_update_counter_badarg(Name, Key) ->
     case info_integer(Name, size) of
         {error, table_does_not_exist} ->
-            {error, table_does_not_exist};
+            {error, update_counter_translated_error(table_does_not_exist)};
         {ok, _} ->
             classify_update_counter_lookup(Name, Key);
         {error, Reason} ->
-            {error, Reason}
+            {error, update_counter_translated_error(Reason)}
     end.
 
 classify_update_counter_lookup(Name, Key) ->
     try dets:lookup(Name, Key) of
         [] ->
-            {error, not_found};
+            {error, update_counter_translated_error(not_found)};
         [{_, Value} | _] when is_integer(Value) ->
-            {error, unexpected_error(update_counter_badarg)};
+            {error, update_counter_table_error(update_counter_badarg)};
         [{_, _} | _] ->
-            {error, counter_value_not_integer};
+            {error, ffi_counter_value_not_integer};
         Other ->
-            {error, unexpected_error({update_counter_lookup, Other})}
+            {error, update_counter_table_error({update_counter_lookup, Other})}
     catch
-        error:Reason -> {error, translate_error(Reason)}
+        error:Reason -> {error, update_counter_table_error(Reason)}
     end.
+
+update_counter_table_error(Reason) ->
+    {ffi_table_error, translate_error(Reason)}.
+
+update_counter_translated_error(Reason) ->
+    {ffi_table_error, Reason}.
 
 %% ── Error translation ──────────────────────────────────────────────────
 %% Maps Erlang DETS errors to atoms matching Gleam DetsError constructors.

@@ -89,7 +89,7 @@ pub fn update_counter_missing_key_test() {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table, "missing", 1)
-  result |> expect.to_equal(Error(slate.NotFound))
+  result |> expect.to_equal(Error(set.TableError(slate.NotFound)))
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }
@@ -102,7 +102,7 @@ pub fn update_counter_closed_table_test() {
   let assert Ok(Nil) = set.close(table)
 
   set.update_counter(table, "hits", 1)
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
+  |> expect.to_equal(Error(set.TableError(slate.TableDoesNotExist)))
 
   cleanup(path)
 }
@@ -168,7 +168,7 @@ pub fn update_counter_non_integer_value_test() {
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table2, "hits", 1)
-  result |> expect.to_equal(Error(slate.CounterValueNotInteger))
+  result |> expect.to_equal(Error(set.CounterValueNotInteger))
   let assert Ok(Nil) = set.close(table2)
   cleanup(path)
 }

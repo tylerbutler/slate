@@ -147,7 +147,11 @@ pub fn read() {
 
 ### Error handling
 
-All public operations return `Result(_, slate.DetsError)`.
+Most public operations return `Result(_, slate.DetsError)`.
+
+`slate/set.update_counter` returns `Result(_, set.UpdateCounterError)` so it can
+add the operation-specific `set.CounterValueNotInteger` case without widening
+the shared `slate.DetsError` contract for unrelated APIs.
 
 Match on the specific variants you expect in normal flows, and use the helper
 functions when you want a stable code or a user-facing message:
@@ -171,6 +175,9 @@ case set.lookup(table, key: "missing") {
 `UnexpectedError(detail)` is intended for diagnostics only; the detail string is
 not a stable API contract, and `error_message` intentionally returns a generic
 message for that variant.
+
+For `set.update_counter`, match `Error(set.CounterValueNotInteger)` directly and
+unwrap shared table failures as `Error(set.TableError(error))`.
 
 ## API Overview
 

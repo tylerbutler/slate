@@ -6,8 +6,6 @@ import test_helpers.{cleanup}
 
 pub fn error_code_and_message_helpers_test() {
   slate.error_code(slate.NotFound) |> expect.to_equal("not_found")
-  slate.error_code(slate.CounterValueNotInteger)
-  |> expect.to_equal("counter_value_not_integer")
   slate.error_code(slate.UnexpectedError("boom"))
   |> expect.to_equal("unexpected_error")
 
