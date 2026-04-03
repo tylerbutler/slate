@@ -4,8 +4,7 @@
 /// `allocate_table_name/1` hashes the canonical path to pick a starting slot
 /// and probes linearly until it finds a free one. If every slot is occupied by
 /// a *different* open table, it raises `erlang:error(no_available_table_name)`,
-/// which `do_open/4`'s try-catch translates to
-/// `ErlangError("no_available_table_name")`.
+/// which `do_open/4`'s try-catch translates to `TableNamePoolExhausted`.
 ///
 /// Opening 4096 real DETS files in a unit test is too expensive, so instead
 /// these tests exercise the pool's slot-reuse logic at a smaller scale:
@@ -15,7 +14,7 @@
 ///   3. Verify that reopening an already-open path returns the same handle
 ///      (no extra slot consumed).
 ///
-/// The exhaustion error path (`ErlangError("no_available_table_name")`) has
+/// The exhaustion error path (`TableNamePoolExhausted`) has
 /// been verified by code review of `dets_ffi.erl` lines 92-93.
 import gleam/dynamic/decode
 import gleam/int

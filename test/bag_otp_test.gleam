@@ -252,9 +252,9 @@ pub fn bag_with_table_error_propagation_test() {
       path,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(_table) { Error(slate.ErlangError("test error")) },
+      fun: fn(_table) { Error(slate.UnexpectedError("test error")) },
     )
-  result |> expect.to_equal(Error(slate.ErlangError("test error")))
+  result |> expect.to_equal(Error(slate.UnexpectedError("test error")))
   cleanup(path)
 }
 
