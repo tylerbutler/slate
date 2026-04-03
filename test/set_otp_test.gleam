@@ -467,9 +467,9 @@ pub fn set_with_table_propagates_error_test() {
       path,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(_table) { Error(slate.ErlangError("custom error")) },
+      fun: fn(_table) { Error(slate.UnexpectedError("custom error")) },
     )
-  result |> expect.to_equal(Error(slate.ErlangError("custom error")))
+  result |> expect.to_equal(Error(slate.UnexpectedError("custom error")))
   cleanup(path)
 }
 
