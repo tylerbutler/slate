@@ -32,10 +32,9 @@
 /// - **Bounded table name pool**: slate uses a bounded set of internal
 ///   DETS table names to avoid unbounded atom growth. Opening too many
 ///   distinct tables at once may fail; close unused tables promptly
-///
-/// Errors that can occur during DETS operations.
 import gleam/dynamic/decode
 
+/// Errors that can occur during DETS operations.
 pub type DetsError {
   /// No value found for the given key
   NotFound
@@ -53,6 +52,8 @@ pub type DetsError {
   AccessDenied
   /// Table type mismatch (e.g., opening a set file as a bag)
   TypeMismatch
+  /// All internal table name slots are in use; close unused tables to free slots
+  TableNamePoolExhausted
   /// Data read from disk did not match the expected Gleam types
   DecodeErrors(List(decode.DecodeError))
   /// Erlang-level error (catch-all)
