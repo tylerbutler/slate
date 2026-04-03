@@ -125,6 +125,9 @@ pub fn error_code(of error: DetsError) -> String {
 }
 
 /// Return a concise user-facing description for a `DetsError`.
+///
+/// `UnexpectedError(_)` intentionally maps to a generic message so callers can
+/// safely surface it without leaking raw Erlang/OTP diagnostic details.
 pub fn error_message(of error: DetsError) -> String {
   case error {
     NotFound -> "No value was found for the requested key."
@@ -140,7 +143,7 @@ pub fn error_message(of error: DetsError) -> String {
     DecodeErrors(_) -> "Data on disk did not match the expected Gleam types."
     CounterValueNotInteger ->
       "`update_counter` requires the stored value to be an integer."
-    UnexpectedError(detail) -> "Unexpected Erlang/OTP error: " <> detail
+    UnexpectedError(_) -> "An unexpected DETS error occurred."
   }
 }
 

@@ -4,7 +4,7 @@ import slate/set
 import startest/expect
 import test_helpers.{cleanup}
 
-pub fn dets_error_helpers_test() {
+pub fn error_code_and_message_helpers_test() {
   slate.error_code(slate.NotFound) |> expect.to_equal("not_found")
   slate.error_code(slate.CounterValueNotInteger)
   |> expect.to_equal("counter_value_not_integer")
@@ -16,7 +16,7 @@ pub fn dets_error_helpers_test() {
     "The requested operation is not allowed with the current access mode.",
   )
   slate.error_message(slate.UnexpectedError("boom"))
-  |> expect.to_equal("Unexpected Erlang/OTP error: boom")
+  |> expect.to_equal("An unexpected DETS error occurred.")
 }
 
 pub fn set_info_closed_table_returns_table_does_not_exist_test() {

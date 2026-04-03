@@ -169,7 +169,8 @@ case set.lookup(table, key: "missing") {
 ```
 
 `UnexpectedError(detail)` is intended for diagnostics only; the detail string is
-not a stable API contract.
+not a stable API contract, and `error_message` intentionally returns a generic
+message for that variant.
 
 ## API Overview
 
