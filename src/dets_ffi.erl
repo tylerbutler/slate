@@ -223,9 +223,16 @@ member(Name, Key) ->
     end.
 
 fold(Name, Fun, Acc0) ->
-    try dets:foldl(Fun, Acc0, Name) of
+    WrappedFun = fun(Entry, Acc) ->
+        case Fun(Entry, Acc) of
+            {error, _} = Err -> throw({slate_fold_abort, Err});
+            Result -> Result
+        end
+    end,
+    try dets:foldl(WrappedFun, Acc0, Name) of
         Result -> {ok, Result}
     catch
+        throw:{slate_fold_abort, Err} -> {ok, Err};
         _:Reason -> {error, translate_error(Reason)}
     end.
 
