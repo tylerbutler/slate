@@ -98,6 +98,8 @@ fn cmd_show(id_str: String) -> Nil {
           io.println("Body:    " <> note.body)
           io.println("Created: " <> types.format_timestamp(note.created_at))
 
+          // Tags and history are optional display sections — if the
+          // lookups fail, omit the section rather than blocking the note.
           case store.get_tags(s, id) {
             Ok([]) -> Nil
             Ok(tags) -> io.println("Tags:    " <> string.join(tags, ", "))
