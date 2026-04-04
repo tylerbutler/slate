@@ -1,10 +1,10 @@
 import gleam/dynamic/decode
 import gleam/list
-import startest/expect
 import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
+import startest/expect
 import test_helpers.{cleanup, range}
 
 @external(erlang, "fold_short_circuit_test_ffi", "count_ffi_fold_invocations")
@@ -17,7 +17,10 @@ pub fn set_fold_short_circuits_on_decode_error_test() {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }))
+    set.insert_list(
+      table,
+      range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = set.close(table)
 
   // 1. Verify the Gleam API correctly propagates the DecodeErrors
@@ -41,7 +44,10 @@ pub fn bag_fold_short_circuits_on_decode_error_test() {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    bag.insert_list(table, range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }))
+    bag.insert_list(
+      table,
+      range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = bag.close(table)
 
   let assert Ok(table2) =
