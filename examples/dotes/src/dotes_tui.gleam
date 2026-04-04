@@ -230,7 +230,12 @@ fn update(model: Model, msg: Msg) -> #(Model, List(fn() -> Msg)) {
         Error(_) -> ""
       }
       #(
-        Model(..model, screen: NoteEdit(id), body_input: body, status_message: ""),
+        Model(
+          ..model,
+          screen: NoteEdit(id),
+          body_input: body,
+          status_message: "",
+        ),
         [],
       )
     }
@@ -403,14 +408,13 @@ fn view_list(model: Model) -> shore.Node(Msg) {
         ui.button("enter open", key.Enter, GoToDetail(id)),
         ui.button("d delete", key.Char("d"), AskDelete(id)),
       ])
-    Error(_) ->
-      ui.row([ui.button("n new", key.Char("n"), GoToCreate)])
+    Error(_) -> ui.row([ui.button("n new", key.Char("n"), GoToCreate)])
   }
 
   let children =
     list.flatten([
       content,
-      [ui.hr(), action_buttons, view_status(model)],
+      [ui.hr(), action_buttons, view_exit_hint(), view_status(model)],
       [ui.keybind(key.Up, SelectUp), ui.keybind(key.Down, SelectDown)],
     ])
 
@@ -447,7 +451,9 @@ fn view_detail(model: Model, id: Int) -> shore.Node(Msg) {
         revisions -> [
           ui.br(),
           ui.text_styled(
-            "History (" <> int.to_string(list.length(revisions)) <> " revisions):",
+            "History ("
+              <> int.to_string(list.length(revisions))
+              <> " revisions):",
             Some(style.Yellow),
             None,
           ),
@@ -474,6 +480,7 @@ fn view_detail(model: Model, id: Int) -> shore.Node(Msg) {
           ui.button("d delete", key.Char("d"), AskDelete(id)),
           ui.button("esc back", key.Esc, GoToList),
         ]),
+        view_exit_hint(),
         view_status(model),
       ]
 
@@ -502,6 +509,7 @@ fn view_create(model: Model) -> shore.Node(Msg) {
         ui.button("enter save", key.Enter, SubmitCreate),
         ui.button("esc cancel", key.Esc, GoToList),
       ]),
+      view_exit_hint(),
       view_status(model),
     ],
     Some("new note"),
@@ -531,6 +539,7 @@ fn view_edit(model: Model, id: Int) -> shore.Node(Msg) {
         ui.button("enter save", key.Enter, SubmitEdit(id)),
         ui.button("esc cancel", key.Esc, GoToDetail(id)),
       ]),
+      view_exit_hint(),
       view_status(model),
     ],
     Some("edit note #" <> int.to_string(id)),
@@ -564,6 +573,7 @@ fn view_confirm_delete(model: Model, id: Int) -> shore.Node(Msg) {
         ui.button("y delete", key.Char("y"), ConfirmDeleteNote(id)),
         ui.button("n cancel", key.Char("n"), CancelDelete),
       ]),
+      view_exit_hint(),
       ui.keybind(key.Esc, CancelDelete),
     ],
     Some("delete note #" <> int.to_string(id)),
@@ -581,6 +591,10 @@ fn get_selected_id(model: Model) -> Result(Int, Nil) {
     let #(id, _) = pair
     id
   })
+}
+
+fn view_exit_hint() -> shore.Node(Msg) {
+  ui.text_styled("ctrl-x exit", Some(style.White), None)
 }
 
 fn view_status(model: Model) -> shore.Node(Msg) {
