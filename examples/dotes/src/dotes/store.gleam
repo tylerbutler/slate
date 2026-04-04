@@ -57,7 +57,8 @@ pub fn close(store: Store) -> Result(Nil, slate.DetsError) {
 
 /// Generate the next note ID using an atomic counter.
 fn next_id(store: Store) -> Result(Int, slate.DetsError) {
-  // Seed the counter on first use
+  // update_counter requires the key to already exist. insert_new is a no-op
+  // if the key is already present, so this safely seeds the counter only once.
   let _ = set.insert_new(store.counter, "next_id", 0)
   case set.update_counter(store.counter, "next_id", 1) {
     Ok(id) -> Ok(id)
@@ -130,7 +131,8 @@ pub fn toggle_tag(
   id id: Int,
   tag tag: String,
 ) -> Result(Bool, slate.DetsError) {
-  // Verify note exists first
+  // DETS delete is a no-op on missing keys; lookup first so we return
+  // NotFound rather than silently succeeding on a ghost note.
   use _ <- result.try(set.lookup(store.notes, key: id))
   use current_tags <- result.try(bag.lookup(store.tags, key: id))
   case list.contains(current_tags, tag) {
@@ -147,7 +149,8 @@ pub fn toggle_tag(
 
 /// Delete a note and all its associated tags and history.
 pub fn delete_note(store: Store, id: Int) -> Result(Nil, slate.DetsError) {
-  // Verify note exists
+  // DETS delete_key is a no-op when the key is absent, so lookup first to
+  // return NotFound for a missing note rather than reporting success.
   use _ <- result.try(set.lookup(store.notes, key: id))
   use _ <- result.try(set.delete_key(store.notes, id))
   use _ <- result.try(bag.delete_key(store.tags, id))

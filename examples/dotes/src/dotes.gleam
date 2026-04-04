@@ -33,10 +33,17 @@ fn with_store(f: fn(store.Store) -> Nil) -> Nil {
   }
 }
 
+/// Parse a note ID from a string, printing an error and calling f on success.
+fn with_id(id_str: String, f: fn(Int) -> Nil) -> Nil {
+  case int.parse(id_str) {
+    Error(_) -> io.println("Error: '" <> id_str <> "' is not a valid note ID")
+    Ok(id) -> f(id)
+  }
+}
+
 fn cmd_save(first: String, second: String) -> Nil {
   case int.parse(first) {
     Ok(id) ->
-      // Edit existing note: dotes save <id> "new body"
       with_store(fn(s) {
         case store.update_note(s, id: id, body: second) {
           Ok(Nil) -> io.println("✓ Updated note #" <> int.to_string(id))
@@ -44,7 +51,6 @@ fn cmd_save(first: String, second: String) -> Nil {
         }
       })
     Error(_) ->
-      // Create new note: dotes save "title" "body"
       with_store(fn(s) {
         case store.create_note(s, title: first, body: second) {
           Ok(id) -> io.println("✓ Created note #" <> int.to_string(id))
@@ -82,82 +88,74 @@ fn cmd_list() -> Nil {
 }
 
 fn cmd_show(id_str: String) -> Nil {
-  case int.parse(id_str) {
-    Error(_) -> io.println("Error: '" <> id_str <> "' is not a valid note ID")
-    Ok(id) ->
-      with_store(fn(s) {
-        case store.get_note(s, id) {
-          Error(e) -> io.println("Error: " <> slate.error_message(e))
-          Ok(note) -> {
-            io.println("Note #" <> int.to_string(id))
-            io.println("Title:   " <> note.title)
-            io.println("Body:    " <> note.body)
-            io.println("Created: " <> types.format_timestamp(note.created_at))
+  with_id(id_str, fn(id) {
+    with_store(fn(s) {
+      case store.get_note(s, id) {
+        Error(e) -> io.println("Error: " <> slate.error_message(e))
+        Ok(note) -> {
+          io.println("Note #" <> int.to_string(id))
+          io.println("Title:   " <> note.title)
+          io.println("Body:    " <> note.body)
+          io.println("Created: " <> types.format_timestamp(note.created_at))
 
-            // Show tags
-            case store.get_tags(s, id) {
-              Ok([]) -> Nil
-              Ok(tags) -> io.println("Tags:    " <> string.join(tags, ", "))
-              Error(_) -> Nil
-            }
+          case store.get_tags(s, id) {
+            Ok([]) -> Nil
+            Ok(tags) -> io.println("Tags:    " <> string.join(tags, ", "))
+            Error(_) -> Nil
+          }
 
-            // Show edit history
-            case store.get_history(s, id) {
-              Ok([]) -> Nil
-              Ok(revisions) -> {
+          case store.get_history(s, id) {
+            Ok([]) -> Nil
+            Ok(revisions) -> {
+              io.println(
+                "\nHistory ("
+                <> int.to_string(list.length(revisions))
+                <> " revisions):",
+              )
+              list.each(revisions, fn(rev: Revision) {
                 io.println(
-                  "\nHistory ("
-                  <> int.to_string(list.length(revisions))
-                  <> " revisions):",
+                  "  ["
+                  <> types.format_timestamp(rev.edited_at)
+                  <> "] "
+                  <> rev.body,
                 )
-                list.each(revisions, fn(rev: Revision) {
-                  io.println(
-                    "  ["
-                    <> types.format_timestamp(rev.edited_at)
-                    <> "] "
-                    <> rev.body,
-                  )
-                })
-              }
-              Error(_) -> Nil
+              })
             }
+            Error(_) -> Nil
           }
         }
-      })
-  }
+      }
+    })
+  })
 }
 
 fn cmd_tag(id_str: String, tag: String) -> Nil {
-  case int.parse(id_str) {
-    Error(_) -> io.println("Error: '" <> id_str <> "' is not a valid note ID")
-    Ok(id) ->
-      with_store(fn(s) {
-        case store.toggle_tag(s, id: id, tag: tag) {
-          Ok(True) ->
-            io.println(
-              "✓ Added tag '" <> tag <> "' to note #" <> int.to_string(id),
-            )
-          Ok(False) ->
-            io.println(
-              "✓ Removed tag '" <> tag <> "' from note #" <> int.to_string(id),
-            )
-          Error(e) -> io.println("Error: " <> slate.error_message(e))
-        }
-      })
-  }
+  with_id(id_str, fn(id) {
+    with_store(fn(s) {
+      case store.toggle_tag(s, id: id, tag: tag) {
+        Ok(True) ->
+          io.println(
+            "✓ Added tag '" <> tag <> "' to note #" <> int.to_string(id),
+          )
+        Ok(False) ->
+          io.println(
+            "✓ Removed tag '" <> tag <> "' from note #" <> int.to_string(id),
+          )
+        Error(e) -> io.println("Error: " <> slate.error_message(e))
+      }
+    })
+  })
 }
 
 fn cmd_delete(id_str: String) -> Nil {
-  case int.parse(id_str) {
-    Error(_) -> io.println("Error: '" <> id_str <> "' is not a valid note ID")
-    Ok(id) ->
-      with_store(fn(s) {
-        case store.delete_note(s, id) {
-          Ok(Nil) -> io.println("✓ Deleted note #" <> int.to_string(id))
-          Error(e) -> io.println("Error: " <> slate.error_message(e))
-        }
-      })
-  }
+  with_id(id_str, fn(id) {
+    with_store(fn(s) {
+      case store.delete_note(s, id) {
+        Ok(Nil) -> io.println("✓ Deleted note #" <> int.to_string(id))
+        Error(e) -> io.println("Error: " <> slate.error_message(e))
+      }
+    })
+  })
 }
 
 fn print_usage() -> Nil {
