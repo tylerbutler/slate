@@ -4,13 +4,28 @@ A simple note-taking CLI built with [slate](https://github.com/tylerbutler/slate
 
 ## Running
 
+### Interactive TUI
+
+Launch the interactive terminal UI:
+
+```sh
+gleam run -m dotes_tui
+```
+
+> **Note:** The TUI requires Erlang/OTP 28+ (via [Shore](https://hex.pm/packages/shore)).
+
+Navigate with arrow keys, press `n` to create notes, `Enter` to view details,
+`e` to edit, `d` to delete, and `Ctrl+X` to exit.
+
+### CLI
+
 From this directory:
 
 ```sh
 gleam run -- <command>
 ```
 
-## Commands
+## CLI Commands
 
 ```sh
 # Create a new note
