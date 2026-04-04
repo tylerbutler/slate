@@ -17,6 +17,18 @@ gleam run -m dotes_tui
 Navigate with arrow keys, press `n` to create notes, `Enter` to view details,
 `e` to edit, `d` to delete, and `Ctrl+X` to exit.
 
+### Web App
+
+Launch the web interface:
+
+```sh
+gleam run -m dotes_web
+```
+
+Then open [http://localhost:3000](http://localhost:3000) in your browser. Uses
+[Lustre](https://hex.pm/packages/lustre) server components — the app runs on the
+server with full DETS access and sends DOM patches to the browser over WebSocket.
+
 ### CLI
 
 From this directory:
