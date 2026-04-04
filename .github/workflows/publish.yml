@@ -14,10 +14,32 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Create GitHub Release
+      - name: Check for existing release
+        id: check
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes
+        run: |
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+        if: steps.check.outputs.exists == 'false'
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          NOTES_FILE=".changes/${TAG}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            gh release create "$TAG" --repo "${{ github.repository }}" --title "$TAG" --notes-file "$NOTES_FILE"
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" --title "$TAG" --generate-notes
+          fi
 
   publish:
     needs: test
