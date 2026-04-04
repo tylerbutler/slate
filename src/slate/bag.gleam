@@ -185,6 +185,53 @@ pub fn fold(
   |> result.flatten
 }
 
+/// Fold over all entries, passing decode results to the callback.
+///
+/// Unlike `fold`, decode failures do not abort the traversal. Each entry
+/// is presented to the callback as `Ok(#(key, value))` on success or
+/// `Error(decode_errors)` on failure, letting the caller decide how to
+/// handle bad records.
+///
+/// DETS-level errors (e.g., the table does not exist) still fail the
+/// entire operation via the outer `Result`.
+///
+/// ## Examples
+///
+/// Skip entries that fail to decode:
+///
+/// ```gleam
+/// bag.fold_results(table, [], fn(acc, entry) {
+///   case entry {
+///     Ok(#(k, v)) -> [#(k, v), ..acc]
+///     Error(_) -> acc
+///   }
+/// })
+/// ```
+///
+/// Partition into successes and failures:
+///
+/// ```gleam
+/// bag.fold_results(table, #([], []), fn(acc, entry) {
+///   case entry {
+///     Ok(#(k, v)) -> #([#(k, v), ..acc.0], acc.1)
+///     Error(errs) -> #(acc.0, [errs, ..acc.1])
+///   }
+/// })
+/// ```
+pub fn fold_results(
+  over table: Bag(k, v),
+  from initial: acc,
+  with fun: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
+) -> Result(acc, DetsError) {
+  let entry_decoder =
+    internal.tuple_decoder(table.key_decoder, table.value_decoder)
+  let wrapper = fn(entry: Dynamic, acc: acc) {
+    let decoded = decode.run(entry, entry_decoder)
+    fun(acc, decoded)
+  }
+  ffi_fold(table.ref, wrapper, initial)
+}
+
 /// Return the number of objects stored.
 pub fn size(of table: Bag(k, v)) -> Result(Int, DetsError) {
   ffi_info_size(table.ref)
