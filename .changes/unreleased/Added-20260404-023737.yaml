@@ -1,0 +1,9 @@
+kind: Added
+body: |-
+    Add `fold_results` to `set`, `bag`, and `duplicate_bag` modules.
+
+    Unlike `fold`, decode failures do not abort the traversal. Each entry is
+    presented to the callback as `Ok(#(key, value))` on success or
+    `Error(decode_errors)` on failure, letting the caller skip, collect, or
+    partition bad records instead of losing the entire read.
+time: 2026-04-04T02:37:37.000000+00:00
