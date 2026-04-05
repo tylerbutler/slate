@@ -29,3 +29,7 @@ slate brings in these Gleam packages automatically:
 |---------|---------|
 | `gleam_stdlib` | Standard library |
 | `gleam_erlang` | Erlang interop |
+
+## Upgrading
+
+See the [CHANGELOG](https://github.com/tylerbutler/slate/blob/main/CHANGELOG.md) for release history and breaking changes, and the [Stability & Versioning](/advanced/stability/) page for semver guarantees.
