@@ -1,0 +1,22 @@
+# Run the CLI with the given arguments
+alias dotes := cli
+cli *ARGS:
+    gleam run -- {{ARGS}}
+
+# Launch the interactive TUI (requires Erlang/OTP 28+)
+tui:
+    gleam run -m dotes_tui
+
+# Launch the web app at http://localhost:3000
+web:
+    gleam run -m dotes_web
+
+# Build the project
+build:
+    gleam build
+
+# Demo: create a note, tag it, and list all notes
+demo:
+    gleam run -- save "Hello from dotes" "This note was created by just demo"
+    gleam run -- tag 1 "demo"
+    gleam run -- show

@@ -19,3 +19,4 @@ Thumbs.db
 
 # Local settings
 .claude/settings.local.json
+examples/dotes/.dotes
