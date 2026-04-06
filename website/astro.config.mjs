@@ -95,6 +95,14 @@ export default defineConfig({
 							label: "Limitations",
 							slug: "advanced/limitations",
 						},
+						{
+							label: "Stability & Versioning",
+							slug: "advanced/stability",
+						},
+						{
+							label: "Troubleshooting",
+							slug: "advanced/troubleshooting",
+						},
 					],
 				},
 			],
