@@ -101,7 +101,6 @@ let assert Ok(Nil) = duplicate_bag.sync(table)
 let assert Ok(info) = duplicate_bag.info(table)
 // info.file_size — size of the file on disk in bytes
 // info.object_count — number of entries (including duplicates)
-// info.kind — slate.DuplicateBag
 ```
 
 ## Opening with options
@@ -112,7 +111,8 @@ let assert Ok(info) = duplicate_bag.info(table)
 import slate.{AutoRepair}
 import gleam/dynamic/decode
 
-let assert Ok(table) = duplicate_bag.open_with("data/events.dets", AutoRepair,
+let assert Ok(table) = duplicate_bag.open_with(path: "data/events.dets",
+  repair: AutoRepair,
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 
@@ -122,7 +122,8 @@ let assert Ok(table) = duplicate_bag.open_with("data/events.dets", AutoRepair,
 import slate.{AutoRepair, ReadOnly}
 import gleam/dynamic/decode
 
-let assert Ok(table) = duplicate_bag.open_with_access("data/events.dets", AutoRepair, ReadOnly,
+let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
+  repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 

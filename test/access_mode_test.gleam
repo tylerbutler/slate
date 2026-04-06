@@ -22,9 +22,9 @@ pub fn set_readonly_lookup_test() {
   // Reopen as read-only
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -43,9 +43,9 @@ pub fn set_readonly_insert_fails_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -63,9 +63,9 @@ pub fn set_readonly_delete_fails_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -85,9 +85,9 @@ pub fn set_readonly_delete_all_fails_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -107,9 +107,9 @@ pub fn set_readonly_insert_new_fails_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -128,9 +128,9 @@ pub fn set_readonly_fold_works_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
@@ -148,9 +148,9 @@ pub fn set_readonly_to_list_works_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
@@ -168,15 +168,14 @@ pub fn set_readonly_info_works_test() {
   let assert Ok(Nil) = set.close(table)
   let assert Ok(ro) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
   let assert Ok(info) = set.info(ro)
   info.object_count |> expect.to_equal(1)
-  info.kind |> expect.to_equal(slate.Set)
   let assert Ok(Nil) = set.close(ro)
   cleanup(path)
 }
@@ -186,9 +185,9 @@ pub fn set_readonly_nonexistent_file_fails_test() {
   // Opening a non-existent file as read-only should fail
   let result =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -213,9 +212,9 @@ pub fn bag_readonly_lookup_test() {
   let assert Ok(Nil) = bag.close(table)
   let assert Ok(ro) =
     bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -234,9 +233,9 @@ pub fn bag_readonly_insert_fails_test() {
   let assert Ok(Nil) = bag.close(table)
   let assert Ok(ro) =
     bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -254,9 +253,9 @@ pub fn bag_readonly_delete_fails_test() {
   let assert Ok(Nil) = bag.close(table)
   let assert Ok(ro) =
     bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -274,9 +273,9 @@ pub fn bag_readonly_delete_all_fails_test() {
   let assert Ok(Nil) = bag.close(table)
   let assert Ok(ro) =
     bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -304,9 +303,9 @@ pub fn dupbag_readonly_lookup_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let assert Ok(ro) =
     duplicate_bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -327,9 +326,9 @@ pub fn dupbag_readonly_insert_fails_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let assert Ok(ro) =
     duplicate_bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -351,9 +350,9 @@ pub fn dupbag_readonly_delete_all_fails_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let assert Ok(ro) =
     duplicate_bag.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -368,9 +367,9 @@ pub fn set_readwrite_mode_test() {
   let path = "test_set_rw_mode.dets"
   let assert Ok(table) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadWrite,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )

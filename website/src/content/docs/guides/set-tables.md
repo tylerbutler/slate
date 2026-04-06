@@ -121,7 +121,6 @@ let assert Ok(Nil) = set.sync(table)
 let assert Ok(info) = set.info(table)
 // info.file_size — size of the file on disk in bytes
 // info.object_count — number of entries
-// info.kind — slate.Set
 ```
 
 ## Opening with options
@@ -135,15 +134,15 @@ import slate.{AutoRepair, ForceRepair, NoRepair}
 import gleam/dynamic/decode
 
 // Default: auto-repair if needed
-let assert Ok(table) = set.open_with("data/users.dets", AutoRepair,
+let assert Ok(table) = set.open_with(path: "data/users.dets", repair: AutoRepair,
   key_decoder: decode.string, value_decoder: decode.int)
 
 // Force repair even if file appears clean
-let assert Ok(table) = set.open_with("data/users.dets", ForceRepair,
+let assert Ok(table) = set.open_with(path: "data/users.dets", repair: ForceRepair,
   key_decoder: decode.string, value_decoder: decode.int)
 
 // Return an error instead of repairing
-let assert Ok(table) = set.open_with("data/users.dets", NoRepair,
+let assert Ok(table) = set.open_with(path: "data/users.dets", repair: NoRepair,
   key_decoder: decode.string, value_decoder: decode.int)
 ```
 
@@ -155,7 +154,8 @@ Open a table as read-only to prevent accidental writes:
 import slate.{AutoRepair, ReadOnly}
 import gleam/dynamic/decode
 
-let assert Ok(table) = set.open_with_access("data/users.dets", AutoRepair, ReadOnly,
+let assert Ok(table) = set.open_with_access(path: "data/users.dets",
+  repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.int)
 let assert Ok(42) = set.lookup(table, key: "alice")
 // set.insert(table, "alice", 99) would return Error(AccessDenied)

@@ -68,7 +68,7 @@ import slate.{ForceRepair}
 import slate/set
 
 let assert Ok(table) =
-  set.open_with("data/cache.dets", ForceRepair,
+  set.open_with(path: "data/cache.dets", repair: ForceRepair,
     key_decoder: decode.string, value_decoder: decode.string)
 ```
 
@@ -82,7 +82,7 @@ import gleam/io
 import slate.{ForceRepair, NoRepair}
 import slate/set
 
-case set.open_with("data/important.dets", NoRepair,
+case set.open_with(path: "data/important.dets", repair: NoRepair,
   key_decoder: decode.string, value_decoder: decode.int)
 {
   Ok(table) -> {
@@ -92,7 +92,7 @@ case set.open_with("data/important.dets", NoRepair,
   Error(_) -> {
     io.println("Corruption detected — forcing repair")
     let assert Ok(table) =
-      set.open_with("data/important.dets", ForceRepair,
+      set.open_with(path: "data/important.dets", repair: ForceRepair,
         key_decoder: decode.string, value_decoder: decode.int)
     table
   }

@@ -115,17 +115,17 @@ pub fn already_open_with_conflicting_access_test() {
   let path = "test_already_open_access.dets"
   let assert Ok(table) =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadWrite,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
   let result =
     set.open_with_access(
-      path,
-      slate.AutoRepair,
-      slate.ReadOnly,
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -445,8 +445,8 @@ pub fn set_force_repair_preserves_data_test() {
   // Force repair
   let assert Ok(table2) =
     set.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
@@ -467,8 +467,8 @@ pub fn bag_force_repair_preserves_data_test() {
   let assert Ok(Nil) = bag.close(table)
   let assert Ok(table2) =
     bag.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -491,8 +491,8 @@ pub fn dupbag_force_repair_preserves_data_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let assert Ok(table2) =
     duplicate_bag.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )

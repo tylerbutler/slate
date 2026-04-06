@@ -143,7 +143,6 @@ pub fn duplicate_bag_info_test() {
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(info) = duplicate_bag.info(table)
   info.object_count |> expect.to_equal(1)
-  info.kind |> expect.to_equal(slate.DuplicateBag)
   let assert Ok(Nil) = duplicate_bag.close(table)
   cleanup(path)
 }
@@ -351,8 +350,8 @@ pub fn duplicate_bag_repair_policies_test() {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let assert Ok(table2) =
     duplicate_bag.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )

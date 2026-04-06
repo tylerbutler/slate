@@ -57,10 +57,26 @@ pub fn open(
   open_with(path, AutoRepair, key_decoder:, value_decoder:)
 }
 
-/// Open or create a DETS duplicate bag table with repair options.
+/// Open or create a DETS duplicate bag table with a specific repair policy.
+///
+/// The repair policy controls what happens when the table file was not
+/// closed cleanly (e.g., after a crash):
+///
+/// - `AutoRepair` — silently repair the file if needed (default for `open`)
+/// - `ForceRepair` — repair even if the file appears clean
+/// - `NoRepair` — return an error instead of repairing
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// import slate.{ForceRepair}
+/// let assert Ok(table) = duplicate_bag.open_with(path: "data/events.dets",
+///   repair: ForceRepair,
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// ```
+///
 pub fn open_with(
-  path: String,
-  repair: RepairPolicy,
+  path path: String,
+  repair repair: RepairPolicy,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
@@ -75,16 +91,18 @@ pub fn open_with(
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
-/// let assert Ok(table) = duplicate_bag.open_with_access(path, AutoRepair, ReadOnly,
+/// import slate.{AutoRepair, ReadOnly}
+/// let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
+///   repair: AutoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(vals) = duplicate_bag.lookup(table, key: "key")
 /// // duplicate_bag.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
 ///
 pub fn open_with_access(
-  path: String,
-  repair: RepairPolicy,
-  access: AccessMode,
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
@@ -309,11 +327,7 @@ pub fn delete_all(from table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
 pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
   case ffi_info_file_size(table.ref), ffi_info_size(table.ref) {
     Ok(file_size), Ok(object_count) ->
-      Ok(slate.TableInfo(
-        file_size: file_size,
-        object_count: object_count,
-        kind: slate.DuplicateBag,
-      ))
+      Ok(slate.TableInfo(file_size:, object_count:))
     Error(err), _ -> Error(err)
     _, Error(err) -> Error(err)
   }

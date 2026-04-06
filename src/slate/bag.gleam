@@ -1,12 +1,8 @@
 /// DETS bag tables — multiple distinct values per key.
 ///
-/// Bag tables allow storing multiple values for the same key, but
-/// duplicate key-value pairs are rejected with `Error(KeyAlreadyPresent)`.
-///
-/// > **Note**: This diverges from native DETS behavior, where `dets:insert`
-/// > on a bag silently deduplicates identical key-value pairs. Slate bags
-/// > make the duplicate explicit so callers can distinguish a new insert
-/// > from a no-op.
+/// Bag tables allow storing multiple values for the same key. Duplicate
+/// key-value pairs are silently ignored by `insert`. Use `insert_new`
+/// when you need to detect duplicates.
 ///
 /// ## Example
 ///
@@ -57,10 +53,26 @@ pub fn open(
   open_with(path, AutoRepair, key_decoder:, value_decoder:)
 }
 
-/// Open or create a DETS bag table with repair options.
+/// Open or create a DETS bag table with a specific repair policy.
+///
+/// The repair policy controls what happens when the table file was not
+/// closed cleanly (e.g., after a crash):
+///
+/// - `AutoRepair` — silently repair the file if needed (default for `open`)
+/// - `ForceRepair` — repair even if the file appears clean
+/// - `NoRepair` — return an error instead of repairing
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// import slate.{ForceRepair}
+/// let assert Ok(table) = bag.open_with(path: "data/tags.dets",
+///   repair: ForceRepair,
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// ```
+///
 pub fn open_with(
-  path: String,
-  repair: RepairPolicy,
+  path path: String,
+  repair repair: RepairPolicy,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(Bag(k, v), DetsError) {
@@ -75,16 +87,18 @@ pub fn open_with(
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
-/// let assert Ok(table) = bag.open_with_access(path, AutoRepair, ReadOnly,
+/// import slate.{AutoRepair, ReadOnly}
+/// let assert Ok(table) = bag.open_with_access(path: "data/tags.dets",
+///   repair: AutoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(vals) = bag.lookup(table, key: "key")
 /// // bag.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
 ///
 pub fn open_with_access(
-  path: String,
-  repair: RepairPolicy,
-  access: AccessMode,
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
 ) -> Result(Bag(k, v), DetsError) {
@@ -239,31 +253,38 @@ pub fn size(of table: Bag(k, v)) -> Result(Int, DetsError) {
 
 // ── Write ───────────────────────────────────────────────────────────────
 
-/// Insert a key-value pair. Returns `Error(KeyAlreadyPresent)` if the exact
-/// key-value pair already exists in the table.
+/// Insert a key-value pair. If the exact pair already exists, this is a
+/// no-op (the duplicate is silently ignored).
 ///
-/// > **Note**: Native DETS `dets:insert` on a bag silently deduplicates
-/// > identical objects. Slate makes duplicates explicit so callers can detect
-/// > no-op inserts. Use `insert_list` for batch inserts that follow the native
-/// > DETS silent-dedup behavior.
+/// Multiple distinct values for the same key are stored separately.
 pub fn insert(
   into table: Bag(k, v),
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_insert_new_object(table.ref, #(key, value))
+  ffi_insert(table.ref, #(key, value))
 }
 
-/// Insert multiple key-value pairs.
-///
-/// Unlike `insert`, this uses the native DETS batch insert, which silently
-/// deduplicates any key-value pair that already exists in the table. Use
-/// this for efficient bulk loading where duplicate detection is not needed.
+/// Insert multiple key-value pairs. Duplicate pairs already in the table
+/// are silently ignored.
 pub fn insert_list(
   into table: Bag(k, v),
   entries entries: List(#(k, v)),
 ) -> Result(Nil, DetsError) {
   ffi_insert_list(table.ref, entries)
+}
+
+/// Insert a key-value pair only if the exact pair does not already exist.
+///
+/// Returns `Error(KeyAlreadyPresent)` if the exact key-value pair is
+/// already in the table. Use `insert` when you don't need duplicate
+/// detection.
+pub fn insert_new(
+  into table: Bag(k, v),
+  key key: k,
+  value value: v,
+) -> Result(Nil, DetsError) {
+  ffi_insert_new_object(table.ref, #(key, value))
 }
 
 // ── Delete ──────────────────────────────────────────────────────────────
@@ -308,11 +329,7 @@ pub fn delete_all(from table: Bag(k, v)) -> Result(Nil, DetsError) {
 pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
   case ffi_info_file_size(table.ref), ffi_info_size(table.ref) {
     Ok(file_size), Ok(object_count) ->
-      Ok(slate.TableInfo(
-        file_size: file_size,
-        object_count: object_count,
-        kind: slate.Bag,
-      ))
+      Ok(slate.TableInfo(file_size:, object_count:))
     Error(err), _ -> Error(err)
     _, Error(err) -> Error(err)
   }
@@ -345,6 +362,9 @@ fn ffi_with_close(
 
 @external(erlang, "dets_ffi", "sync")
 fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)
+
+@external(erlang, "dets_ffi", "insert")
+fn ffi_insert(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
 
 @external(erlang, "dets_ffi", "insert_new_object")
 fn ffi_insert_new_object(
