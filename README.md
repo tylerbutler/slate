@@ -227,6 +227,21 @@ The top-level `slate` module also provides:
 - **Bounded table name pool** — slate uses an internal bounded set of DETS table names to avoid unbounded atom growth. Opening too many distinct tables at once can fail with `TableNamePoolExhausted`; close tables when no longer needed
 - **Erlang only** — DETS is a BEAM feature, no JavaScript target support
 
+## Stability
+
+slate follows [Semantic Versioning](https://semver.org/). The **public API** covered by semver guarantees consists of four modules:
+
+- `slate` — shared types (`DetsError`, `Kind`, `RepairPolicy`, `TableInfo`) and helpers
+- `slate/set` — set tables
+- `slate/bag` — bag tables
+- `slate/duplicate_bag` — duplicate bag tables
+
+The Erlang FFI files (`dets_ffi.erl`, `with_table_ffi.erl`) are internal implementation details and are **not** part of the public API. They may change in any release without notice.
+
+**Versioning policy:** patch releases contain bug fixes only, minor releases add backward-compatible features, and major releases may include breaking changes. The `error_code()` strings returned by `slate.error_code` are stable across minor and patch releases and are safe for programmatic matching (e.g., in error-handling logic or logging). The `error_message()` strings are human-readable and may change in any release.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history and upgrade notes, and the [GitHub Releases](https://github.com/tylerbutler/slate/releases) page for tagged versions.
+
 ## Related projects
 
 - **[bravo](https://github.com/Michael-Mark-Edu/bravo)** — Comprehensive ETS (in-memory) bindings for Gleam
