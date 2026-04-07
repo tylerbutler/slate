@@ -59,9 +59,22 @@ access_value(read_write) -> read_write;
 access_value(read_only) -> read.
 
 canonicalize_path(Path) when is_binary(Path) ->
-    filename:absname(binary_to_list(Path));
+    normalize_path(filename:absname(binary_to_list(Path)));
 canonicalize_path(Path) when is_list(Path) ->
-    filename:absname(Path).
+    normalize_path(filename:absname(Path)).
+
+%% Collapse "." and ".." segments so that "./foo.dets" and "../cwd/foo.dets"
+%% resolve to the same canonical path.  Does NOT follow symlinks (the file
+%% may not exist yet).
+normalize_path(AbsPath) ->
+    Parts = filename:split(AbsPath),
+    filename:join(normalize_parts(Parts, [])).
+
+normalize_parts([], Acc) -> lists:reverse(Acc);
+normalize_parts(["." | Rest], Acc) -> normalize_parts(Rest, Acc);
+normalize_parts([".." | Rest], [_ | Acc]) -> normalize_parts(Rest, Acc);
+normalize_parts([".." | Rest], []) -> normalize_parts(Rest, []);
+normalize_parts([Part | Rest], Acc) -> normalize_parts(Rest, [Part | Acc]).
 
 table_name_for_path(CanonicalPath) ->
     case find_open_table_for_path(CanonicalPath) of
@@ -150,6 +163,13 @@ insert_new(Name, Objects) ->
 %% For bag tables: rejects duplicate key-value pairs but allows same key
 %% with different values. Checks if the exact object already exists via
 %% dets:match_object before inserting.
+%%
+%% NOTE: This is NOT atomic. Between the match_object check and the insert,
+%% another process could insert the same object. In practice the window is
+%% tiny and the consequence is benign: both callers succeed, but DETS's own
+%% bag deduplication ensures only one copy ends up in the table.
+%% We cannot use dets:insert_new/2 here because it checks by KEY only,
+%% whereas bag insert_new needs to check the exact KEY+VALUE pair.
 insert_new_object(Name, Object) ->
     try dets:match_object(Name, Object) of
         [] ->
@@ -337,8 +357,11 @@ translate_error({keypos_mismatch, _}) -> type_mismatch;
 translate_error({incompatible_arguments, _}) -> already_open;
 translate_error(incompatible_arguments) -> already_open;
 translate_error(badarg) -> table_does_not_exist;
+translate_error({no_such_table, _}) -> table_does_not_exist;
 translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
 translate_error(no_available_table_name) -> table_name_pool_exhausted;
+translate_error({not_a_dets_file, _}) -> not_a_dets_file;
+translate_error({needs_repair, _}) -> needs_repair;
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->

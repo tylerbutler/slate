@@ -66,6 +66,10 @@ pub type DetsError {
   TypeMismatch
   /// All internal table name slots are in use; close unused tables to free slots
   TableNamePoolExhausted
+  /// File exists but is not a valid DETS file
+  NotADetsFile
+  /// File was not closed cleanly and `NoRepair` was requested
+  NeedsRepair
   /// Data read from disk did not match the expected Gleam types
   DecodeErrors(List(decode.DecodeError))
   /// Unexpected OTP or Erlang-level error for logging and diagnostics only.
@@ -112,6 +116,8 @@ pub fn error_code(of error: DetsError) -> String {
     AccessDenied -> "access_denied"
     TypeMismatch -> "type_mismatch"
     TableNamePoolExhausted -> "table_name_pool_exhausted"
+    NotADetsFile -> "not_a_dets_file"
+    NeedsRepair -> "needs_repair"
     DecodeErrors(_) -> "decode_error"
     UnexpectedError(_) -> "unexpected_error"
   }
@@ -136,6 +142,9 @@ pub fn error_message(of error: DetsError) -> String {
       "The requested operation is not allowed with the current access mode."
     TypeMismatch -> "The file was opened with the wrong DETS table type."
     TableNamePoolExhausted -> "Too many different DETS tables are open at once."
+    NotADetsFile -> "The file exists but is not a valid DETS file."
+    NeedsRepair ->
+      "The table file was not closed cleanly and needs repair. Open with AutoRepair or ForceRepair."
     DecodeErrors(_) -> "Data on disk did not match the expected Gleam types."
     UnexpectedError(_) -> "An unexpected DETS error occurred."
   }
