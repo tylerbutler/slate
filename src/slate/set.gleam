@@ -125,6 +125,9 @@ pub fn close(table: Set(k, v)) -> Result(Nil, DetsError) {
 }
 
 /// Flush pending writes to disk without closing the table.
+///
+/// DETS auto-syncs periodically, so this is only needed when you require
+/// a durability guarantee at a specific point (e.g., after a critical write).
 pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
   ffi_sync(table.ref)
 }
@@ -132,6 +135,11 @@ pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
 /// Use a table within a callback, ensuring it is closed afterward.
 ///
 /// This is the recommended way to use DETS tables for short-lived operations.
+/// Opens with `AutoRepair` and `ReadWrite` access; use `open_with_access`
+/// and manual `close` if you need different settings.
+///
+/// If both the callback and close fail, the callback error is returned.
+/// If the callback raises an exception, close is attempted before re-raising.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -159,6 +167,10 @@ pub fn with_table(
 /// Returns `Error(NotFound)` if the key does not exist.
 /// Returns `Error(DecodeErrors(_))` if the stored value doesn't match the
 /// expected type.
+///
+/// **Note:** For bag and duplicate bag tables, `lookup` returns `Ok([])`
+/// for missing keys instead of `Error(NotFound)`, since those table types
+/// naturally return a list of values.
 pub fn lookup(from table: Set(k, v), key key: k) -> Result(v, DetsError) {
   case ffi_lookup(table.ref, key) {
     Ok(dynamic_value) ->
@@ -296,6 +308,9 @@ pub fn insert_new(
 // ── Delete ──────────────────────────────────────────────────────────────
 
 /// Delete the entry with the given key.
+///
+/// This operation is idempotent — deleting a key that does not exist
+/// succeeds with `Ok(Nil)`.
 pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
   ffi_delete_key(table.ref, key)
 }

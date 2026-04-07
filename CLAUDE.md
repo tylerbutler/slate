@@ -85,9 +85,11 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 - `{type_mismatch, _}` / `{keypos_mismatch, _}` → `TypeMismatch`
 - `{incompatible_arguments, _}` / `incompatible_arguments` → `AlreadyOpen`
 - `{file_error, _, efbig}` → `FileSizeLimitExceeded`
-- `badarg` → `TableDoesNotExist`
+- `badarg` / `{no_such_table, _}` → `TableDoesNotExist`
+- `{not_a_dets_file, _}` → `NotADetsFile`
+- `{needs_repair, _}` → `NeedsRepair`
 - `DecodeErrors(List(decode.DecodeError))` — returned by read operations when data on disk doesn't match the provided decoders
-- Any other error → `ErlangError(formatted_string)`
+- Any other error → `UnexpectedError(formatted_string)`
 
 ### Key Design Decisions
 
