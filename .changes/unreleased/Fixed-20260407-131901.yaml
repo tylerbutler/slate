@@ -1,8 +1,0 @@
-kind: Fixed
-body: |-
-    Path normalization now collapses `.` and `..` segments.
-
-    Paths like `./test.dets` and `../cwd/test.dets` that refer to the same file
-    now correctly resolve to a single table, avoiding spurious `AlreadyOpen`
-    errors and unnecessary table-name pool consumption. Symlinks are not resolved.
-time: 2026-04-07T13:19:01.000000+00:00

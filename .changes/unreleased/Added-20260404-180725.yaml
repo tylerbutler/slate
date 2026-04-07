@@ -1,9 +1,0 @@
-kind: Added
-body: |-
-    Added `dotes`, an example note-taking CLI in `examples/dotes/`.
-
-    Demonstrates using all three slate table types together: a set for note
-    storage with `update_counter` for atomic ID generation, a bag for per-note
-    tags, and a duplicate bag for revision history. Shows how to open and close
-    multiple tables safely and use `slate.error_message` for user-facing errors.
-time: 2026-04-04T18:07:25.000000+00:00
