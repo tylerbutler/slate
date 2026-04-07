@@ -12,8 +12,6 @@ fn corrupt_byte(path: String, position: Int) -> Result(Nil, Nil)
 
 pub fn error_code_and_message_helpers_test() {
   slate.error_code(slate.NotFound) |> expect.to_equal("not_found")
-  slate.error_code(slate.NotADetsFile) |> expect.to_equal("not_a_dets_file")
-  slate.error_code(slate.NeedsRepair) |> expect.to_equal("needs_repair")
   slate.error_code(slate.UnexpectedError("boom"))
   |> expect.to_equal("unexpected_error")
   slate.error_code(slate.NotADetsFile) |> expect.to_equal("not_a_dets_file")
@@ -22,12 +20,6 @@ pub fn error_code_and_message_helpers_test() {
   slate.error_message(slate.AccessDenied)
   |> expect.to_equal(
     "The requested operation is not allowed with the current access mode.",
-  )
-  slate.error_message(slate.NotADetsFile)
-  |> expect.to_equal("The file exists but is not a valid DETS table.")
-  slate.error_message(slate.NeedsRepair)
-  |> expect.to_equal(
-    "The DETS file needs repair before it can be opened with this repair policy.",
   )
   slate.error_message(slate.UnexpectedError("boom"))
   |> expect.to_equal("An unexpected DETS error occurred.")
