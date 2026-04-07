@@ -3,10 +3,6 @@ title: Quick Start
 description: Get up and running with slate in minutes.
 ---
 
-:::caution[Pre-1.0 Software]
-slate is not yet 1.0. The API is unstable and features may be removed in minor releases.
-:::
-
 This guide walks you through basic DETS operations with slate.
 
 ## 1. Add slate to your project
