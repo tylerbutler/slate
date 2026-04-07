@@ -1,0 +1,12 @@
+kind: Breaking
+body: |-
+    Pre-1.0 public API cleanup with breaking changes.
+
+    - Removed `Kind` type and `TableInfo.kind` field — callers already
+      know the table type from the module they imported.
+    - Renamed `bag.insert` to `bag.insert_new` (duplicate-rejecting
+      variant) and added an idempotent `bag.insert` that silently
+      deduplicates, matching native DETS behavior.
+    - Added labels (`path:`, `repair:`, `access:`) to `open_with` and
+      `open_with_access` across all table modules.
+time: 2026-04-07T17:52:25.000000+00:00
