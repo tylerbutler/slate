@@ -189,7 +189,8 @@ pub fn to_list(
 /// Fold over all entries. Order is unspecified.
 ///
 /// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
-/// expected types. The fold stops at the first decode error.
+/// expected types. The fold stops at the first decode error. If the callback
+/// raises, the exception is re-raised.
 pub fn fold(
   over table: DuplicateBag(k, v),
   from initial: acc,
@@ -219,7 +220,8 @@ pub fn fold(
 /// handle bad records.
 ///
 /// DETS-level errors (e.g., the table does not exist) still fail the
-/// entire operation via the outer `Result`.
+/// entire operation via the outer `Result`. If the callback raises, the
+/// exception is re-raised.
 ///
 /// ## Examples
 ///

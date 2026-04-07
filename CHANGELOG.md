@@ -11,9 +11,9 @@
 ### Table types
 
 - **Set** (`slate/set`) — one value per key; insert overwrites
-- **Bag** (`slate/bag`) — multiple distinct values per key; `insert` returns
-  `Error(KeyAlreadyPresent)` for duplicate key-value pairs, while `insert_list`
-  silently deduplicates (native DETS behavior)
+- **Bag** (`slate/bag`) — multiple distinct values per key; `insert` and
+  `insert_list` silently deduplicate exact key-value pairs, while `insert_new`
+  returns `Error(KeyAlreadyPresent)` for an exact duplicate pair
 - **Duplicate bag** (`slate/duplicate_bag`) — allows duplicate key-value pairs
 
 ### Operations
@@ -25,11 +25,12 @@ All three table types share a consistent API surface:
 - `close`, `sync` — flush writes and close, or flush without closing
 - `with_table` — open a table within a callback, guaranteeing close afterward
   (including when the callback raises an exception)
-- `insert`, `insert_new`, `insert_list` — write operations
+- `insert`, `insert_list` — write operations
+- `insert_new` — conditional insert for `set`, exact-duplicate check for `bag`
 - `lookup`, `member`, `to_list`, `fold`, `size` — read operations
 - `delete_key`, `delete_object`, `delete_all` — delete operations
 - `update_counter` — atomic integer increment (set tables only)
-- `info` — file size, object count, and table kind
+- `info` — file size and object count
 - `is_dets_file` — check if a file is a valid DETS file
 
 ### Type safety
@@ -52,8 +53,8 @@ let assert Ok(42) = set.lookup(table, "hits")
 
 All public functions return `Result` types. The `DetsError` type covers:
 `NotFound`, `KeyAlreadyPresent`, `FileNotFound`, `AccessDenied`, `TypeMismatch`,
-`AlreadyOpen`, `FileSizeLimitExceeded`, `TableDoesNotExist`, `DecodeErrors`,
-and `ErlangError`.
+`NotADetsFile`, `NeedsRepair`, `AlreadyOpen`, `FileSizeLimitExceeded`,
+`TableDoesNotExist`, `DecodeErrors`, and `UnexpectedError`.
 
 ### Configuration
 
@@ -68,5 +69,4 @@ and `ErlangError`.
   open concurrently
 - Disk I/O on every operation — not suitable for high-frequency reads
 - Tables must be closed properly; use `with_table` to avoid leaking handles
-
 

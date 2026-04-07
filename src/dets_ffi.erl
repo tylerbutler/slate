@@ -223,17 +223,26 @@ member(Name, Key) ->
     end.
 
 fold(Name, Fun, Acc0) ->
+    AbortTag = make_ref(),
+    CallbackExceptionTag = make_ref(),
     WrappedFun = fun(Entry, Acc) ->
-        case Fun(Entry, Acc) of
-            {error, _} = Err -> throw({slate_fold_abort, Err});
+        try Fun(Entry, Acc) of
+            {error, _} = Err -> throw({AbortTag, Err});
             Result -> Result
+        catch
+            Class:Reason:Stacktrace ->
+                throw({CallbackExceptionTag, Class, Reason, Stacktrace})
         end
     end,
     try dets:foldl(WrappedFun, Acc0, Name) of
         Result -> {ok, Result}
     catch
-        throw:{slate_fold_abort, Err} -> {ok, Err};
-        _:Reason -> {error, translate_error(Reason)}
+        throw:{AbortTag, Err} -> {ok, Err};
+        throw:{CallbackExceptionTag, Class, Reason, Stacktrace} ->
+            erlang:raise(Class, Reason, Stacktrace);
+        error:Reason -> {error, translate_error(Reason)};
+        exit:Reason -> {error, translate_error(Reason)};
+        throw:Reason -> {error, translate_error(Reason)}
     end.
 
 to_list(Name) ->
@@ -316,6 +325,8 @@ update_counter_translated_error(Reason) ->
 
 translate_error(not_found) -> not_found;
 translate_error(key_already_present) -> key_already_present;
+translate_error(not_a_dets_file) -> not_a_dets_file;
+translate_error(needs_repair) -> needs_repair;
 translate_error({file_error, _, enoent}) -> file_not_found;
 translate_error({file_error, _, eacces}) -> access_denied;
 translate_error({file_error, _, {error, eacces}}) -> access_denied;

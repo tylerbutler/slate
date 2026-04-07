@@ -178,6 +178,10 @@ case set.lookup(table, key: "missing") {
 not a stable API contract, and `error_message` intentionally returns a generic
 message for that variant.
 
+When opening existing files, `Error(slate.NotADetsFile)` means the path is
+readable but not a DETS file, and `Error(slate.NeedsRepair)` means the file was
+not closed cleanly and you opened it with `NoRepair`.
+
 For `set.update_counter`, match `Error(set.CounterValueNotInteger)` directly and
 unwrap shared table failures as `Error(set.TableError(error))`.
 
@@ -212,6 +216,12 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `insert_new(table, key, value)` | Insert if key is absent |
 | `update_counter(table, key, amount)` | Atomic counter increment |
 
+`slate/bag` also provides:
+
+| Function | Description |
+|----------|-------------|
+| `insert_new(table, key, value)` | Reject an exact duplicate key-value pair (best-effort under concurrent shared access) |
+
 The top-level `slate` module also provides:
 
 | Function | Description |
@@ -233,7 +243,7 @@ The top-level `slate` module also provides:
 
 slate follows [Semantic Versioning](https://semver.org/). The **public API** covered by semver guarantees consists of four modules:
 
-- `slate` — shared types (`DetsError`, `Kind`, `RepairPolicy`, `TableInfo`) and helpers
+- `slate` — shared types (`DetsError`, `AccessMode`, `RepairPolicy`, `TableInfo`) and helpers
 - `slate/set` — set tables
 - `slate/bag` — bag tables
 - `slate/duplicate_bag` — duplicate bag tables

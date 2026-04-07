@@ -48,6 +48,10 @@ pub type DetsError {
   NotFound
   /// Table file does not exist (when opening without create)
   FileNotFound
+  /// The file exists but is not a valid DETS file
+  NotADetsFile
+  /// The file needs DETS repair before it can be opened with the current policy
+  NeedsRepair
   /// Table is already open with a different configuration
   AlreadyOpen
   /// The table does not exist (not open)
@@ -99,6 +103,8 @@ pub fn error_code(of error: DetsError) -> String {
   case error {
     NotFound -> "not_found"
     FileNotFound -> "file_not_found"
+    NotADetsFile -> "not_a_dets_file"
+    NeedsRepair -> "needs_repair"
     AlreadyOpen -> "already_open"
     TableDoesNotExist -> "table_does_not_exist"
     FileSizeLimitExceeded -> "file_size_limit_exceeded"
@@ -119,6 +125,9 @@ pub fn error_message(of error: DetsError) -> String {
   case error {
     NotFound -> "No value was found for the requested key."
     FileNotFound -> "The DETS file could not be found."
+    NotADetsFile -> "The file exists but is not a valid DETS table."
+    NeedsRepair ->
+      "The DETS file needs repair before it can be opened with this repair policy."
     AlreadyOpen -> "The table is already open with incompatible options."
     TableDoesNotExist -> "The table is not currently open."
     FileSizeLimitExceeded -> "The DETS file exceeded the 2 GB size limit."
