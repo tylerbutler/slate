@@ -7,9 +7,10 @@
 
 Type-safe Gleam wrapper for Erlang [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html) (Disk Erlang Term Storage).
 
-> **Erlang target only** — DETS is a BEAM feature with no JavaScript target support.
-
 DETS provides persistent key-value storage backed by files on disk. Tables survive process crashes and node restarts. DETS is built into OTP — no external database or dependency is needed.
+
+> [!IMPORTANT]
+> **Erlang target only** — DETS is a BEAM feature with no JavaScript target support.
 
 ## When to use DETS
 
@@ -29,12 +30,6 @@ gleam add slate
 ```
 
 ## Usage
-
-If you use `data/*.dets` paths from the examples, create the directory first:
-
-```sh
-mkdir -p data
-```
 
 ### Set tables (one value per key)
 
