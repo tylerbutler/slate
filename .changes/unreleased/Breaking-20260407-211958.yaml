@@ -41,10 +41,12 @@ body: |-
     }
 
     // Callback exceptions now propagate instead of being returned as DetsError.
-    let result = set.fold(table, initial, fun)
+    let fold_result = set.fold(table, initial, fun)
+    let fold_results_result = set.fold_results(table, initial, fun)
     ```
 
-    `bag.insert_new` is also documented as a best-effort exact-duplicate check
-    under concurrent shared access. If you need strict duplicate exclusion
-    across writers, serialize writes through an owner process.
+    Callback-raised failures from `fold` and `fold_results` are no longer
+    returned as `DetsError`. If you previously matched
+    `Error(slate.UnexpectedError(_))` for callback failures, move that handling
+    outside the fold callback and ensure the callback itself does not raise.
 time: 2026-04-07T21:19:58.000000+00:00
