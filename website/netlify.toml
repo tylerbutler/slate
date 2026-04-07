@@ -3,3 +3,7 @@
   publish = "dist"
   # Only trigger builds when files in website/ change.
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- website/"
+
+# Always build production deploys from main.
+[context.production]
+  ignore = "/bin/false"
