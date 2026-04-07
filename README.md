@@ -31,12 +31,6 @@ gleam add slate
 
 ## Usage
 
-If you use `data/*.dets` paths from the examples, create the directory first:
-
-```sh
-mkdir -p data
-```
-
 ### Set tables (one value per key)
 
 ```gleam
