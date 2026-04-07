@@ -3,10 +3,6 @@ title: Installation
 description: How to install slate in your Gleam project.
 ---
 
-:::caution[Pre-1.0 Software]
-slate is not yet 1.0. The API is unstable and features may be removed in minor releases.
-:::
-
 Add slate to your Gleam project:
 
 ```bash
