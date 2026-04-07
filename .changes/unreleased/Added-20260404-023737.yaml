@@ -5,5 +5,17 @@ body: |-
     Unlike `fold`, decode failures do not abort the traversal. Each entry is
     presented to the callback as `Ok(#(key, value))` on success or
     `Error(decode_errors)` on failure, letting the caller skip, collect, or
-    partition bad records instead of losing the entire read.
+    partition bad records instead of losing the entire read. DETS-level errors
+    (e.g., the table is not open) still fail the entire operation via the outer
+    `Result`.
+
+    ```gleam
+    // Skip entries that fail to decode, keeping only valid ones:
+    set.fold_results(table, [], fn(acc, entry) {
+      case entry {
+        Ok(#(k, v)) -> [#(k, v), ..acc]
+        Error(_) -> acc
+      }
+    })
+    ```
 time: 2026-04-04T02:37:37.000000+00:00

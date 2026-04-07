@@ -1,0 +1,20 @@
+kind: Breaking
+body: |-
+    Added labels to `open_with` and `open_with_access` across all table modules.
+
+    Call sites using positional arguments must now use labels:
+
+    ```gleam
+    // Before
+    set.open_with("data/cache.dets", ForceRepair,
+      decode.string, decode.int)
+
+    // After
+    set.open_with(path: "data/cache.dets", repair: ForceRepair,
+      key_decoder: decode.string, value_decoder: decode.int)
+    ```
+
+    `open` and `with_table` are unchanged — only `open_with` and
+    `open_with_access` gained labels on the `path`, `repair`, and `access`
+    parameters.
+time: 2026-04-07T17:52:35.000000+00:00

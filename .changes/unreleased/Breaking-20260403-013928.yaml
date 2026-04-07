@@ -2,10 +2,59 @@ kind: Breaking
 body: |-
     Refined the public error API for DETS operations.
 
-    `ErlangError(detail)` was replaced with `UnexpectedError(detail)` to make
-    it explicit that the payload is diagnostic-only. `slate/set.update_counter`
-    now returns a dedicated `UpdateCounterError`, with shared DETS failures
-    wrapped as `TableError(slate.DetsError)` and the non-integer case surfaced
-    as `CounterValueNotInteger`. The top-level `slate` module also now provides
-    `error_code` and `error_message` helpers for stable `DetsError` handling.
+    **`ErlangError` renamed to `UnexpectedError`** — The `ErlangError(detail)`
+    variant on `DetsError` is now `UnexpectedError(detail)`, making it explicit
+    that the payload is diagnostic-only. Replace any `ErlangError` pattern match
+    arm with `UnexpectedError`:
+
+    ```gleam
+    // Before
+    case err {
+      slate.NotFound -> ...
+      slate.ErlangError(detail) -> io.println("unexpected: " <> detail)
+      _ -> ...
+    }
+
+    // After
+    case err {
+      slate.NotFound -> ...
+      slate.UnexpectedError(detail) -> io.println("unexpected: " <> detail)
+      _ -> ...
+    }
+    ```
+
+    For stable error classification without matching on the string payload, use
+    the new `slate.error_code` and `slate.error_message` helpers.
+
+    **`update_counter` now returns `UpdateCounterError`** —
+    `slate/set.update_counter` returns `Result(Int, UpdateCounterError)` instead
+    of `Result(Int, DetsError)`. The new error type has two variants:
+    `CounterValueNotInteger` (the stored value is not an integer) and
+    `TableError(DetsError)` (shared DETS failures). Update call sites that match
+    on the error:
+
+    ```gleam
+    // Before
+    case set.update_counter(table, "hits", 1) {
+      Ok(n) -> ...
+      Error(slate.NotFound) -> ...
+      Error(_) -> ...
+    }
+
+    // After
+    case set.update_counter(table, "hits", 1) {
+      Ok(n) -> ...
+      Error(set.CounterValueNotInteger) -> ...
+      Error(set.TableError(slate.NotFound)) -> ...
+      Error(set.TableError(_)) -> ...
+    }
+    ```
+
+    **New `DetsError` variant: `TableNamePoolExhausted`** — Returned when all
+    internal table name slots are in use. Close unused tables to free slots.
+
+    **New helpers: `slate.error_code` and `slate.error_message`** — Return a
+    stable machine-readable code or a concise user-facing description for any
+    `DetsError`, useful for logging and user-facing output without matching
+    on every variant.
 time: 2026-04-03T01:39:28.000000+00:00
