@@ -128,6 +128,7 @@ Managed via `.tool-versions` (source of truth for CI):
 - **ci.yml**: Format check, type check, build, test
 - **pr.yml**: PR title validation (commitlint), changelog entry check (changie)
 - **release.yml**: Automated versioning via changie-release
+  - Release PR titles must pass commitlint (pr.yml) — configured via `pr-title-template` in release.yml
 - **auto-tag.yml**: Auto-tag on release PR merge
 - **publish.yml**: Publish to Hex.pm on tag push
 
