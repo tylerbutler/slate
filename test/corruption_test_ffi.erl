@@ -4,7 +4,7 @@
 %% Truncate a file at the given byte position.
 truncate_file(Path, Where) ->
     PathStr = binary_to_list(Path),
-    case file:open(PathStr, [read, write]) of
+    case file:open(PathStr, [read, write, binary]) of
         {ok, Fd} ->
             file:position(Fd, Where),
             ok = file:truncate(Fd),
@@ -17,12 +17,17 @@ truncate_file(Path, Where) ->
 %% Corrupt a single byte at the given position.
 corrupt_byte(Path, Where) ->
     PathStr = binary_to_list(Path),
-    case file:open(PathStr, [read, write]) of
+    case file:open(PathStr, [read, write, binary]) of
         {ok, Fd} ->
-            file:position(Fd, Where),
-            ok = file:write(Fd, [255]),
-            ok = file:close(Fd),
-            {ok, nil};
+            case file:pread(Fd, Where, 1) of
+                {ok, <<Byte>>} ->
+                    ok = file:pwrite(Fd, Where, <<(Byte bxor 1)>>),
+                    ok = file:close(Fd),
+                    {ok, nil};
+                _ ->
+                    ok = file:close(Fd),
+                    {error, nil}
+            end;
         {error, _Reason} ->
             {error, nil}
     end.

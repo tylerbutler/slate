@@ -5,7 +5,7 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers.{cleanup, did_panic, range}
 
 @external(erlang, "fold_short_circuit_test_ffi", "count_ffi_fold_invocations")
 fn count_ffi_fold_invocations(table: table_type) -> Int
@@ -88,5 +88,47 @@ pub fn duplicate_bag_fold_short_circuits_on_decode_error_test() {
   invocations |> expect.to_equal(1)
 
   let assert Ok(Nil) = duplicate_bag.close(table2)
+  cleanup(path)
+}
+
+pub fn set_fold_callback_panic_propagates_test() {
+  let path = "test_set_fold_panic.dets"
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.string)
+  let assert Ok(Nil) = set.insert(table, 1, "one")
+
+  did_panic(fn() {
+    let _ =
+      set.fold(table, "", fn(acc, _k, v) {
+        let _ = acc <> v
+        panic as "boom"
+      })
+    Nil
+  })
+  |> expect.to_be_true()
+
+  let assert Ok("one") = set.lookup(table, key: 1)
+  let assert Ok(Nil) = set.close(table)
+  cleanup(path)
+}
+
+pub fn set_fold_results_callback_panic_propagates_test() {
+  let path = "test_set_fold_results_panic.dets"
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.string)
+  let assert Ok(Nil) = set.insert(table, 1, "one")
+
+  did_panic(fn() {
+    let _ =
+      set.fold_results(table, 0, fn(acc, _entry) {
+        let _ = acc
+        panic as "boom"
+      })
+    Nil
+  })
+  |> expect.to_be_true()
+
+  let assert Ok("one") = set.lookup(table, key: 1)
+  let assert Ok(Nil) = set.close(table)
   cleanup(path)
 }

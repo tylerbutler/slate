@@ -68,14 +68,7 @@ pub fn no_repair_rejects_corrupted_file_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(_) -> Nil
-    Ok(table2) -> {
-      let assert Ok(Nil) = set.close(table2)
-      cleanup(path)
-      panic as "NoRepair should reject a corrupted DETS file"
-    }
-  }
+  result |> expect.to_equal(Error(slate.NeedsRepair))
   cleanup(path)
 }
 
@@ -125,14 +118,7 @@ pub fn open_non_dets_file_test() {
   let assert Ok(Nil) = write_garbage(path)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  case result {
-    Error(_) -> Nil
-    Ok(table) -> {
-      // Shouldn't happen, but clean up
-      let assert Ok(Nil) = set.close(table)
-      panic as "opened a non-DETS file as a table"
-    }
-  }
+  result |> expect.to_equal(Error(slate.NotADetsFile))
   cleanup(path)
 }
 

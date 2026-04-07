@@ -187,7 +187,8 @@ pub fn to_list(from table: Bag(k, v)) -> Result(List(#(k, v)), DetsError) {
 /// Fold over all entries. Order is unspecified.
 ///
 /// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
-/// expected types. The fold stops at the first decode error.
+/// expected types. The fold stops at the first decode error. If the callback
+/// raises, the exception is re-raised.
 pub fn fold(
   over table: Bag(k, v),
   from initial: acc,
@@ -217,7 +218,8 @@ pub fn fold(
 /// handle bad records.
 ///
 /// DETS-level errors (e.g., the table does not exist) still fail the
-/// entire operation via the outer `Result`.
+/// entire operation via the outer `Result`. If the callback raises, the
+/// exception is re-raised.
 ///
 /// ## Examples
 ///
@@ -289,6 +291,11 @@ pub fn insert_list(
 /// Returns `Error(KeyAlreadyPresent)` if the exact key-value pair is
 /// already in the table. Use `insert` when you don't need duplicate
 /// detection.
+///
+/// Under shared concurrent access this check is best-effort rather than
+/// atomic, because DETS does not provide an exact-object `insert_new`
+/// operation for bag tables. If you need strict duplicate exclusion across
+/// writers, serialize writes through an owner process.
 pub fn insert_new(
   into table: Bag(k, v),
   key key: k,

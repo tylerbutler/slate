@@ -1,0 +1,52 @@
+kind: Breaking
+body: |-
+    DETS file-open errors and fold callback failures now surface explicitly.
+
+    `slate.DetsError` now exposes `NotADetsFile` and `NeedsRepair` for those
+    known DETS open failures instead of routing them through
+    `UnexpectedError(_)`. `fold` and `fold_results` also now re-raise callback
+    exceptions instead of wrapping them as DETS errors.
+
+    Before:
+
+    ```gleam
+    case set.open_with(
+      path: path,
+      repair: slate.NoRepair,
+      key_decoder: key_decoder,
+      value_decoder: value_decoder,
+    ) {
+      Error(slate.UnexpectedError(_)) -> handle_open_failure()
+      other -> other
+    }
+
+    case set.fold(table, initial, fun) {
+      Error(slate.UnexpectedError(_)) -> handle_callback_failure()
+      other -> other
+    }
+    ```
+
+    After:
+
+    ```gleam
+    case set.open_with(
+      path: path,
+      repair: slate.NoRepair,
+      key_decoder: key_decoder,
+      value_decoder: value_decoder,
+    ) {
+      Error(slate.NeedsRepair) -> repair_or_retry()
+      Error(slate.NotADetsFile) -> handle_invalid_file()
+      other -> other
+    }
+
+    // Callback exceptions now propagate instead of being returned as DetsError.
+    let fold_result = set.fold(table, initial, fun)
+    let fold_results_result = set.fold_results(table, initial, fun)
+    ```
+
+    Callback-raised failures from `fold` and `fold_results` are no longer
+    returned as `DetsError`. If you previously matched
+    `Error(slate.UnexpectedError(_))` for callback failures, move that handling
+    outside the fold callback and ensure the callback itself does not raise.
+time: 2026-04-07T21:19:58.000000+00:00
