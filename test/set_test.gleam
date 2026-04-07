@@ -278,6 +278,26 @@ pub fn set_with_table_open_error_test() {
   is_table_open(path) |> expect.to_equal(False)
 }
 
+pub fn set_path_dot_segments_shares_open_table_test() {
+  let path = "test_set_dot_segments.dets"
+  // Use a path with redundant ./ and dir/../ segments
+  let alias_path = "./subdir/../test_set_dot_segments.dets"
+  let assert Ok(t1) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  let assert Ok(Nil) = set.insert(t1, "key", "v1")
+  let assert Ok(t2) =
+    set.open(
+      alias_path,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+    )
+  // Both handles should see the same data
+  let assert Ok("v1") = set.lookup(t2, key: "key")
+  let assert Ok(Nil) = set.close(t1)
+  let assert Ok(Nil) = set.close(t2)
+  cleanup(path)
+}
+
 pub fn set_path_alias_shares_open_table_test() {
   let path = "test_set_alias_path.dets"
   let alias_path = "./test_set_alias_path.dets"
