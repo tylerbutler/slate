@@ -1,8 +1,0 @@
-kind: Fixed
-body: |-
-    Improved error translation for known DETS error tuples.
-
-    `{no_such_table, _}` now maps to `TableDoesNotExist` instead of
-    `UnexpectedError`. `{not_a_dets_file, _}` and `{needs_repair, _}` now map to
-    the new dedicated `NotADetsFile` and `NeedsRepair` variants respectively.
-time: 2026-04-07T13:19:02.000000+00:00

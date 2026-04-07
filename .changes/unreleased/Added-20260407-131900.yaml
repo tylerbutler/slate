@@ -1,9 +1,0 @@
-kind: Added
-body: |-
-    Added `NotADetsFile` and `NeedsRepair` variants to `DetsError`.
-
-    `NotADetsFile` is returned when opening a file that exists but is not a valid
-    DETS file. `NeedsRepair` is returned when a file was not closed cleanly and
-    `NoRepair` was requested. Both were previously reported as
-    `UnexpectedError(...)` with an opaque string detail.
-time: 2026-04-07T13:19:00.000000+00:00
