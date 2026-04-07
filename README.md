@@ -1,4 +1,4 @@
-![slate logo](https://slate.tylerbutler.com/slate.webp)
+<img src="https://slate.tylerbutler.com/slate.webp" alt="slate logo" width="200">
 
 # slate
 
