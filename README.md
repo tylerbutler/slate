@@ -1,3 +1,5 @@
+![slate logo](https://slate.tylerbutler.com/slate.webp)
+
 # slate
 
 [![Package Version](https://img.shields.io/hexpm/v/slate)](https://hex.pm/packages/slate)
