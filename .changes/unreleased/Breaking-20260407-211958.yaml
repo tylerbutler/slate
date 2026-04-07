@@ -1,11 +1,50 @@
 kind: Breaking
 body: |-
-    Hardened DETS error reporting and fold callback behavior before 1.0.
+    DETS file-open errors and fold callback failures now surface explicitly.
 
-    `slate.DetsError` now exposes `NotADetsFile` and `NeedsRepair` instead of
-    routing those known DETS open failures through `UnexpectedError`. The
-    `fold` and `fold_results` APIs now re-raise callback exceptions rather than
-    wrapping them as DETS errors. `bag.insert_new` is also documented as a
-    best-effort duplicate check under concurrent shared access, since DETS does
-    not provide an atomic exact-object insert-new operation for bag tables.
+    `slate.DetsError` now exposes `NotADetsFile` and `NeedsRepair` for those
+    known DETS open failures instead of routing them through
+    `UnexpectedError(_)`. `fold` and `fold_results` also now re-raise callback
+    exceptions instead of wrapping them as DETS errors.
+
+    Before:
+
+    ```gleam
+    case set.open_with(
+      path: path,
+      repair: slate.NoRepair,
+      key_decoder: key_decoder,
+      value_decoder: value_decoder,
+    ) {
+      Error(slate.UnexpectedError(_)) -> handle_open_failure()
+      other -> other
+    }
+
+    case set.fold(table, initial, fun) {
+      Error(slate.UnexpectedError(_)) -> handle_callback_failure()
+      other -> other
+    }
+    ```
+
+    After:
+
+    ```gleam
+    case set.open_with(
+      path: path,
+      repair: slate.NoRepair,
+      key_decoder: key_decoder,
+      value_decoder: value_decoder,
+    ) {
+      Error(slate.NeedsRepair) -> repair_or_retry()
+      Error(slate.NotADetsFile) -> handle_invalid_file()
+      other -> other
+    }
+
+    // Callback exceptions now propagate instead of being returned as DetsError.
+    let result = set.fold(table, initial, fun)
+    ```
+
+    `bag.insert_new` is also documented as a best-effort exact-duplicate check
+    under concurrent shared access. If you need strict duplicate exclusion
+    across writers, serialize writes through an owner process.
 time: 2026-04-07T21:19:58.000000+00:00
