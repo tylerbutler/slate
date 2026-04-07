@@ -34,7 +34,7 @@ just clean        # Remove build artifacts
 
 ```
 src/
-├── slate.gleam                # Shared types (DetsError, Kind, RepairPolicy, TableInfo)
+├── slate.gleam                # Shared types (DetsError, AccessMode, RepairPolicy, TableInfo)
 ├── dets_ffi.erl              # Erlang FFI for DETS operations
 ├── with_table_ffi.erl        # Close-on-exit helper used by with_table
 └── slate/
@@ -63,7 +63,7 @@ test/
 
 ### Module Organization
 
-- **`slate`**: Shared types — `DetsError`, `Kind`, `RepairPolicy`, `TableInfo`
+- **`slate`**: Shared types — `DetsError`, `AccessMode`, `RepairPolicy`, `TableInfo`
 - **`slate/set`**: Set tables — one value per key, `insert` overwrites
 - **`slate/bag`**: Bag tables — multiple distinct values per key
 - **`slate/duplicate_bag`**: Duplicate bag tables — allows duplicate key-value pairs

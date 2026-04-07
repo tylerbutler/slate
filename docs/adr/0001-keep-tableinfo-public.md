@@ -17,7 +17,7 @@ public (matchable) record or become an opaque type with accessor functions.
 
 ```gleam
 pub type TableInfo {
-  TableInfo(file_size: Int, object_count: Int, kind: Kind)
+  TableInfo(file_size: Int, object_count: Int)
 }
 ```
 
@@ -80,7 +80,6 @@ needing to extend `TableInfo` is minimal.
 | `Bag(k,v)`          | Yes    | Table handle  |
 | `DuplicateBag(k,v)` | Yes    | Table handle  |
 | `DetsError`          | No     | Error enum    |
-| `Kind`               | No     | Data enum     |
 | `AccessMode`         | No     | Config enum   |
 | `RepairPolicy`       | No     | Config enum   |
 | `UpdateCounterError` | No     | Error enum    |
@@ -97,8 +96,8 @@ does not expose a table info type, but its handle-vs-data split matches slate's.
 
 ## Consequences
 
-- `TableInfo` remains a public record with `file_size`, `object_count`, and
-  `kind` fields.
+- `TableInfo` remains a public record with `file_size` and `object_count`
+  fields.
 - Users may access fields directly (e.g., `info.object_count`) and pattern
   match on the constructor.
 - Adding a field to `TableInfo` after 1.0 would be a breaking change — this is

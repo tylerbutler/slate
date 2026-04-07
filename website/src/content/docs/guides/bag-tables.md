@@ -103,7 +103,6 @@ let assert Ok(Nil) = bag.sync(table)
 let assert Ok(info) = bag.info(table)
 // info.file_size — size of the file on disk in bytes
 // info.object_count — number of entries
-// info.kind — slate.Bag
 ```
 
 ## Opening with options
@@ -114,7 +113,7 @@ let assert Ok(info) = bag.info(table)
 import slate.{AutoRepair, ForceRepair, NoRepair}
 import gleam/dynamic/decode
 
-let assert Ok(table) = bag.open_with("data/tags.dets", AutoRepair,
+let assert Ok(table) = bag.open_with(path: "data/tags.dets", repair: AutoRepair,
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 
@@ -124,7 +123,8 @@ let assert Ok(table) = bag.open_with("data/tags.dets", AutoRepair,
 import slate.{AutoRepair, ReadOnly}
 import gleam/dynamic/decode
 
-let assert Ok(table) = bag.open_with_access("data/tags.dets", AutoRepair, ReadOnly,
+let assert Ok(table) = bag.open_with_access(path: "data/tags.dets",
+  repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 

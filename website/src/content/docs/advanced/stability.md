@@ -10,7 +10,7 @@ The following modules make up the supported public API:
 
 | Module | Purpose |
 |--------|---------|
-| `slate` | Shared types (`DetsError`, `Kind`, `RepairPolicy`, `TableInfo`) and helper functions (`error_code`, `error_message`, `is_dets_file`) |
+| `slate` | Shared types (`DetsError`, `AccessMode`, `RepairPolicy`, `TableInfo`) and helper functions (`error_code`, `error_message`, `is_dets_file`) |
 | `slate/set` | Set tables — one value per key |
 | `slate/bag` | Bag tables — multiple distinct values per key |
 | `slate/duplicate_bag` | Duplicate bag tables — duplicate key-value pairs allowed |
@@ -26,8 +26,8 @@ The Erlang FFI files (`dets_ffi.erl` and `with_table_ffi.erl`) are internal impl
 | Release type | What changes |
 |-------------|-------------|
 | **Patch** (e.g., 1.0.0 → 1.0.1) | Bug fixes only. No new features, no breaking changes. |
-| **Minor** (e.g., 1.0.0 → 1.1.0) | Backward-compatible additions — new functions, new error variants, new options. Existing code continues to compile and work. |
-| **Major** (e.g., 1.0.0 → 2.0.0) | Breaking changes — removed or renamed functions, changed return types, removed error variants. |
+| **Minor** (e.g., 1.0.0 → 1.1.0) | Backward-compatible additions — new functions, new options. Existing code continues to compile and work. |
+| **Major** (e.g., 1.0.0 → 2.0.0) | Breaking changes — removed or renamed functions, changed return types, added or removed type variants, new record fields. |
 
 ## Stable error codes
 

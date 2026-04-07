@@ -35,8 +35,8 @@ pub fn bag_no_duplicates_test() {
   let path = "test_bag_no_dupes.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert Ok(Nil) = bag.insert(table, "key", "val")
-  bag.insert(table, "key", "val")
+  let assert Ok(Nil) = bag.insert_new(table, "key", "val")
+  bag.insert_new(table, "key", "val")
   |> expect.to_equal(Error(slate.KeyAlreadyPresent))
   let assert Ok(values) = bag.lookup(table, key: "key")
   values |> list.length |> expect.to_equal(1)
@@ -149,7 +149,6 @@ pub fn bag_info_test() {
   let assert Ok(Nil) = bag.insert(table, "a", 1)
   let assert Ok(info) = bag.info(table)
   info.object_count |> expect.to_equal(1)
-  info.kind |> expect.to_equal(slate.Bag)
   let assert Ok(Nil) = bag.close(table)
   cleanup(path)
 }
@@ -338,8 +337,8 @@ pub fn bag_repair_policies_test() {
   // Reopen with ForceRepair
   let assert Ok(table2) =
     bag.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )

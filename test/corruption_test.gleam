@@ -28,8 +28,8 @@ pub fn truncated_file_auto_repair_test() {
   // AutoRepair should handle the truncated file
   let result =
     set.open_with(
-      path,
-      slate.AutoRepair,
+      path:,
+      repair: slate.AutoRepair,
       key_decoder: decode.int,
       value_decoder: decode.int,
     )
@@ -63,8 +63,8 @@ pub fn no_repair_rejects_corrupted_file_test() {
   // NoRepair should refuse to open
   let result =
     set.open_with(
-      path,
-      slate.NoRepair,
+      path:,
+      repair: slate.NoRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -94,8 +94,8 @@ pub fn force_repair_on_corrupted_file_test() {
   // ForceRepair should attempt to rebuild
   let result =
     set.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.int,
       value_decoder: decode.int,
     )

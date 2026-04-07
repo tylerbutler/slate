@@ -76,16 +76,6 @@ pub type AccessMode {
   ReadOnly
 }
 
-/// DETS table type.
-pub type Kind {
-  /// One value per key (default)
-  Set
-  /// Multiple distinct values per key
-  Bag
-  /// Multiple values per key, duplicates allowed
-  DuplicateBag
-}
-
 /// Auto-repair policy for improperly closed tables.
 pub type RepairPolicy {
   /// Repair automatically if needed (default)
@@ -98,7 +88,7 @@ pub type RepairPolicy {
 
 /// Information about an open DETS table.
 pub type TableInfo {
-  TableInfo(file_size: Int, object_count: Int, kind: Kind)
+  TableInfo(file_size: Int, object_count: Int)
 }
 
 /// Return a stable machine-readable code for a `DetsError`.

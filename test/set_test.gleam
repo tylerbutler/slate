@@ -22,8 +22,8 @@ pub fn set_open_with_repair_test() {
   let path = "test_set_repair.dets"
   let assert Ok(table) =
     set.open_with(
-      path,
-      slate.AutoRepair,
+      path:,
+      repair: slate.AutoRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -307,7 +307,6 @@ pub fn set_info_test() {
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(info) = set.info(table)
   info.object_count |> expect.to_equal(1)
-  info.kind |> expect.to_equal(slate.Set)
   { info.file_size > 0 } |> expect.to_be_true
   let assert Ok(Nil) = set.close(table)
   cleanup(path)
@@ -445,8 +444,8 @@ pub fn set_force_repair_test() {
   // Reopen with ForceRepair
   let assert Ok(table2) =
     set.open_with(
-      path,
-      slate.ForceRepair,
+      path:,
+      repair: slate.ForceRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
@@ -465,8 +464,8 @@ pub fn set_no_repair_test() {
   // NoRepair should work on a properly closed file
   let assert Ok(table2) =
     set.open_with(
-      path,
-      slate.NoRepair,
+      path:,
+      repair: slate.NoRepair,
       key_decoder: decode.string,
       value_decoder: decode.string,
     )

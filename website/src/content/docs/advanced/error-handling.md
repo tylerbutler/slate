@@ -25,7 +25,7 @@ Bag and duplicate bag tables return an empty list instead of `NotFound` when a k
 
 ### `KeyAlreadyPresent`
 
-Returned by `insert_new` when the key already exists in a set table.
+Returned by `insert_new` when the key (set) or exact key-value pair (bag) already exists.
 
 ```gleam
 import slate
@@ -44,7 +44,9 @@ import slate
 import slate/set
 import slate.{AutoRepair, ReadOnly}
 
-let assert Ok(table) = set.open_with_access("data/users.dets", AutoRepair, ReadOnly)
+let assert Ok(table) = set.open_with_access(path: "data/users.dets",
+  repair: AutoRepair, access: ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.string)
 let assert Error(slate.AccessDenied) = set.insert(table, "key", "value")
 ```
 
@@ -117,7 +119,7 @@ let assert Ok(Nil) = set.insert(table, "key", "value")
 | Error | Cause | Affected Functions |
 |-------|-------|--------------------|
 | `NotFound` | Key missing (set tables only) | `lookup` |
-| `KeyAlreadyPresent` | Key exists | `insert_new` (set only) |
+| `KeyAlreadyPresent` | Key or pair exists | `insert_new` (set, bag) |
 | `AccessDenied` | Write on read-only table | `insert`, `insert_list`, `insert_new`, `delete_*`, `update_counter` |
 | `TypeMismatch` | Wrong table type for file | `open`, `open_with`, `open_with_access` |
 | `FileNotFound` | File missing or inaccessible | `open`, `open_with`, `open_with_access` |
