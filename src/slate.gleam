@@ -19,7 +19,7 @@
 /// let assert Ok(table) = set.open("data/cache.dets",
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(Nil) = set.insert(table, "key", "value")
-/// let assert Ok(value) = set.lookup(table, "key")
+/// let assert Ok(value) = set.lookup(table, key: "key")
 /// let assert Ok(Nil) = set.close(table)
 /// ```
 ///
