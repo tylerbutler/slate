@@ -101,7 +101,7 @@ case set.open_with(path: "data/important.dets", repair: NoRepair,
 
 ## TableNamePoolExhausted
 
-Slate uses a fixed internal pool of 4096 DETS table name slots. Each unique file path that you open consumes one slot. When all slots are in use, `open` returns `TableNamePoolExhausted`.
+slate uses a fixed internal pool of 4096 DETS table name slots. Each unique file path that you open consumes one slot. When all slots are in use, `open` returns `TableNamePoolExhausted`.
 
 ### Why it happens
 
@@ -178,7 +178,7 @@ This difference matters when you branch on "key exists vs. key missing." With se
 
 ## delete_object for duplicate_bag
 
-The `delete` function removes *all* values associated with a key. In contrast, `delete_object` removes only the exact key-value pair you specify. This distinction is most useful with duplicate bag tables, where a single key can have multiple values — including duplicates.
+The `delete_key` function removes *all* values associated with a key. In contrast, `delete_object` removes only the exact key-value pair you specify. This distinction is most useful with duplicate bag tables, where a single key can have multiple values — including duplicates.
 
 ### Example
 
@@ -192,8 +192,8 @@ let assert Ok(Nil) = duplicate_bag.delete_object(table, key: "color", value: "re
 // Now contains only: ("color", "blue")
 // Both copies of ("color", "red") were removed
 
-// To remove all values for a key regardless of value, use delete instead
-let assert Ok(Nil) = duplicate_bag.delete(table, key: "color")
+// To remove all values for a key regardless of value, use delete_key instead
+let assert Ok(Nil) = duplicate_bag.delete_key(table, key: "color")
 // Now contains nothing for "color"
 ```
 
@@ -203,11 +203,11 @@ let assert Ok(Nil) = duplicate_bag.delete(table, key: "color")
 
 For **bag** tables, `delete_object` works the same way — it removes the specific key-value pair. Since bag tables do not store duplicate pairs, one call is always sufficient.
 
-For **set** tables, `delete_object` removes the entry only if both the key *and* value match what is stored. If you only want to delete by key regardless of value, use `delete` instead.
+For **set** tables, `delete_object` removes the entry only if both the key *and* value match what is stored. If you only want to delete by key regardless of value, use `delete_key` instead.
 
 ## Using error_code and error_message
 
-Slate provides two helper functions for working with errors programmatically:
+slate provides two helper functions for working with errors programmatically:
 
 - **`slate.error_code(error)`** returns a stable, machine-readable string like `"not_found"` or `"decode_error"`. Use this for logging, metrics, and programmatic error handling.
 - **`slate.error_message(error)`** returns a human-readable description like `"No value was found for the requested key."` Use this for user-facing messages and debug output.
