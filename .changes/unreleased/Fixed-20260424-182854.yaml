@@ -1,3 +1,0 @@
-kind: Fixed
-body: 'Correct documentation inaccuracies in error handling and troubleshooting guides: replace non-existent `ErlangError` with `UnexpectedError`, fix non-existent `delete` references to `delete_key`, add missing decoder arguments to all `open` examples, and document previously-omitted error variants (`NotADetsFile`, `NeedsRepair`, `DecodeErrors`, `TableNamePoolExhausted`, `UnexpectedError`, `set.UpdateCounterError`).'
-time: 2026-04-24T18:28:54.106001667-07:00
