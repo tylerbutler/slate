@@ -38,6 +38,9 @@ export default defineConfig({
 				starlightLlmsTxt(),
 				starlightLinksValidator(),
 			],
+			components: {
+				Head: "./src/components/Head.astro",
+			},
 			social: [
 				{
 					icon: "github",
