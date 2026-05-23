@@ -23,6 +23,9 @@ importers:
       astro:
         specifier: ^6.1.4
         version: 6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3)
+      astro-tinylytics:
+        specifier: ^0.1.0
+        version: 0.1.0(astro@6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3))
       sharp:
         specifier: ^0.34.5
         version: 0.34.5
@@ -865,6 +868,12 @@ packages:
     resolution: {integrity: sha512-hUpogGc6DdAd+I7pPXsctyYPRBJDK7Q7d06s4cyP0Vz3OcbziP3FNzN0jZci1BpCvLn9675DvS7B9ctKKX64JQ==}
     peerDependencies:
       astro: ^4.0.0-beta || ^5.0.0-beta || ^3.3.0 || ^6.0.0-beta
+
+  astro-tinylytics@0.1.0:
+    resolution: {integrity: sha512-TK/Ang0suanYCukxt0kzigam2BJBjWQsksD1YgRCb1931/pjMgHXej5YIJSD3LgcKfzIlDR0bnJobZ2NDY9tKA==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      astro: '>=4.0.0'
 
   astro@6.1.4:
     resolution: {integrity: sha512-SRy1bONuCHkGWhI5JiWCQKVDVbeaXOikjAVZs/Nz+lvUvubtdLoZfnacmuZHQ9RL2IOkU54M8/qZYm9ypJDKrg==}
@@ -3113,6 +3122,10 @@ snapshots:
     dependencies:
       astro: 6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3)
       rehype-expressive-code: 0.41.7
+
+  astro-tinylytics@0.1.0(astro@6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3)):
+    dependencies:
+      astro: 6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3)
 
   astro@6.1.4(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.1)(typescript@6.0.2)(yaml@2.8.3):
     dependencies:

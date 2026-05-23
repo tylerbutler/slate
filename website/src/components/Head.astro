@@ -1,0 +1,8 @@
+---
+import Default from "@astrojs/starlight/components/Head.astro";
+import { Script } from "astro-tinylytics";
+
+const embedCode = "2kPzGJW6u9gfLugBcmUE";
+---
+<Default><slot /></Default>
+<Script embedCode={embedCode} min hits kudos="custom" events beacon />
