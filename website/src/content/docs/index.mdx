@@ -30,6 +30,7 @@ import gleam/dynamic/decode
 import slate/set
 
 pub fn main() {
+  // `let assert` unwraps the Ok, crashing on Error — fine for a demo
   let assert Ok(users) = set.open("data/users.dets",
     key_decoder: decode.string, value_decoder: decode.int)
 
@@ -82,4 +83,4 @@ Every table type gets the same typed API; they differ in what happens when a key
 gleam add slate
 ```
 
-Erlang target only — DETS is a BEAM feature, with no JavaScript target support. From here, the [Quick Start](/quick-start/) has you reading and writing a table in about two minutes.
+Erlang target only — DETS is a BEAM feature, with no JavaScript target support. slate is 1.0: the public API is stable under [semver guarantees](/advanced/stability/), and the [Quick Start](/quick-start/) has you reading and writing a table in about two minutes.

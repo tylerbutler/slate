@@ -18,6 +18,7 @@ DETS is built into OTP — no external database or dependency is needed. slate f
 
 ## Key features
 
+- **Stable 1.0 API**: The public modules are covered by [semver guarantees](/advanced/stability/)
 - **Three table types**: `set` (unique keys), `bag` (multiple distinct values per key), `duplicate_bag` (duplicates allowed)
 - **Automatic persistence**: Data survives process crashes and node restarts
 - **Convenient short-lived lifecycle**: `with_table` closes tables when the callback returns and attempts cleanup if the callback raises

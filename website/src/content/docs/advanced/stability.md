@@ -2,7 +2,7 @@
 title: Stability & Versioning
 ---
 
-slate follows [Semantic Versioning](https://semver.org/). This page describes which parts of the library are covered by versioning guarantees and what to expect across releases.
+slate 1.0 is released: the public API is stable and covered by [Semantic Versioning](https://semver.org/). This page describes which parts of the library are covered by versioning guarantees and what to expect across releases.
 
 ## Public API surface
 

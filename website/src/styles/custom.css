@@ -3,6 +3,28 @@
 	min-block-size: 2.75rem;
 }
 
+/* Splash page: cap the prose measure while code, tables, and cards breathe. */
+[data-has-hero] .sl-markdown-content > p {
+	max-width: 70ch;
+}
+
+/* Splash tables fill their column instead of floating in it. */
+[data-has-hero] .sl-markdown-content table {
+	width: 100%;
+}
+
+/* The three table-type cards sit as one row on wide viewports. */
+@media (min-width: 72rem) {
+	[data-has-hero] .sl-markdown-content .card-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+/* LinkCard descriptions are body copy, not de-emphasized UI (One Stone Rule). */
+.sl-link-card .description {
+	color: var(--sl-color-gray-2);
+}
+
 /* Dark mode colors. */
 :root {
 	--sl-color-accent-low: #1a2332;
