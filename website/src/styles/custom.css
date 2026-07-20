@@ -1,3 +1,8 @@
+/* Hero and content link-buttons: meet the 44px touch target. */
+.sl-link-button {
+	min-block-size: 2.75rem;
+}
+
 /* Dark mode colors. */
 :root {
 	--sl-color-accent-low: #1a2332;

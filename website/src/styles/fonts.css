@@ -1,3 +1,4 @@
 :root {
-	--sl-font: "Metropolis", sans-serif;
+	--sl-font: "Schibsted Grotesk", sans-serif;
+	--sl-font-mono: "Spline Sans Mono", ui-monospace, monospace;
 }
