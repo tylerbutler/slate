@@ -21,28 +21,38 @@ hero:
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
+## Install
+
+```sh
+gleam add slate
+```
+
+slate targets Erlang, where DETS ships with OTP. There is no database service or JavaScript-target dependency to add.
+
 ## What it looks like
 
 Open a table, insert, look up. Every value passes through the decoders you choose, so what comes off disk is typed — not dynamic data you have to trust.
 
 ```gleam
 import gleam/dynamic/decode
+import gleam/result
 import slate/set
 
 pub fn main() {
-  // `let assert` unwraps the Ok, crashing on Error — fine for a demo
-  let assert Ok(users) = set.open("data/users.dets",
-    key_decoder: decode.string, value_decoder: decode.int)
-
-  let assert Ok(Nil) = set.insert(users, "alice", 42)
-  let assert Ok(age) = set.lookup(users, key: "alice")
-  // age == 42
-
-  let assert Ok(Nil) = set.close(users)
+  use users <- set.with_table(
+    "data/users.dets",
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  use Nil <- result.try(
+    set.insert(users, "alice", 42),
+  )
+  set.lookup(users, key: "alice")
 }
+// Ok(42), and the table is closed
 ```
 
-Tables survive process crashes and node restarts. DETS is part of OTP, so there is nothing else to install, run, or operate.
+`with_table` closes short-lived tables before returning, including when an operation returns an error. Values persist across node restarts; after an abrupt process termination, DETS may repair the file when it next opens. See [Safe Resource Management](/advanced/with-table/) for long-lived tables and repair details.
 
 ## When to use DETS
 
@@ -77,10 +87,6 @@ Every table type gets the same typed API; they differ in what happens when a key
 	/>
 </CardGrid>
 
-## Install
+## Ready to try it?
 
-```sh
-gleam add slate
-```
-
-Erlang target only — DETS is a BEAM feature, with no JavaScript target support. slate is 1.0: the public API is stable under [semver guarantees](/advanced/stability/), and the [Quick Start](/quick-start/) has you reading and writing a table in about two minutes.
+slate is 1.0, with a public API covered by [semver guarantees](/advanced/stability/). The [Quick Start](/quick-start/) has you reading and writing a table in about two minutes.
