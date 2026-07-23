@@ -4,7 +4,10 @@
   # Only trigger builds when files in website/ changed since this branch
   # diverged from main. Avoids relying on $CACHED_COMMIT_REF, which can end
   # up equal to $COMMIT_REF on deploy previews and cause a false "no changes".
-  ignore = "git diff --quiet $(git merge-base origin/main HEAD) HEAD -- website/"
+  # origin/main isn't guaranteed to be fetched in Netlify's checkout, so fetch
+  # it explicitly before computing the merge-base. If the base still can't be
+  # determined, fail open (build runs) rather than risk a false "no changes".
+  ignore = "git fetch --depth=1 origin main >/dev/null 2>&1; BASE=$(git merge-base origin/main HEAD 2>/dev/null); [ -z \"$BASE\" ] && exit 1; git diff --quiet \"$BASE\" HEAD -- website/"
 
 # Always build production deploys from main.
 [context.production]
