@@ -87,7 +87,7 @@ export default defineConfig({
 					],
 				},
 				{
-					label: "Advanced",
+					label: "Operations",
 					items: [
 						{
 							label: "Safe Resource Management",
@@ -98,16 +98,21 @@ export default defineConfig({
 							slug: "advanced/error-handling",
 						},
 						{
+							label: "Troubleshooting",
+							slug: "advanced/troubleshooting",
+						},
+					],
+				},
+				{
+					label: "Reference",
+					items: [
+						{
 							label: "Limitations",
 							slug: "advanced/limitations",
 						},
 						{
 							label: "Stability & Versioning",
 							slug: "advanced/stability",
-						},
-						{
-							label: "Troubleshooting",
-							slug: "advanced/troubleshooting",
 						},
 					],
 				},

@@ -3,7 +3,7 @@ title: Quick Start
 description: Get up and running with slate in minutes.
 ---
 
-This guide walks you through basic DETS operations with slate.
+This guide creates a typed table, writes two values, reads one back, and closes the table automatically.
 
 ## 1. Add slate to your project
 
@@ -15,25 +15,23 @@ gleam add slate
 
 ```gleam
 import gleam/dynamic/decode
+import gleam/result
 import slate/set
 
 pub fn main() {
-  // Open or create a table
-  let assert Ok(users) = set.open("data/users.dets",
-    key_decoder: decode.string, value_decoder: decode.int)
-
-  // Insert key-value pairs
-  let assert Ok(Nil) = set.insert(users, "alice", 42)
-  let assert Ok(Nil) = set.insert(users, "bob", 37)
-
-  // Look up values
-  let assert Ok(age) = set.lookup(users, key: "alice")
-  // age == 42
-
-  // Always close when done
-  let assert Ok(Nil) = set.close(users)
+  use users <- set.with_table(
+    "data/users.dets",
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  use Nil <- result.try(set.insert(users, "alice", 42))
+  use Nil <- result.try(set.insert(users, "bob", 37))
+  set.lookup(users, key: "alice")
 }
+// Ok(42), and the table is closed
 ```
+
+`use users <- set.with_table(...)` passes the rest of `main` as a callback. `with_table` opens the file before that callback and closes it when the callback returns. The decoders make reads fail explicitly if the terms on disk are not strings and integers.
 
 ## 3. Data persists across restarts
 
@@ -42,19 +40,25 @@ import gleam/dynamic/decode
 import slate/set
 
 pub fn write() {
-  let assert Ok(table) = set.open("data/state.dets",
-    key_decoder: decode.string, value_decoder: decode.int)
-  let assert Ok(Nil) = set.insert(table, "counter", 42)
-  let assert Ok(Nil) = set.close(table)
+  use table <- set.with_table(
+    "data/state.dets",
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  set.insert(table, "counter", 42)
 }
 
 pub fn read() {
-  let assert Ok(table) = set.open("data/state.dets",
-    key_decoder: decode.string, value_decoder: decode.int)
-  let assert Ok(42) = set.lookup(table, key: "counter")
-  let assert Ok(Nil) = set.close(table)
+  use table <- set.with_table(
+    "data/state.dets",
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  set.lookup(table, key: "counter")
 }
 ```
+
+Run `write`, stop the node, then run `read`: it returns `Ok(42)` from the same file.
 
 ## Next steps
 

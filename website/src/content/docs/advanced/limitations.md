@@ -58,12 +58,66 @@ This is useful when scanning a directory for DETS files or validating user-provi
 
 ## Comparison with alternatives
 
-| Feature | DETS (slate) | ETS | SQLite | Mnesia |
-|---------|-------------|-----|--------|--------|
-| Persistence | ✅ Disk | ❌ Memory only | ✅ Disk | ✅ Disk |
-| Max size | 2 GB | RAM | Unlimited | Unlimited |
-| Query capability | Key lookup, fold | Key lookup, match specs | Full SQL | Match specs, QLC |
-| Ordered keys | ❌ | ✅ (ordered_set) | ✅ | ✅ |
-| External dependency | None (OTP built-in) | None (OTP built-in) | Yes | None (OTP built-in) |
-| Performance | Disk I/O bound | Microseconds | Varies | Varies |
-| Concurrent processes | Single node | Single node | Multiple | Distributed |
+<table class="slate-comparison">
+  <caption class="sr-only">DETS compared with other BEAM storage options</caption>
+  <thead>
+    <tr>
+      <th scope="col">Feature</th>
+      <th scope="col">DETS (slate)</th>
+      <th scope="col">ETS</th>
+      <th scope="col">SQLite</th>
+      <th scope="col">Mnesia</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Persistence</td>
+      <td data-label="DETS (slate)">Disk</td>
+      <td data-label="ETS">Memory only</td>
+      <td data-label="SQLite">Disk</td>
+      <td data-label="Mnesia">Disk</td>
+    </tr>
+    <tr>
+      <td>Max size</td>
+      <td data-label="DETS (slate)">2 GB</td>
+      <td data-label="ETS">RAM</td>
+      <td data-label="SQLite">Unlimited</td>
+      <td data-label="Mnesia">Unlimited</td>
+    </tr>
+    <tr>
+      <td>Query capability</td>
+      <td data-label="DETS (slate)">Key lookup, fold</td>
+      <td data-label="ETS">Key lookup, match specs</td>
+      <td data-label="SQLite">Full SQL</td>
+      <td data-label="Mnesia">Match specs, QLC</td>
+    </tr>
+    <tr>
+      <td>Ordered keys</td>
+      <td data-label="DETS (slate)">No</td>
+      <td data-label="ETS">Yes (<code>ordered_set</code>)</td>
+      <td data-label="SQLite">Yes</td>
+      <td data-label="Mnesia">Yes</td>
+    </tr>
+    <tr>
+      <td>External dependency</td>
+      <td data-label="DETS (slate)">None (OTP built-in)</td>
+      <td data-label="ETS">None (OTP built-in)</td>
+      <td data-label="SQLite">Yes</td>
+      <td data-label="Mnesia">None (OTP built-in)</td>
+    </tr>
+    <tr>
+      <td>Performance</td>
+      <td data-label="DETS (slate)">Disk I/O bound</td>
+      <td data-label="ETS">Microseconds</td>
+      <td data-label="SQLite">Varies</td>
+      <td data-label="Mnesia">Varies</td>
+    </tr>
+    <tr>
+      <td>Concurrent processes</td>
+      <td data-label="DETS (slate)">Single node</td>
+      <td data-label="ETS">Single node</td>
+      <td data-label="SQLite">Multiple</td>
+      <td data-label="Mnesia">Distributed</td>
+    </tr>
+  </tbody>
+</table>

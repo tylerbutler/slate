@@ -21,7 +21,7 @@ hero:
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-## Install
+## Start here
 
 ```sh
 gleam add slate
@@ -52,16 +52,49 @@ pub fn main() {
 // Ok(42), and the table is closed
 ```
 
-`with_table` closes short-lived tables before returning, including when an operation returns an error. Values persist across node restarts; after an abrupt process termination, DETS may repair the file when it next opens. See [Safe Resource Management](/advanced/with-table/) for long-lived tables and repair details.
+Gleam's `use value <- function(...)` syntax passes the rest of the block as a callback. Here, `with_table` supplies `users` and closes the table when that callback returns. The decoders define the key and value types expected from disk; `result.try` stops early if the insert fails.
+
+Values persist across node restarts. After an abrupt process termination, DETS may repair the file when it next opens. The [Quick Start](/quick-start/) walks through this pattern step by step, and [Safe Resource Management](/advanced/with-table/) covers long-lived tables and repair behavior.
 
 ## When to use DETS
 
-| Approach | Complexity | Persistence | Query capability |
-| --------------- | -------- | ----------- | ------------------------------ |
-| JSON file | Low | Yes | None |
-| **DETS** | **Low** | **Yes** | **Key lookup, fold** |
-| SQLite/Postgres | High | Yes | Full SQL |
-| Mnesia | High | Yes | Transactions, distribution |
+<table class="slate-comparison">
+	<caption class="sr-only">Storage approaches at a glance</caption>
+	<thead>
+		<tr>
+			<th scope="col">Approach</th>
+			<th scope="col">Complexity</th>
+			<th scope="col">Persistence</th>
+			<th scope="col">Query capability</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>JSON file</td>
+			<td data-label="Complexity">Low</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">None</td>
+		</tr>
+		<tr>
+			<td><strong>DETS (slate)</strong></td>
+			<td data-label="Complexity"><strong>Low</strong></td>
+			<td data-label="Persistence"><strong>Yes</strong></td>
+			<td data-label="Queries"><strong>Key lookup, fold</strong></td>
+		</tr>
+		<tr>
+			<td>SQLite/Postgres</td>
+			<td data-label="Complexity">High</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">Full SQL</td>
+		</tr>
+		<tr>
+			<td>Mnesia</td>
+			<td data-label="Complexity">High</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">Transactions, distribution</td>
+		</tr>
+	</tbody>
+</table>
 
 If a config file is too little and a database is too much, DETS is the middle layer you already have. It has real limits — 2 GB per table, disk I/O on every operation — and they are documented plainly in [Limitations](/advanced/limitations/).
 
@@ -89,4 +122,4 @@ Every table type gets the same typed API; they differ in what happens when a key
 
 ## Ready to try it?
 
-slate is 1.0, with a public API covered by [semver guarantees](/advanced/stability/). The [Quick Start](/quick-start/) has you reading and writing a table in about two minutes.
+slate is 1.0, with a public API covered by [semver guarantees](/advanced/stability/). Continue with the [Quick Start](/quick-start/) to read and write a table in about two minutes.

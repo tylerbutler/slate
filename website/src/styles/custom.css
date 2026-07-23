@@ -14,13 +14,21 @@ site-search button[data-open-modal] {
 	font-size: 2.25rem;
 }
 
-/* Splash page: cap the prose measure while code, tables, and cards breathe. */
+/* Keep prose readable while code, tables, and cards use the full content width. */
+.sl-markdown-content {
+	color: var(--slate-body-text);
+}
+
+.sl-markdown-content > :is(p, ul, ol, blockquote, .starlight-aside) {
+	max-inline-size: 72ch;
+}
+
 [data-has-hero] .sl-markdown-content > p {
 	max-width: 70ch;
 }
 
-/* Splash tables fill their column instead of floating in it. */
-[data-has-hero] .sl-markdown-content table {
+/* Comparison tables fill their column instead of floating in it. */
+.sl-markdown-content .slate-comparison {
 	width: 100%;
 }
 
@@ -60,14 +68,14 @@ site-search button[data-open-modal] {
 	}
 }
 
-/* On phones, present the storage comparison as labeled rows instead of a clipped table. */
+/* On phones, present comparisons as labeled rows instead of clipped tables. */
 @media (max-width: 40rem) {
-	[data-has-hero] .sl-markdown-content table {
+	.sl-markdown-content .slate-comparison {
 		display: table;
 		overflow: visible;
 	}
 
-	[data-has-hero] .sl-markdown-content thead {
+	.sl-markdown-content .slate-comparison thead {
 		position: absolute;
 		overflow: hidden;
 		width: 1px;
@@ -76,17 +84,17 @@ site-search button[data-open-modal] {
 		white-space: nowrap;
 	}
 
-	[data-has-hero] .sl-markdown-content tbody,
-	[data-has-hero] .sl-markdown-content tr {
+	.sl-markdown-content .slate-comparison tbody,
+	.sl-markdown-content .slate-comparison tr {
 		display: block;
 	}
 
-	[data-has-hero] .sl-markdown-content tr {
+	.sl-markdown-content .slate-comparison tr {
 		padding-block: 0.75rem;
 		border-bottom: 1px solid var(--sl-color-gray-5);
 	}
 
-	[data-has-hero] .sl-markdown-content td {
+	.sl-markdown-content .slate-comparison td {
 		display: grid;
 		grid-template-columns: minmax(7.5rem, 42%) 1fr;
 		gap: 0.75rem;
@@ -94,28 +102,17 @@ site-search button[data-open-modal] {
 		border: 0;
 	}
 
-	[data-has-hero] .sl-markdown-content td:first-child {
+	.sl-markdown-content .slate-comparison td:first-child {
 		display: block;
 		padding-bottom: 0.375rem;
-		color: var(--sl-color-white);
+		color: var(--slate-body-text);
 		font-weight: 600;
 	}
 
-	[data-has-hero] .sl-markdown-content td:not(:first-child)::before {
+	.sl-markdown-content .slate-comparison td:not(:first-child)::before {
+		content: attr(data-label);
 		color: var(--sl-color-gray-2);
 		font-weight: 600;
-	}
-
-	[data-has-hero] .sl-markdown-content td:nth-child(2)::before {
-		content: "Complexity";
-	}
-
-	[data-has-hero] .sl-markdown-content td:nth-child(3)::before {
-		content: "Persistence";
-	}
-
-	[data-has-hero] .sl-markdown-content td:nth-child(4)::before {
-		content: "Queries";
 	}
 }
 
@@ -131,6 +128,21 @@ site-search button[data-open-modal] {
 	color: var(--sl-color-gray-2);
 }
 
+/* Callouts are tonal inscriptions, not a second semantic color system. */
+.starlight-aside {
+	--sl-color-asides-border: var(--slate-panel-border);
+	--sl-color-asides-text-accent: var(--slate-body-text);
+	border: 1px solid var(--slate-panel-border);
+	border-inline-start-width: 1px;
+	border-radius: 0.375rem;
+	background-color: var(--slate-panel-background);
+	color: var(--slate-body-text);
+}
+
+.starlight-aside__content a {
+	color: var(--sl-color-accent-high);
+}
+
 /* Dark mode colors. */
 :root {
 	--sl-color-accent-low: #1a2332;
@@ -144,6 +156,9 @@ site-search button[data-open-modal] {
 	--sl-color-gray-5: #244a63;
 	--sl-color-gray-6: #152d40;
 	--sl-color-black: #0a1520;
+	--slate-body-text: var(--sl-color-gray-1);
+	--slate-panel-background: var(--sl-color-gray-6);
+	--slate-panel-border: var(--sl-color-gray-5);
 }
 /* Light mode colors. */
 :root[data-theme='light'] {
@@ -159,4 +174,7 @@ site-search button[data-open-modal] {
 	--sl-color-gray-6: #dce8f0;
 	--sl-color-gray-7: #eef4f8;
 	--sl-color-black: #ffffff;
+	--slate-body-text: var(--sl-color-white);
+	--slate-panel-background: var(--sl-color-gray-7);
+	--slate-panel-border: var(--sl-color-gray-5);
 }
