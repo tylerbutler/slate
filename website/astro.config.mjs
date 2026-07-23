@@ -22,10 +22,11 @@ export default defineConfig({
 				"Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).",
 			lastUpdated: true,
 			logo: {
-				src: "./src/assets/slate.webp",
-				alt: "slate logo",
-				width: 48,
-				height: 48,
+				src: "./src/assets/slate-wordmark.webp",
+				alt: "",
+				replacesTitle: true,
+				width: 423,
+				height: 132,
 			},
 			favicon: "/favicon.png",
 			customCss: [

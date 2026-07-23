@@ -5,6 +5,8 @@ colors:
   quarry-blue: "#4a8eb8"
   quarry-deep: "#2a6d96"
   sky-etch: "#a8cde0"
+  chalk-pink: "#ff6ea2"
+  deep-chalk: "#aa0e44"
   ink-slate: "#0a1520"
   strata: "#152d40"
   bedrock: "#244a63"
@@ -66,6 +68,7 @@ This is a product-register system built on Astro Starlight: the framework's read
 - Flat and tonal: depth comes from lightness steps, never from shadows.
 - One typeface (Schibsted Grotesk) does all prose and UI work; Spline Sans Mono does all code.
 - Starlight conventions are load-bearing; custom styling is confined to tokens.
+- One deliberate second hue — chalk pink, drawn from the logo itself — marks the brand's own signature (the mark, the splash title) and nowhere else; blue remains the only interactive accent.
 
 ## 2. Colors: The Slate Ledger Palette
 
@@ -76,6 +79,12 @@ A single blue-gray hue family stepped from near-black ink to frost, with one sat
 - **Deep Quarry** (#2a6d96): the same accent cut deeper for light mode, keeping link and action contrast at AA on white.
 - **Sky Etch** (#a8cde0): high-accent tint; hover/emphasis states on dark surfaces and the light-mode accent wash's counterpart.
 
+### Signature Accent
+- **Chalk Pink** (#ff6ea2): the exact pink pulled from the hand-drawn "slate" wordmark in the logo. Dark-mode value; marks the brand's own signature and nothing else — the logo, the header wordmark, and the splash page's `<h1>`.
+- **Deep Chalk** (#aa0e44): the same chalk hue cut deeper for light mode, keeping the splash title at AA contrast on Paper White — the same relationship Deep Quarry has to Quarried Blue.
+
+Chalk is not a second interactive accent and not a neutral; it is a one-hue signature, used in exactly the two places named above and nowhere in the reading surface, UI chrome, or semantic states. See the Chalk Signature Rule below.
+
 ### Neutral
 - **Slate Ink** (#0a1520): page background in dark mode; body text color in light mode. The system's true black.
 - **Strata** (#152d40) and **Bedrock** (#244a63): raised tonal panels, code-block backgrounds, borders on dark surfaces.
@@ -84,9 +93,11 @@ A single blue-gray hue family stepped from near-black ink to frost, with one sat
 - **Frost** (#eef4f8) and **Paper White** (#ffffff): light-mode panel and page backgrounds.
 
 ### Named Rules (optional, powerful)
-**The One Stone Rule.** Every neutral is a lightness step of the same blue-gray hue. Introducing a warm gray, a pure gray, or a second accent hue is forbidden — if a new value is needed, quarry it from the existing ramp.
+**The One Stone Rule.** Every neutral is a lightness step of the same blue-gray hue. Introducing a warm gray, a pure gray, or an interactive accent hue beyond Quarried Blue is forbidden — if a new neutral is needed, quarry it from the existing ramp. Chalk Pink is the one named exception to "second accent hue," and it is bounded by the Chalk Signature Rule below, not a loophole for others.
 
-**The Working Accent Rule.** Quarried Blue appears only where something is interactive or current (links, actions, active nav). It is never a decoration, a background wash for emphasis, or a heading color.
+**The Working Accent Rule.** Quarried Blue appears only where something is interactive or current (links, actions, active nav). It is never a decoration, a background wash for emphasis, or a heading color — chalk fills the "signature heading" role instead, precisely because chalk is never interactive.
+
+**The Chalk Signature Rule.** Chalk Pink/Deep Chalk appears in exactly two places: the brand mark itself (logo and header wordmark) and the splash page's own `<h1>`. It never appears on links, buttons, active states, semantic status, body prose, or any other heading — those stay inside the blue-gray ramp. One signature, spent deliberately, is worth more than a tint scattered for warmth.
 
 ## 3. Typography
 
@@ -134,7 +145,7 @@ The component vocabulary is Starlight's, themed by tokens. Custom components are
 
 ### Navigation
 - **Sidebar:** Label typography; current page marked with accent text plus tonal background (accent-low wash), not a stripe. Hover is a tonal step, not a color change.
-- **Header:** site title in Schibsted Grotesk 600 with the slate logo; GitHub icon and theme toggle only. Mobile collapses to Starlight's drawer.
+- **Header:** the Chalk Pink "slate" wordmark (cropped from the logo's own hand-drawn script, transparent background) replaces the plain-text site title — the one place the signature accent lives in persistent chrome. GitHub icon and theme toggle only, both in the blue-gray ramp. Mobile collapses to Starlight's drawer.
 
 ### Code Blocks (signature component)
 Spline Sans Mono on a Strata surface (dark) with the ramp supplying UI chrome; Expressive Code's frame kept minimal. Code is the site's most-read content: it gets the same contrast care as prose.
@@ -146,10 +157,11 @@ Spline Sans Mono on a Strata surface (dark) with the ramp supplying UI chrome; E
 - **Do** hold body text at AA contrast or better: Mist (#dce8f0) on Slate Ink, Slate Ink on white — never Weathered (#6a93ad) for body copy.
 - **Do** let Starlight's reading conventions stand; identity lives in tokens, type, and copy, not layout invention.
 - **Do** treat code blocks as first-class content — Spline Sans Mono, ramp-toned surfaces, AA contrast for syntax colors.
+- **Do** keep Chalk Pink confined to the brand mark and the splash `<h1>` — see the Chalk Signature Rule. Its rarity is what makes it read as a signature instead of decoration.
 
 ### Don't:
-- **Don't** ship SaaS marketing gloss — gradient heroes, metric cards, testimonial walls (PRODUCT.md's own words). This includes gradient text via `background-clip: text`; the splash heading must be a single solid color.
+- **Don't** ship SaaS marketing gloss — gradient heroes, metric cards, testimonial walls (PRODUCT.md's own words). This includes gradient text via `background-clip: text`; the splash heading must be a single solid color (chalk pink counts as one solid color).
 - **Don't** regress to dry auto-generated docs: every reference page keeps a guidance layer (when to use, honest limits), not just API listings.
-- **Don't** add shadows, glows, glassmorphism, or a second accent hue anywhere.
+- **Don't** add shadows, glows, glassmorphism, or any accent hue beyond Quarried Blue and the bounded Chalk exception above.
 - **Don't** use colored side-stripe borders (border-left > 1px) for callouts; Starlight asides are themed tonally instead.
 - **Don't** introduce a third font family or display type; two voices only.

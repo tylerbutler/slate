@@ -10,8 +10,10 @@ site-search button[data-open-modal] {
 }
 
 /* Keep the splash page quiet and put its value proposition before its artwork. */
+/* The one place Chalk Pink appears outside the brand mark itself: a single solid-color echo of the logo's own hand-drawn wordmark (Chalk Signature Rule, DESIGN.md). */
 [data-has-hero] .hero h1 {
 	font-size: 2.25rem;
+	color: var(--slate-chalk-accent);
 }
 
 /* Keep prose readable while code, tables, and cards use the full content width. */
@@ -19,12 +21,16 @@ site-search button[data-open-modal] {
 	color: var(--slate-body-text);
 }
 
+/* Schibsted Grotesk's "0" (the ch unit's basis) is ~33% narrower than the font's
+   average character, so a nominal 72ch cap renders body copy at ~94 real
+   characters/line. 54ch measured against real text lands the visible line
+   length at the ~65-75 character target instead of the CSS unit's face value. */
 .sl-markdown-content > :is(p, ul, ol, blockquote, .starlight-aside) {
-	max-inline-size: 72ch;
+	max-inline-size: 54ch;
 }
 
 [data-has-hero] .sl-markdown-content > p {
-	max-width: 70ch;
+	max-width: 53ch;
 }
 
 /* Comparison tables fill their column instead of floating in it. */
@@ -128,6 +134,14 @@ site-search button[data-open-modal] {
 	color: var(--sl-color-gray-2);
 }
 
+/* The desktop TOC's active section gets the sidebar's accent-wash-not-stripe
+   treatment (see Components > Navigation, DESIGN.md); Starlight's own
+   color-only default reads too weakly to track scroll position on long pages. */
+starlight-toc a[aria-current='true'] {
+	background-color: var(--sl-color-accent-low);
+	font-weight: 600;
+}
+
 /* Callouts are tonal inscriptions, not a second semantic color system. */
 .starlight-aside {
 	--sl-color-asides-border: var(--slate-panel-border);
@@ -159,6 +173,8 @@ site-search button[data-open-modal] {
 	--slate-body-text: var(--sl-color-gray-1);
 	--slate-panel-background: var(--sl-color-gray-6);
 	--slate-panel-border: var(--sl-color-gray-5);
+	/* Chalk Signature Rule (DESIGN.md): logo + splash h1 only, never interactive. */
+	--slate-chalk-accent: #ff6ea2;
 }
 /* Light mode colors. */
 :root[data-theme='light'] {
@@ -177,4 +193,6 @@ site-search button[data-open-modal] {
 	--slate-body-text: var(--sl-color-white);
 	--slate-panel-background: var(--sl-color-gray-7);
 	--slate-panel-border: var(--sl-color-gray-5);
+	/* Same chalk hue, cut deeper for AA contrast on Paper White (Deep Quarry's relationship to Quarried Blue). */
+	--slate-chalk-accent: #aa0e44;
 }
