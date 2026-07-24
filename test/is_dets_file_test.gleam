@@ -1,14 +1,15 @@
-/// Tests for the is_dets_file utility function.
-/// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
+//// Tests for the is_dets_file utility function.
+//// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
+
 import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup}
+import test_helpers
 
 // ── Valid DETS file ─────────────────────────────────────────────────────
 
-pub fn is_dets_file_valid_test() {
+pub fn is_dets_file_valid_test() -> Nil {
   let path = "test_is_dets_valid.dets"
   // Create a DETS file
   let assert Ok(table) =
@@ -17,33 +18,33 @@ pub fn is_dets_file_valid_test() {
   let assert Ok(Nil) = set.close(table)
   // Check it
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Non-DETS file ───────────────────────────────────────────────────────
 
-pub fn is_dets_file_not_dets_test() {
+pub fn is_dets_file_not_dets_test() -> Nil {
   let path = "test_is_dets_not.txt"
   // Write a plain text file
   let assert Ok(Nil) = write_file(path, "hello world this is not dets")
   slate.is_dets_file(path) |> expect.to_equal(Ok(False))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Empty DETS file (opened and closed without data) ────────────────────
 
-pub fn is_dets_file_empty_table_test() {
+pub fn is_dets_file_empty_table_test() -> Nil {
   let path = "test_is_dets_empty.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Non-existent file ───────────────────────────────────────────────────
 
-pub fn is_dets_file_nonexistent_test() {
+pub fn is_dets_file_nonexistent_test() -> Nil {
   let result = slate.is_dets_file("nonexistent_file_12345.dets")
   // Should return an error (file doesn't exist)
   case result {
@@ -57,7 +58,7 @@ pub fn is_dets_file_nonexistent_test() {
 
 // ── DETS file with data, verified after reopen ──────────────────────────
 
-pub fn is_dets_file_after_use_test() {
+pub fn is_dets_file_after_use_test() -> Nil {
   let path = "test_is_dets_used.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -67,7 +68,7 @@ pub fn is_dets_file_after_use_test() {
   let assert Ok(Nil) = set.sync(table)
   let assert Ok(Nil) = set.close(table)
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Helper: write a plain file ──────────────────────────────────────────

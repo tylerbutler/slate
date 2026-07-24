@@ -5,11 +5,11 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers
 
 // ── Success path ────────────────────────────────────────────────────────
 
-pub fn set_fold_results_success_test() {
+pub fn set_fold_results_success_test() -> Nil {
   let path = "test_set_fold_results_ok.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -27,10 +27,10 @@ pub fn set_fold_results_success_test() {
   sum |> expect.to_equal(60)
 
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_fold_results_success_test() {
+pub fn bag_fold_results_success_test() -> Nil {
   let path = "test_bag_fold_results_ok.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -48,10 +48,10 @@ pub fn bag_fold_results_success_test() {
   sum |> expect.to_equal(6)
 
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn duplicate_bag_fold_results_success_test() {
+pub fn duplicate_bag_fold_results_success_test() -> Nil {
   let path = "test_dupbag_fold_results_ok.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -73,10 +73,10 @@ pub fn duplicate_bag_fold_results_success_test() {
   sum |> expect.to_equal(5)
 
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_fold_results_empty_table_test() {
+pub fn set_fold_results_empty_table_test() -> Nil {
   let path = "test_set_fold_results_empty.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -85,17 +85,20 @@ pub fn set_fold_results_empty_table_test() {
   count |> expect.to_equal(0)
 
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Partial failure — skip errors ───────────────────────────────────────
 
-pub fn set_fold_results_skips_decode_errors_test() {
+pub fn set_fold_results_skips_decode_errors_test() -> Nil {
   let path = "test_set_fold_results_skip.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(1, 50) |> list.map(fn(i) { #(i, i * 10) }))
+    set.insert_list(
+      table,
+      test_helpers.range(1, 50) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = set.close(table)
 
   // Reopen with wrong value decoder
@@ -113,15 +116,18 @@ pub fn set_fold_results_skips_decode_errors_test() {
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_fold_results_skips_decode_errors_test() {
+pub fn bag_fold_results_skips_decode_errors_test() -> Nil {
   let path = "test_bag_fold_results_skip.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    bag.insert_list(table, range(1, 10) |> list.map(fn(i) { #(i, i * 10) }))
+    bag.insert_list(
+      table,
+      test_helpers.range(1, 10) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = bag.close(table)
 
   let assert Ok(table2) =
@@ -137,17 +143,17 @@ pub fn bag_fold_results_skips_decode_errors_test() {
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn duplicate_bag_fold_results_skips_decode_errors_test() {
+pub fn duplicate_bag_fold_results_skips_decode_errors_test() -> Nil {
   let path = "test_dupbag_fold_results_skip.dets"
   let assert Ok(table) =
     duplicate_bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
     duplicate_bag.insert_list(
       table,
-      range(1, 10) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helpers.range(1, 10) |> list.map(fn(i) { #(i, i * 10) }),
     )
   let assert Ok(Nil) = duplicate_bag.close(table)
 
@@ -168,17 +174,20 @@ pub fn duplicate_bag_fold_results_skips_decode_errors_test() {
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Partial failure — partition pattern ─────────────────────────────────
 
-pub fn set_fold_results_partition_test() {
+pub fn set_fold_results_partition_test() -> Nil {
   let path = "test_set_fold_results_partition.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(1, 20) |> list.map(fn(i) { #(i, i * 10) }))
+    set.insert_list(
+      table,
+      test_helpers.range(1, 20) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = set.close(table)
 
   // Reopen with wrong decoder — all entries will fail
@@ -196,18 +205,21 @@ pub fn set_fold_results_partition_test() {
   list.length(bad) |> expect.to_equal(20)
 
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Visits all entries (no short-circuit) ───────────────────────────────
 
-pub fn set_fold_results_visits_all_entries_test() {
+pub fn set_fold_results_visits_all_entries_test() -> Nil {
   let path = "test_set_fold_results_all.dets"
   let count = 50
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(1, count) |> list.map(fn(i) { #(i, i * 10) }))
+    set.insert_list(
+      table,
+      test_helpers.range(1, count) |> list.map(fn(i) { #(i, i * 10) }),
+    )
   let assert Ok(Nil) = set.close(table)
 
   // Wrong decoder — every entry fails, but we count them all
@@ -219,12 +231,12 @@ pub fn set_fold_results_visits_all_entries_test() {
   visited |> expect.to_equal(count)
 
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Collect keys with correct key decoder ───────────────────────────────
 
-pub fn set_fold_results_collects_keys_test() {
+pub fn set_fold_results_collects_keys_test() -> Nil {
   let path = "test_set_fold_results_keys.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -240,5 +252,5 @@ pub fn set_fold_results_collects_keys_test() {
   keys |> list.sort(string.compare) |> expect.to_equal(["a", "b", "c"])
 
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

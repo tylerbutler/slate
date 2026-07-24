@@ -1,19 +1,20 @@
-/// Tests verifying runtime type safety via decoders.
-///
-/// These tests confirm that opening a DETS file with the wrong type
-/// decoders produces DecodeErrors instead of silently returning
-/// incorrectly-typed data.
+//// Tests verifying runtime type safety via decoders.
+////
+//// These tests confirm that opening a DETS file with the wrong type
+//// decoders produces DecodeErrors instead of silently returning
+//// incorrectly-typed data.
+
 import gleam/dynamic/decode
 import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers.{cleanup}
+import test_helpers
 
 // ── Set: wrong value decoder ────────────────────────────────────────────
 
-pub fn set_wrong_value_decoder_lookup_test() {
+pub fn set_wrong_value_decoder_lookup_test() -> Nil {
   let path = "test_ts_set_wrong_val.dets"
   // Write as String/Int
   let assert Ok(table) =
@@ -29,10 +30,10 @@ pub fn set_wrong_value_decoder_lookup_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_wrong_value_decoder_to_list_test() {
+pub fn set_wrong_value_decoder_to_list_test() -> Nil {
   let path = "test_ts_set_wrong_to_list.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -48,10 +49,10 @@ pub fn set_wrong_value_decoder_to_list_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_wrong_value_decoder_fold_test() {
+pub fn set_wrong_value_decoder_fold_test() -> Nil {
   let path = "test_ts_set_wrong_fold.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -66,12 +67,12 @@ pub fn set_wrong_value_decoder_fold_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: correct decoders still work ────────────────────────────────────
 
-pub fn set_correct_decoders_work_test() {
+pub fn set_correct_decoders_work_test() -> Nil {
   let path = "test_ts_set_correct.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -86,12 +87,12 @@ pub fn set_correct_decoders_work_test() {
   let assert Ok(sum) = set.fold(table2, 0, fn(acc, _k, v) { acc + v })
   sum |> expect.to_equal(99)
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Bag: wrong value decoder ────────────────────────────────────────────
 
-pub fn bag_wrong_value_decoder_lookup_test() {
+pub fn bag_wrong_value_decoder_lookup_test() -> Nil {
   let path = "test_ts_bag_wrong_val.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -107,10 +108,10 @@ pub fn bag_wrong_value_decoder_lookup_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_wrong_value_decoder_fold_test() {
+pub fn bag_wrong_value_decoder_fold_test() -> Nil {
   let path = "test_ts_bag_wrong_fold.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -124,12 +125,12 @@ pub fn bag_wrong_value_decoder_fold_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── DuplicateBag: wrong value decoder ───────────────────────────────────
 
-pub fn dupbag_wrong_value_decoder_lookup_test() {
+pub fn dupbag_wrong_value_decoder_lookup_test() -> Nil {
   let path = "test_ts_dupbag_wrong_val.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -153,10 +154,10 @@ pub fn dupbag_wrong_value_decoder_lookup_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_wrong_value_decoder_to_list_test() {
+pub fn dupbag_wrong_value_decoder_to_list_test() -> Nil {
   let path = "test_ts_dupbag_wrong_to_list.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -178,12 +179,12 @@ pub fn dupbag_wrong_value_decoder_to_list_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Wrong key decoder ───────────────────────────────────────────────────
 
-pub fn set_wrong_key_decoder_to_list_test() {
+pub fn set_wrong_key_decoder_to_list_test() -> Nil {
   let path = "test_ts_set_wrong_key.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -198,5 +199,5 @@ pub fn set_wrong_key_decoder_to_list_test() {
     other -> other |> expect.to_equal(Error(slate.NotFound))
   }
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

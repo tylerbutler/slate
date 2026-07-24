@@ -1,6 +1,7 @@
-/// Internal shared utilities for slate table modules.
-///
-/// This module is not part of the public API.
+//// Internal shared utilities for slate table modules.
+////
+//// This module is not part of the public API.
+
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result

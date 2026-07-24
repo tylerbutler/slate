@@ -1,5 +1,6 @@
-/// Tests for the delete_object API across all table types.
-/// Adapted from OTP dets_SUITE del_obj_test and related tests.
+//// Tests for the delete_object API across all table types.
+//// Adapted from OTP dets_SUITE del_obj_test and related tests.
+
 import gleam/dynamic/decode
 import gleam/list
 import gleam/string
@@ -7,11 +8,11 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers
 
 // ── Set: delete_object ──────────────────────────────────────────────────
 
-pub fn set_delete_object_test() {
+pub fn set_delete_object_test() -> Nil {
   let path = "test_set_del_obj.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -19,10 +20,10 @@ pub fn set_delete_object_test() {
   let assert Ok(Nil) = set.delete_object(table, "key", "val")
   set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_delete_object_wrong_value_test() {
+pub fn set_delete_object_wrong_value_test() -> Nil {
   let path = "test_set_del_obj_wrong.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -32,22 +33,22 @@ pub fn set_delete_object_wrong_value_test() {
   set.size(table) |> expect.to_equal(Ok(1))
   let assert Ok("correct") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_delete_object_nonexistent_test() {
+pub fn set_delete_object_nonexistent_test() -> Nil {
   let path = "test_set_del_obj_none.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Deleting from empty table should succeed silently
   let assert Ok(Nil) = set.delete_object(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Bag: delete_object ──────────────────────────────────────────────────
 
-pub fn bag_delete_object_removes_one_value_test() {
+pub fn bag_delete_object_removes_one_value_test() -> Nil {
   let path = "test_bag_del_obj.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -62,10 +63,10 @@ pub fn bag_delete_object_removes_one_value_test() {
   list.contains(values, "blue") |> expect.to_be_true()
   list.contains(values, "green") |> expect.to_be_true()
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_delete_object_all_values_one_by_one_test() {
+pub fn bag_delete_object_all_values_one_by_one_test() -> Nil {
   let path = "test_bag_del_obj_all.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -78,10 +79,10 @@ pub fn bag_delete_object_all_values_one_by_one_test() {
   bag.size(table) |> expect.to_equal(Ok(0))
   bag.lookup(table, key: "k") |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_delete_object_wrong_value_test() {
+pub fn bag_delete_object_wrong_value_test() -> Nil {
   let path = "test_bag_del_obj_wrong.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -91,10 +92,10 @@ pub fn bag_delete_object_wrong_value_test() {
   let assert Ok(Nil) = bag.delete_object(table, "k", "z")
   bag.size(table) |> expect.to_equal(Ok(2))
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_delete_object_preserves_other_keys_test() {
+pub fn bag_delete_object_preserves_other_keys_test() -> Nil {
   let path = "test_bag_del_obj_other.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -108,10 +109,10 @@ pub fn bag_delete_object_preserves_other_keys_test() {
   let assert Ok(vals2) = bag.lookup(table, key: "k2")
   vals2 |> expect.to_equal(["x"])
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_delete_object_persistence_test() {
+pub fn bag_delete_object_persistence_test() -> Nil {
   let path = "test_bag_del_obj_persist.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -124,34 +125,34 @@ pub fn bag_delete_object_persistence_test() {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(["keep"]) = bag.lookup(table2, key: "k")
   let assert Ok(Nil) = bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_delete_object_large_test() {
+pub fn bag_delete_object_large_test() -> Nil {
   let path = "test_bag_del_obj_large.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Insert 100 distinct values for one key
-  range(0, 99)
+  test_helpers.range(0, 99)
   |> list.each(fn(i) {
     let assert Ok(Nil) = bag.insert(table, "key", string.inspect(i))
     Nil
   })
   bag.size(table) |> expect.to_equal(Ok(100))
   // Delete half
-  range(0, 49)
+  test_helpers.range(0, 49)
   |> list.each(fn(i) {
     let assert Ok(Nil) = bag.delete_object(table, "key", string.inspect(i))
     Nil
   })
   bag.size(table) |> expect.to_equal(Ok(50))
   let assert Ok(Nil) = bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── DuplicateBag: delete_object ─────────────────────────────────────────
 
-pub fn dupbag_delete_object_removes_all_copies_test() {
+pub fn dupbag_delete_object_removes_all_copies_test() -> Nil {
   let path = "test_dupbag_del_obj.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -168,10 +169,10 @@ pub fn dupbag_delete_object_removes_all_copies_test() {
   values |> expect.to_equal(["b"])
   duplicate_bag.size(table) |> expect.to_equal(Ok(1))
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_delete_object_preserves_other_duplicates_test() {
+pub fn dupbag_delete_object_preserves_other_duplicates_test() -> Nil {
   let path = "test_dupbag_del_obj_other.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -189,10 +190,10 @@ pub fn dupbag_delete_object_preserves_other_duplicates_test() {
   values |> expect.to_equal(["b", "b"])
   duplicate_bag.size(table) |> expect.to_equal(Ok(2))
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_delete_object_wrong_value_test() {
+pub fn dupbag_delete_object_wrong_value_test() -> Nil {
   let path = "test_dupbag_del_obj_wrong.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -205,10 +206,10 @@ pub fn dupbag_delete_object_wrong_value_test() {
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "z")
   duplicate_bag.size(table) |> expect.to_equal(Ok(2))
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_delete_object_persistence_test() {
+pub fn dupbag_delete_object_persistence_test() -> Nil {
   let path = "test_dupbag_del_obj_persist.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -230,10 +231,10 @@ pub fn dupbag_delete_object_persistence_test() {
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
   values |> expect.to_equal(["keep", "keep"])
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_delete_object_empty_table_test() {
+pub fn dupbag_delete_object_empty_table_test() -> Nil {
   let path = "test_dupbag_del_obj_empty.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -244,10 +245,10 @@ pub fn dupbag_delete_object_empty_table_test() {
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "v")
   duplicate_bag.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn dupbag_delete_object_preserves_other_keys_test() {
+pub fn dupbag_delete_object_preserves_other_keys_test() -> Nil {
   let path = "test_dupbag_del_obj_okeys.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -263,5 +264,5 @@ pub fn dupbag_delete_object_preserves_other_keys_test() {
   let assert Ok(vals) = duplicate_bag.lookup(table, key: "k2")
   vals |> expect.to_equal(["b"])
   let assert Ok(Nil) = duplicate_bag.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

@@ -1,21 +1,22 @@
-/// DETS set tables — one value per key.
-///
-/// Set tables store key-value pairs where each key maps to exactly one value.
-/// Inserting with an existing key overwrites the previous value.
-///
-/// ## Example
-///
-/// ```gleam
-/// import gleam/dynamic/decode
-/// import slate/set
-///
-/// let assert Ok(table) = set.open("users.dets",
-///   key_decoder: decode.string, value_decoder: decode.int)
-/// let assert Ok(Nil) = set.insert(table, "alice", 42)
-/// let assert Ok(42) = set.lookup(table, "alice")
-/// let assert Ok(Nil) = set.close(table)
-/// ```
-///
+//// DETS set tables — one value per key.
+////
+//// Set tables store key-value pairs where each key maps to exactly one value.
+//// Inserting with an existing key overwrites the previous value.
+////
+//// ## Example
+////
+//// ```gleam
+//// import gleam/dynamic/decode
+//// import slate/set
+////
+//// let assert Ok(table) = set.open("users.dets",
+////   key_decoder: decode.string, value_decoder: decode.int)
+//// let assert Ok(Nil) = set.insert(table, "alice", 42)
+//// let assert Ok(42) = set.lookup(table, "alice")
+//// let assert Ok(Nil) = set.close(table)
+//// ```
+////
+
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
 
 import gleam/result

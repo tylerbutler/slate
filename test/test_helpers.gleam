@@ -1,8 +1,8 @@
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
-import gleam/list
+import gleam/int
 
 /// Delete a test file, ignoring any deletion error.
-pub fn cleanup(path: String) {
+pub fn cleanup(path: String) -> Nil {
   let _ = delete_file(path)
   Nil
 }
@@ -17,13 +17,15 @@ pub fn is_table_open(path: String) -> Bool {
   ffi_is_table_open(path)
 }
 
-/// Build an inclusive integer range from `from` to `to`.
+/// Build an inclusive ascending integer range from `from` to `to`.
 ///
-/// Returns an empty list when `from > to`.
+/// Thin wrapper over `int.range`, which replaced the deprecated
+/// `list.range`. Returns an empty list when `from > to`.
 pub fn range(from: Int, to: Int) -> List(Int) {
   case from > to {
     True -> []
-    False -> range_loop(from, to, [])
+    False ->
+      int.range(from: to, to: from - 1, with: [], run: fn(acc, i) { [i, ..acc] })
   }
 }
 
@@ -36,18 +38,11 @@ pub fn unsafe_decoder() -> Decoder(a) {
   decode.new_primitive_decoder("unsafe", fn(dyn) { Ok(unsafe_coerce(dyn)) })
 }
 
-fn range_loop(current: Int, to: Int, acc: List(Int)) -> List(Int) {
-  case current > to {
-    True -> list.reverse(acc)
-    False -> range_loop(current + 1, to, [current, ..acc])
-  }
-}
-
 @external(erlang, "file", "delete")
-fn delete_file(path: String) -> Result(Nil, DynError)
+fn delete_file(path: String) -> Result(Nil, DynamicError)
 
 /// Dynamic Erlang error returned by `file:delete/1`.
-type DynError
+type DynamicError
 
 @external(erlang, "test_helpers_ffi", "did_panic")
 fn ffi_did_panic(fun: fn() -> a) -> Bool

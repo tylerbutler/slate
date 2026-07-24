@@ -1,37 +1,38 @@
-/// Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
-///
-/// DETS provides persistent key-value storage backed by files on disk.
-/// Tables survive process crashes and node restarts. DETS is built into
-/// OTP — no external database or dependency is needed.
-///
-/// ## Table Types
-///
-/// - `slate/set` — Unique keys, one value per key
-/// - `slate/bag` — Multiple distinct values per key
-/// - `slate/duplicate_bag` — Multiple values per key (duplicates allowed)
-///
-/// ## Quick Start
-///
-/// ```gleam
-/// import gleam/dynamic/decode
-/// import slate/set
-///
-/// let assert Ok(table) = set.open("data/cache.dets",
-///   key_decoder: decode.string, value_decoder: decode.string)
-/// let assert Ok(Nil) = set.insert(table, "key", "value")
-/// let assert Ok(value) = set.lookup(table, key: "key")
-/// let assert Ok(Nil) = set.close(table)
-/// ```
-///
-/// ## Limitations
-///
-/// - 2 GB maximum file size
-/// - No `ordered_set` table type (unlike ETS)
-/// - Disk I/O on every operation (use ETS for high-frequency reads)
-/// - Tables must be closed properly or data may be lost
-/// - **Bounded table name pool**: slate uses a bounded set of internal
-///   DETS table names to avoid unbounded atom growth. Opening too many
-///   distinct tables at once may fail; close unused tables promptly
+//// Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
+////
+//// DETS provides persistent key-value storage backed by files on disk.
+//// Tables survive process crashes and node restarts. DETS is built into
+//// OTP — no external database or dependency is needed.
+////
+//// ## Table Types
+////
+//// - `slate/set` — Unique keys, one value per key
+//// - `slate/bag` — Multiple distinct values per key
+//// - `slate/duplicate_bag` — Multiple values per key (duplicates allowed)
+////
+//// ## Quick Start
+////
+//// ```gleam
+//// import gleam/dynamic/decode
+//// import slate/set
+////
+//// let assert Ok(table) = set.open("data/cache.dets",
+////   key_decoder: decode.string, value_decoder: decode.string)
+//// let assert Ok(Nil) = set.insert(table, "key", "value")
+//// let assert Ok(value) = set.lookup(table, key: "key")
+//// let assert Ok(Nil) = set.close(table)
+//// ```
+////
+//// ## Limitations
+////
+//// - 2 GB maximum file size
+//// - No `ordered_set` table type (unlike ETS)
+//// - Disk I/O on every operation (use ETS for high-frequency reads)
+//// - Tables must be closed properly or data may be lost
+//// - **Bounded table name pool**: slate uses a bounded set of internal
+////   DETS table names to avoid unbounded atom growth. Opening too many
+////   distinct tables at once may fail; close unused tables promptly
+
 import gleam/dynamic/decode
 
 /// Errors that can occur during DETS operations.

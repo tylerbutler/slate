@@ -1,5 +1,5 @@
 import startest
 
-pub fn main() {
+pub fn main() -> Nil {
   startest.run(startest.default_config())
 }

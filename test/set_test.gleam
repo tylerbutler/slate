@@ -6,19 +6,19 @@ import gleam/string
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, did_panic, is_table_open, range, unsafe_decoder}
+import test_helpers
 
 // ── Set: Open / Close ───────────────────────────────────────────────────
 
-pub fn set_open_close_test() {
+pub fn set_open_close_test() -> Nil {
   let path = "test_set_open_close.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_open_with_repair_test() {
+pub fn set_open_with_repair_test() -> Nil {
   let path = "test_set_repair.dets"
   let assert Ok(table) =
     set.open_with(
@@ -28,22 +28,22 @@ pub fn set_open_with_repair_test() {
       value_decoder: decode.string,
     )
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Insert / Lookup ────────────────────────────────────────────────
 
-pub fn set_insert_lookup_test() {
+pub fn set_insert_lookup_test() -> Nil {
   let path = "test_set_insert.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key1", "value1")
   let assert Ok("value1") = set.lookup(table, key: "key1")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_insert_overwrites_test() {
+pub fn set_insert_overwrites_test() -> Nil {
   let path = "test_set_overwrite.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -51,20 +51,20 @@ pub fn set_insert_overwrites_test() {
   let assert Ok(Nil) = set.insert(table, "key1", "new")
   let assert Ok("new") = set.lookup(table, key: "key1")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_lookup_not_found_test() {
+pub fn set_lookup_not_found_test() -> Nil {
   let path = "test_set_not_found.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   set.lookup(table, key: "missing")
   |> expect.to_equal(Error(slate.NotFound))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_insert_new_test() {
+pub fn set_insert_new_test() -> Nil {
   let path = "test_set_insert_new.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -73,12 +73,12 @@ pub fn set_insert_new_test() {
   |> expect.to_equal(Error(slate.KeyAlreadyPresent))
   let assert Ok("first") = set.lookup(table, key: "key1")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Member ─────────────────────────────────────────────────────────
 
-pub fn set_member_test() {
+pub fn set_member_test() -> Nil {
   let path = "test_set_member.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -86,12 +86,12 @@ pub fn set_member_test() {
   set.member(table, key: "exists") |> expect.to_equal(Ok(True))
   set.member(table, key: "nope") |> expect.to_equal(Ok(False))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Delete ─────────────────────────────────────────────────────────
 
-pub fn set_delete_key_test() {
+pub fn set_delete_key_test() -> Nil {
   let path = "test_set_delete.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -99,10 +99,10 @@ pub fn set_delete_key_test() {
   let assert Ok(Nil) = set.delete_key(table, key: "key1")
   set.lookup(table, key: "key1") |> expect.to_equal(Error(slate.NotFound))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_delete_all_test() {
+pub fn set_delete_all_test() -> Nil {
   let path = "test_set_delete_all.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -111,12 +111,12 @@ pub fn set_delete_all_test() {
   let assert Ok(Nil) = set.delete_all(table)
   set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Size ───────────────────────────────────────────────────────────
 
-pub fn set_size_test() {
+pub fn set_size_test() -> Nil {
   let path = "test_set_size.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -126,12 +126,12 @@ pub fn set_size_test() {
   let assert Ok(Nil) = set.insert(table, "c", 3)
   set.size(table) |> expect.to_equal(Ok(3))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: to_list ────────────────────────────────────────────────────────
 
-pub fn set_to_list_test() {
+pub fn set_to_list_test() -> Nil {
   let path = "test_set_to_list.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -143,12 +143,12 @@ pub fn set_to_list_test() {
   |> list.sort(fn(a, b) { string.compare(a.0, b.0) })
   |> expect.to_equal([#("a", 1), #("b", 2)])
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Fold ───────────────────────────────────────────────────────────
 
-pub fn set_fold_test() {
+pub fn set_fold_test() -> Nil {
   let path = "test_set_fold.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -158,24 +158,24 @@ pub fn set_fold_test() {
   let assert Ok(sum) = set.fold(table, 0, fn(acc, _key, val) { acc + val })
   sum |> expect.to_equal(60)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Sync ───────────────────────────────────────────────────────────
 
-pub fn set_sync_test() {
+pub fn set_sync_test() -> Nil {
   let path = "test_set_sync.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "value")
   let assert Ok(Nil) = set.sync(table)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Insert list ────────────────────────────────────────────────────
 
-pub fn set_insert_list_test() {
+pub fn set_insert_list_test() -> Nil {
   let path = "test_set_insert_list.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -183,12 +183,12 @@ pub fn set_insert_list_test() {
   set.size(table) |> expect.to_equal(Ok(3))
   let assert Ok(1) = set.lookup(table, key: "a")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Persistence ────────────────────────────────────────────────────
 
-pub fn set_persistence_test() {
+pub fn set_persistence_test() -> Nil {
   let path = "test_set_persist.dets"
   // Write and close
   let assert Ok(table) =
@@ -200,12 +200,12 @@ pub fn set_persistence_test() {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok("data") = set.lookup(table2, key: "persistent")
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: with_table ─────────────────────────────────────────────────────
 
-pub fn set_with_table_test() {
+pub fn set_with_table_test() -> Nil {
   let path = "test_set_with_table.dets"
   let assert Ok(Nil) =
     set.with_table(
@@ -219,10 +219,10 @@ pub fn set_with_table_test() {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok("val") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_with_table_close_error_propagates_test() {
+pub fn set_with_table_close_error_propagates_test() -> Nil {
   let path = "test_set_with_close_err.dets"
   let result =
     set.with_table(
@@ -239,12 +239,12 @@ pub fn set_with_table_close_error_propagates_test() {
     Ok(_) -> False
   }
   close_error_propagated |> expect.to_be_true()
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_with_table_panic_still_closes_test() {
+pub fn set_with_table_panic_still_closes_test() -> Nil {
   let path = "test_set_with_panic.dets"
-  did_panic(fn() {
+  test_helpers.did_panic(fn() {
     let _ =
       set.with_table(
         path,
@@ -258,15 +258,15 @@ pub fn set_with_table_panic_still_closes_test() {
     Nil
   })
   |> expect.to_be_true()
-  is_table_open(path) |> expect.to_equal(False)
+  test_helpers.is_table_open(path) |> expect.to_equal(False)
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok("val") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_with_table_open_error_test() {
+pub fn set_with_table_open_error_test() -> Nil {
   let path = "missing_set_with_table_dir/test_set_with_table_open_error.dets"
   set.with_table(
     path,
@@ -275,10 +275,10 @@ pub fn set_with_table_open_error_test() {
     fun: fn(_table) { Ok(Nil) },
   )
   |> expect.to_equal(Error(slate.FileNotFound))
-  is_table_open(path) |> expect.to_equal(False)
+  test_helpers.is_table_open(path) |> expect.to_equal(False)
 }
 
-pub fn set_path_dot_segments_shares_open_table_test() {
+pub fn set_path_dot_segments_shares_open_table_test() -> Nil {
   let path = "test_set_dot_segments.dets"
   // Use a path with redundant ./ and dir/../ segments
   let alias_path = "./subdir/../test_set_dot_segments.dets"
@@ -295,10 +295,10 @@ pub fn set_path_dot_segments_shares_open_table_test() {
   let assert Ok("v1") = set.lookup(t2, key: "key")
   let assert Ok(Nil) = set.close(t1)
   let assert Ok(Nil) = set.close(t2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_path_alias_shares_open_table_test() {
+pub fn set_path_alias_shares_open_table_test() -> Nil {
   let path = "test_set_alias_path.dets"
   let alias_path = "./test_set_alias_path.dets"
   let assert Ok(t1) =
@@ -315,12 +315,12 @@ pub fn set_path_alias_shares_open_table_test() {
   let assert Ok("v2") = set.lookup(t1, key: "key")
   let assert Ok(Nil) = set.close(t1)
   let assert Ok(Nil) = set.close(t2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Info ───────────────────────────────────────────────────────────
 
-pub fn set_info_test() {
+pub fn set_info_test() -> Nil {
   let path = "test_set_info.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -329,12 +329,12 @@ pub fn set_info_test() {
   info.object_count |> expect.to_equal(1)
   { info.file_size > 0 } |> expect.to_be_true
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Integer keys ───────────────────────────────────────────────────
 
-pub fn set_integer_keys_test() {
+pub fn set_integer_keys_test() -> Nil {
   let path = "test_set_int_keys.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.string)
@@ -343,22 +343,26 @@ pub fn set_integer_keys_test() {
   let assert Ok("one") = set.lookup(table, key: 1)
   let assert Ok("two") = set.lookup(table, key: 2)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Complex value types ────────────────────────────────────────────
 
-pub fn set_tuple_values_test() {
+pub fn set_tuple_values_test() -> Nil {
   let path = "test_set_tuple_vals.dets"
   let assert Ok(table) =
-    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+    set.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helpers.unsafe_decoder(),
+    )
   let assert Ok(Nil) = set.insert(table, "point", #(10, 20))
   let assert Ok(#(10, 20)) = set.lookup(table, key: "point")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_list_values_test() {
+pub fn set_list_values_test() -> Nil {
   let path = "test_set_list_vals.dets"
   let assert Ok(table) =
     set.open(
@@ -369,55 +373,67 @@ pub fn set_list_values_test() {
   let assert Ok(Nil) = set.insert(table, "items", [1, 2, 3, 4, 5])
   let assert Ok([1, 2, 3, 4, 5]) = set.lookup(table, key: "items")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_nested_tuple_values_test() {
+pub fn set_nested_tuple_values_test() -> Nil {
   let path = "test_set_nested.dets"
   let assert Ok(table) =
-    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+    set.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helpers.unsafe_decoder(),
+    )
   let val = #("alice", #(30, "engineer"), [1, 2, 3])
   let assert Ok(Nil) = set.insert(table, "user", val)
   let assert Ok(result) = set.lookup(table, key: "user")
   result |> expect.to_equal(val)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_dict_values_test() {
+pub fn set_dict_values_test() -> Nil {
   let path = "test_set_dict_vals.dets"
   let assert Ok(table) =
-    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+    set.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helpers.unsafe_decoder(),
+    )
   let d = dict.from_list([#("a", 1), #("b", 2)])
   let assert Ok(Nil) = set.insert(table, "config", d)
   let assert Ok(result) = set.lookup(table, key: "config")
   result |> dict.get("a") |> expect.to_equal(Ok(1))
   result |> dict.get("b") |> expect.to_equal(Ok(2))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_result_values_test() {
+pub fn set_result_values_test() -> Nil {
   let path = "test_set_result_vals.dets"
   let assert Ok(table) =
-    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+    set.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helpers.unsafe_decoder(),
+    )
   let assert Ok(Nil) = set.insert(table, "success", Ok(42))
   let assert Ok(Nil) = set.insert(table, "failure", Error("bad"))
   let assert Ok(Ok(42)) = set.lookup(table, key: "success")
   let assert Ok(Error("bad")) = set.lookup(table, key: "failure")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Large dataset ──────────────────────────────────────────────────
 
-pub fn set_large_dataset_test() {
+pub fn set_large_dataset_test() -> Nil {
   let path = "test_set_large.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   // Insert 1000 entries
   let entries =
-    range(0, 999)
+    test_helpers.range(0, 999)
     |> list.map(fn(i) { #(int.to_string(i), i * i) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   // Verify size
@@ -431,15 +447,15 @@ pub fn set_large_dataset_test() {
   // Sum of i^2 from 0 to 999 = 999*1000*1999/6 = 332_833_500
   sum |> expect.to_equal(332_833_500)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_large_persistence_test() {
+pub fn set_large_persistence_test() -> Nil {
   let path = "test_set_large_persist.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.string)
   let entries =
-    range(0, 499)
+    test_helpers.range(0, 499)
     |> list.map(fn(i) { #(i, "value_" <> int.to_string(i)) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(Nil) = set.close(table)
@@ -450,12 +466,12 @@ pub fn set_large_persistence_test() {
   let assert Ok("value_0") = set.lookup(table2, key: 0)
   let assert Ok("value_499") = set.lookup(table2, key: 499)
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Repair policies ────────────────────────────────────────────────
 
-pub fn set_force_repair_test() {
+pub fn set_force_repair_test() -> Nil {
   let path = "test_set_force_repair.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -471,10 +487,10 @@ pub fn set_force_repair_test() {
     )
   let assert Ok("val") = set.lookup(table2, key: "key")
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_no_repair_test() {
+pub fn set_no_repair_test() -> Nil {
   let path = "test_set_no_repair.dets"
   // Create and properly close a table
   let assert Ok(table) =
@@ -491,12 +507,12 @@ pub fn set_no_repair_test() {
     )
   let assert Ok("val") = set.lookup(table2, key: "key")
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Concurrent access ──────────────────────────────────────────────
 
-pub fn set_shared_access_test() {
+pub fn set_shared_access_test() -> Nil {
   let path = "test_set_shared.dets"
   // Multiple opens of the same file share the table
   let assert Ok(t1) =
@@ -511,10 +527,10 @@ pub fn set_shared_access_test() {
   // Close both (DETS ref-counts, last close does the actual close)
   let assert Ok(Nil) = set.close(t1)
   let assert Ok(Nil) = set.close(t2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_concurrent_writers_test() {
+pub fn set_concurrent_writers_test() -> Nil {
   let path = "test_set_concurrent.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -522,51 +538,53 @@ pub fn set_concurrent_writers_test() {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      range(0, 99) |> list.map(fn(i) { #("a_" <> int.to_string(i), i) }),
+      test_helpers.range(0, 99)
+        |> list.map(fn(i) { #("a_" <> int.to_string(i), i) }),
     )
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      range(0, 99) |> list.map(fn(i) { #("b_" <> int.to_string(i), i) }),
+      test_helpers.range(0, 99)
+        |> list.map(fn(i) { #("b_" <> int.to_string(i), i) }),
     )
   set.size(table) |> expect.to_equal(Ok(200))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Set: Edge cases ─────────────────────────────────────────────────────
 
-pub fn set_empty_string_key_test() {
+pub fn set_empty_string_key_test() -> Nil {
   let path = "test_set_empty_key.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "", "empty_key")
   let assert Ok("empty_key") = set.lookup(table, key: "")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_empty_string_value_test() {
+pub fn set_empty_string_value_test() -> Nil {
   let path = "test_set_empty_val.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "")
   let assert Ok("") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_delete_nonexistent_key_test() {
+pub fn set_delete_nonexistent_key_test() -> Nil {
   let path = "test_set_del_missing.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   // Deleting a non-existent key should succeed silently
   let assert Ok(Nil) = set.delete_key(table, key: "nope")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_insert_new_after_delete_test() {
+pub fn set_insert_new_after_delete_test() -> Nil {
   let path = "test_set_new_after_del.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -576,39 +594,39 @@ pub fn set_insert_new_after_delete_test() {
   let assert Ok(Nil) = set.insert_new(table, "key", "second")
   let assert Ok("second") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_fold_empty_table_test() {
+pub fn set_fold_empty_table_test() -> Nil {
   let path = "test_set_fold_empty.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(result) = set.fold(table, 0, fn(acc, _k, _v) { acc + 1 })
   result |> expect.to_equal(0)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_to_list_empty_test() {
+pub fn set_to_list_empty_test() -> Nil {
   let path = "test_set_to_list_empty.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   set.to_list(table) |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_insert_list_empty_test() {
+pub fn set_insert_list_empty_test() -> Nil {
   let path = "test_set_insert_list_empty.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert_list(table, [])
   set.size(table) |> expect.to_equal(Ok(0))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_multiple_close_reopen_cycles_test() {
+pub fn set_multiple_close_reopen_cycles_test() -> Nil {
   let path = "test_set_cycles.dets"
   // Cycle 1: write
   let assert Ok(t) =
@@ -626,10 +644,10 @@ pub fn set_multiple_close_reopen_cycles_test() {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(2) = set.lookup(t, key: "round")
   let assert Ok(Nil) = set.close(t)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_with_table_error_still_closes_test() {
+pub fn set_with_table_error_still_closes_test() -> Nil {
   let path = "test_set_with_err.dets"
   // with_table should close even when callback returns Error
   let result =
@@ -644,10 +662,10 @@ pub fn set_with_table_error_still_closes_test() {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_info_grows_with_data_test() {
+pub fn set_info_grows_with_data_test() -> Nil {
   let path = "test_set_info_grow.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -655,17 +673,17 @@ pub fn set_info_grows_with_data_test() {
   let initial_size = info1.file_size
   // Insert substantial data
   let entries =
-    range(0, 199)
+    test_helpers.range(0, 199)
     |> list.map(fn(i) { #(int.to_string(i), string.repeat("x", 100)) })
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(info2) = set.info(table)
   info2.object_count |> expect.to_equal(200)
   { info2.file_size > initial_size } |> expect.to_be_true
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_overwrite_preserves_size_test() {
+pub fn set_overwrite_preserves_size_test() -> Nil {
   let path = "test_set_overwrite_size.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -675,10 +693,10 @@ pub fn set_overwrite_preserves_size_test() {
   // Size should be 1 — sets overwrite, not accumulate
   set.size(table) |> expect.to_equal(Ok(1))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_fold_collects_all_keys_test() {
+pub fn set_fold_collects_all_keys_test() -> Nil {
   let path = "test_set_fold_keys.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -686,5 +704,5 @@ pub fn set_fold_collects_all_keys_test() {
   let assert Ok(keys) = set.fold(table, [], fn(acc, key, _val) { [key, ..acc] })
   keys |> list.sort(string.compare) |> expect.to_equal(["a", "b", "c"])
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

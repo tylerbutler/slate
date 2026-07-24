@@ -1,14 +1,15 @@
-/// Tests for update_counter API on set tables.
-/// Adapted from OTP dets_SUITE update_counter test.
+//// Tests for update_counter API on set tables.
+//// Adapted from OTP dets_SUITE update_counter test.
+
 import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, unsafe_decoder}
+import test_helpers
 
 // ── Basic increment ─────────────────────────────────────────────────────
 
-pub fn update_counter_basic_test() {
+pub fn update_counter_basic_test() -> Nil {
   let path = "test_counter_basic.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -19,12 +20,12 @@ pub fn update_counter_basic_test() {
   // Verify via lookup
   let assert Ok(3) = set.lookup(table, key: "hits")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Increment by various amounts ────────────────────────────────────────
 
-pub fn update_counter_by_amount_test() {
+pub fn update_counter_by_amount_test() -> Nil {
   let path = "test_counter_amount.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -33,12 +34,12 @@ pub fn update_counter_by_amount_test() {
   let assert Ok(110) = set.update_counter(table, "score", 100)
   let assert Ok(110) = set.lookup(table, key: "score")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Negative increment (decrement) ──────────────────────────────────────
 
-pub fn update_counter_decrement_test() {
+pub fn update_counter_decrement_test() -> Nil {
   let path = "test_counter_dec.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -47,12 +48,12 @@ pub fn update_counter_decrement_test() {
   let assert Ok(50) = set.update_counter(table, "balance", -25)
   let assert Ok(50) = set.lookup(table, key: "balance")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Counter goes negative ───────────────────────────────────────────────
 
-pub fn update_counter_goes_negative_test() {
+pub fn update_counter_goes_negative_test() -> Nil {
   let path = "test_counter_neg.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -60,12 +61,12 @@ pub fn update_counter_goes_negative_test() {
   let assert Ok(-10) = set.update_counter(table, "temp", -10)
   let assert Ok(-10) = set.lookup(table, key: "temp")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Counter persists across close/reopen ────────────────────────────────
 
-pub fn update_counter_persistence_test() {
+pub fn update_counter_persistence_test() -> Nil {
   let path = "test_counter_persist.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -79,22 +80,22 @@ pub fn update_counter_persistence_test() {
   let assert Ok(8) = set.update_counter(table2, "counter", 3)
   let assert Ok(8) = set.lookup(table2, key: "counter")
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Counter with non-existent key fails ─────────────────────────────────
 
-pub fn update_counter_missing_key_test() {
+pub fn update_counter_missing_key_test() -> Nil {
   let path = "test_counter_missing.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table, "missing", 1)
   result |> expect.to_equal(Error(set.TableError(slate.NotFound)))
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn update_counter_closed_table_test() {
+pub fn update_counter_closed_table_test() -> Nil {
   let path = "test_counter_closed.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -104,12 +105,12 @@ pub fn update_counter_closed_table_test() {
   set.update_counter(table, "hits", 1)
   |> expect.to_equal(Error(set.TableError(slate.TableDoesNotExist)))
 
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Increment by zero ───────────────────────────────────────────────────
 
-pub fn update_counter_by_zero_test() {
+pub fn update_counter_by_zero_test() -> Nil {
   let path = "test_counter_zero.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -117,12 +118,12 @@ pub fn update_counter_by_zero_test() {
   let assert Ok(42) = set.update_counter(table, "stable", 0)
   let assert Ok(42) = set.lookup(table, key: "stable")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Multiple counters in same table ─────────────────────────────────────
 
-pub fn update_counter_multiple_keys_test() {
+pub fn update_counter_multiple_keys_test() -> Nil {
   let path = "test_counter_multi.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -139,12 +140,12 @@ pub fn update_counter_multiple_keys_test() {
   let assert Ok(1) = set.lookup(table, key: "api_calls")
   let assert Ok(3) = set.lookup(table, key: "errors")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Large increment ─────────────────────────────────────────────────────
 
-pub fn update_counter_large_increment_test() {
+pub fn update_counter_large_increment_test() -> Nil {
   let path = "test_counter_large.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -153,15 +154,19 @@ pub fn update_counter_large_increment_test() {
   let assert Ok(2_000_000) = set.update_counter(table, "big", 1_000_000)
   let assert Ok(2_000_000) = set.lookup(table, key: "big")
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Counter with non-integer value fails ─────────────────────────────────
 
-pub fn update_counter_non_integer_value_test() {
+pub fn update_counter_non_integer_value_test() -> Nil {
   let path = "test_counter_nonint.dets"
   let assert Ok(table) =
-    set.open(path, key_decoder: decode.string, value_decoder: unsafe_decoder())
+    set.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helpers.unsafe_decoder(),
+    )
   let assert Ok(Nil) = set.insert(table, "hits", "not_an_int")
   let assert Ok(Nil) = set.close(table)
 
@@ -170,5 +175,5 @@ pub fn update_counter_non_integer_value_test() {
   let result = set.update_counter(table2, "hits", 1)
   result |> expect.to_equal(Error(set.CounterValueNotInteger))
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
