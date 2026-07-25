@@ -2,7 +2,7 @@ import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup}
+import test_helpers
 
 @external(erlang, "corruption_test_helpers_ffi", "write_garbage")
 fn write_garbage(path: String) -> Result(Nil, Nil)
@@ -10,7 +10,7 @@ fn write_garbage(path: String) -> Result(Nil, Nil)
 @external(erlang, "corruption_test_ffi", "corrupt_byte")
 fn corrupt_byte(path: String, position: Int) -> Result(Nil, Nil)
 
-pub fn error_code_and_message_helpers_test() {
+pub fn error_code_and_message_helpers_test() -> Nil {
   slate.error_code(slate.NotFound) |> expect.to_equal("not_found")
   slate.error_code(slate.UnexpectedError("boom"))
   |> expect.to_equal("unexpected_error")
@@ -31,7 +31,7 @@ pub fn error_code_and_message_helpers_test() {
   )
 }
 
-pub fn not_a_dets_file_error_test() {
+pub fn not_a_dets_file_error_test() -> Nil {
   let path = "test_not_a_dets_error.dets"
   // Write garbage to simulate a non-DETS file
   let assert Ok(Nil) = write_garbage(path)
@@ -42,19 +42,11 @@ pub fn not_a_dets_file_error_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(slate.NotADetsFile) -> Nil
-    Error(slate.UnexpectedError(_)) -> Nil
-    Error(_) -> Nil
-    Ok(table) -> {
-      let assert Ok(Nil) = set.close(table)
-      Nil
-    }
-  }
-  cleanup(path)
+  result |> expect.to_equal(Error(slate.NotADetsFile))
+  test_helpers.cleanup(path)
 }
 
-pub fn needs_repair_error_test() {
+pub fn needs_repair_error_test() -> Nil {
   let path = "test_needs_repair_error.dets"
   // Create a valid table
   let assert Ok(table) =
@@ -71,18 +63,11 @@ pub fn needs_repair_error_test() {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(slate.NeedsRepair) -> Nil
-    Error(_) -> Nil
-    Ok(table2) -> {
-      let assert Ok(Nil) = set.close(table2)
-      Nil
-    }
-  }
-  cleanup(path)
+  result |> expect.to_equal(Error(slate.NeedsRepair))
+  test_helpers.cleanup(path)
 }
 
-pub fn set_info_closed_table_returns_table_does_not_exist_test() {
+pub fn set_info_closed_table_returns_table_does_not_exist_test() -> Nil {
   let path = "test_set_info_closed_table.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
@@ -91,5 +76,5 @@ pub fn set_info_closed_table_returns_table_does_not_exist_test() {
 
   set.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
 
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

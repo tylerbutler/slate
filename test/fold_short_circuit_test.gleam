@@ -5,21 +5,21 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, did_panic, range}
+import test_helpers
 
 @external(erlang, "fold_short_circuit_test_ffi", "count_ffi_fold_invocations")
 fn count_ffi_fold_invocations(table: table_type) -> Int
 
 const entry_count = 50
 
-pub fn set_fold_short_circuits_on_decode_error_test() {
+pub fn set_fold_short_circuits_on_decode_error_test() -> Nil {
   let path = "test_set_fold_short_circuit.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helpers.range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
     )
   let assert Ok(Nil) = set.close(table)
 
@@ -36,17 +36,17 @@ pub fn set_fold_short_circuits_on_decode_error_test() {
   invocations |> expect.to_equal(1)
 
   let assert Ok(Nil) = set.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn bag_fold_short_circuits_on_decode_error_test() {
+pub fn bag_fold_short_circuits_on_decode_error_test() -> Nil {
   let path = "test_bag_fold_short_circuit.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
     bag.insert_list(
       table,
-      range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helpers.range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
     )
   let assert Ok(Nil) = bag.close(table)
 
@@ -60,17 +60,17 @@ pub fn bag_fold_short_circuits_on_decode_error_test() {
   invocations |> expect.to_equal(1)
 
   let assert Ok(Nil) = bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn duplicate_bag_fold_short_circuits_on_decode_error_test() {
+pub fn duplicate_bag_fold_short_circuits_on_decode_error_test() -> Nil {
   let path = "test_dupbag_fold_short_circuit.dets"
   let assert Ok(table) =
     duplicate_bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
     duplicate_bag.insert_list(
       table,
-      range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helpers.range(1, entry_count) |> list.map(fn(i) { #(i, i * 10) }),
     )
   let assert Ok(Nil) = duplicate_bag.close(table)
 
@@ -88,16 +88,16 @@ pub fn duplicate_bag_fold_short_circuits_on_decode_error_test() {
   invocations |> expect.to_equal(1)
 
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_fold_callback_panic_propagates_test() {
+pub fn set_fold_callback_panic_propagates_test() -> Nil {
   let path = "test_set_fold_panic.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, 1, "one")
 
-  did_panic(fn() {
+  test_helpers.did_panic(fn() {
     let _ =
       set.fold(table, "", fn(acc, _k, v) {
         let _ = acc <> v
@@ -109,16 +109,16 @@ pub fn set_fold_callback_panic_propagates_test() {
 
   let assert Ok("one") = set.lookup(table, key: 1)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
-pub fn set_fold_results_callback_panic_propagates_test() {
+pub fn set_fold_results_callback_panic_propagates_test() -> Nil {
   let path = "test_set_fold_results_panic.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, 1, "one")
 
-  did_panic(fn() {
+  test_helpers.did_panic(fn() {
     let _ =
       set.fold_results(table, 0, fn(acc, _entry) {
         let _ = acc
@@ -130,5 +130,5 @@ pub fn set_fold_results_callback_panic_propagates_test() {
 
   let assert Ok("one") = set.lookup(table, key: 1)
   let assert Ok(Nil) = set.close(table)
-  cleanup(path)
+  test_helpers.cleanup(path)
 }

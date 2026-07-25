@@ -1,23 +1,24 @@
-/// DETS bag tables — multiple distinct values per key.
-///
-/// Bag tables allow storing multiple values for the same key. Duplicate
-/// key-value pairs are silently ignored by `insert`. Use `insert_new`
-/// when you need to detect duplicates.
-///
-/// ## Example
-///
-/// ```gleam
-/// import gleam/dynamic/decode
-/// import slate/bag
-///
-/// let assert Ok(table) = bag.open("tags.dets",
-///   key_decoder: decode.string, value_decoder: decode.string)
-/// let assert Ok(Nil) = bag.insert(table, "color", "red")
-/// let assert Ok(Nil) = bag.insert(table, "color", "blue")
-/// let assert Ok(["red", "blue"]) = bag.lookup(table, "color")
-/// let assert Ok(Nil) = bag.close(table)
-/// ```
-///
+//// DETS bag tables — multiple distinct values per key.
+////
+//// Bag tables allow storing multiple values for the same key. Duplicate
+//// key-value pairs are silently ignored by `insert`. Use `insert_new`
+//// when you need to detect duplicates.
+////
+//// ## Example
+////
+//// ```gleam
+//// import gleam/dynamic/decode
+//// import slate/bag
+////
+//// let assert Ok(table) = bag.open("tags.dets",
+////   key_decoder: decode.string, value_decoder: decode.string)
+//// let assert Ok(Nil) = bag.insert(table, "color", "red")
+//// let assert Ok(Nil) = bag.insert(table, "color", "blue")
+//// let assert Ok(["red", "blue"]) = bag.lookup(table, "color")
+//// let assert Ok(Nil) = bag.close(table)
+//// ```
+////
+
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
@@ -158,8 +159,8 @@ pub fn with_table(
 pub fn lookup(from table: Bag(k, v), key key: k) -> Result(List(v), DetsError) {
   case ffi_lookup_all(table.ref, key) {
     Ok(dynamic_values) ->
-      list.try_map(dynamic_values, fn(dv) {
-        decode.run(dv, table.value_decoder)
+      list.try_map(dynamic_values, fn(dynamic_value) {
+        decode.run(dynamic_value, table.value_decoder)
         |> result.map_error(slate.DecodeErrors)
       })
     Error(err) -> Error(err)

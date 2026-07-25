@@ -1,26 +1,31 @@
-/// Corruption and repair stress tests.
-/// Adapted from OTP dets_SUITE repair/1 and open_file/1 tests.
-///
-/// These tests verify that DETS handles file corruption gracefully:
-/// - Truncated files trigger repair
-/// - Corrupted bytes are detected
-/// - NoRepair mode rejects damaged files
-/// - AutoRepair mode fixes damaged files
+//// Corruption and repair stress tests.
+//// Adapted from OTP dets_SUITE repair/1 and open_file/1 tests.
+////
+//// These tests verify that DETS handles file corruption gracefully:
+//// - Truncated files trigger repair
+//// - Corrupted bytes are detected
+//// - NoRepair mode rejects damaged files
+//// - AutoRepair mode fixes damaged files
+
 import gleam/dynamic/decode
+import gleam/list
 import slate
 import slate/set
 import startest/expect
-import test_helpers.{cleanup, range}
+import test_helpers
 
 // ── Truncated file with AutoRepair recovers ─────────────────────────────
 // OTP: truncated file triggers repair, data may be partially recovered.
 
-pub fn truncated_file_auto_repair_test() {
+pub fn truncated_file_auto_repair_test() -> Nil {
   let path = "test_truncated_auto.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(0, 99) |> list.map(fn(i) { #(i, i * 2) }))
+    set.insert_list(
+      table,
+      test_helpers.range(0, 99) |> list.map(fn(i) { #(i, i * 2) }),
+    )
   let assert Ok(Nil) = set.close(table)
   // Get file size and truncate to half
   let assert Ok(file_size) = get_file_size(path)
@@ -46,13 +51,13 @@ pub fn truncated_file_auto_repair_test() {
       Nil
     }
   }
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── NoRepair rejects damaged file ───────────────────────────────────────
 // OTP: {error,{needs_repair, Fname}} when repair=false
 
-pub fn no_repair_rejects_corrupted_file_test() {
+pub fn no_repair_rejects_corrupted_file_test() -> Nil {
   let path = "test_no_repair_reject.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -69,18 +74,21 @@ pub fn no_repair_rejects_corrupted_file_test() {
       value_decoder: decode.string,
     )
   result |> expect.to_equal(Error(slate.NeedsRepair))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── ForceRepair on corrupted file ───────────────────────────────────────
 // OTP: force repair rebuilds from file data
 
-pub fn force_repair_on_corrupted_file_test() {
+pub fn force_repair_on_corrupted_file_test() -> Nil {
   let path = "test_force_repair_corrupt.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
   let assert Ok(Nil) =
-    set.insert_list(table, range(0, 49) |> list.map(fn(i) { #(i, i) }))
+    set.insert_list(
+      table,
+      test_helpers.range(0, 49) |> list.map(fn(i) { #(i, i) }),
+    )
   let assert Ok(Nil) = set.close(table)
   // Corrupt a byte in the data area (far past the header)
   let assert Ok(Nil) = corrupt_byte(path, 500)
@@ -106,25 +114,25 @@ pub fn force_repair_on_corrupted_file_test() {
       Nil
     }
   }
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Non-DETS file fails to open ─────────────────────────────────────────
 // OTP: {error,{not_a_dets_file,Fname}}
 
-pub fn open_non_dets_file_test() {
+pub fn open_non_dets_file_test() -> Nil {
   let path = "test_not_dets.dets"
   // Write random garbage that isn't a DETS file
   let assert Ok(Nil) = write_garbage(path)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   result |> expect.to_equal(Error(slate.NotADetsFile))
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Severely truncated file (header only) ───────────────────────────────
 
-pub fn truncated_to_header_test() {
+pub fn truncated_to_header_test() -> Nil {
   let path = "test_truncated_header.dets"
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -142,12 +150,12 @@ pub fn truncated_to_header_test() {
       Nil
     }
   }
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── Empty file (0 bytes) ────────────────────────────────────────────────
 
-pub fn empty_file_test() {
+pub fn empty_file_test() -> Nil {
   let path = "test_empty_file.dets"
   let assert Ok(Nil) = truncate_file_create(path)
   let result =
@@ -160,12 +168,10 @@ pub fn empty_file_test() {
       Nil
     }
   }
-  cleanup(path)
+  test_helpers.cleanup(path)
 }
 
 // ── FFI helpers ─────────────────────────────────────────────────────────
-
-import gleam/list
 
 @external(erlang, "corruption_test_ffi", "truncate_file")
 fn truncate_file(path: String, position: Int) -> Result(Nil, Nil)

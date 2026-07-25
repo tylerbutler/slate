@@ -1,23 +1,24 @@
-/// DETS duplicate bag tables — multiple values per key, duplicates allowed.
-///
-/// Duplicate bag tables are like bag tables but allow storing identical
-/// key-value pairs multiple times.
-///
-/// ## Example
-///
-/// ```gleam
-/// import gleam/dynamic/decode
-/// import slate/duplicate_bag
-///
-/// let assert Ok(table) = duplicate_bag.open("events.dets",
-///   key_decoder: decode.string, value_decoder: decode.string)
-/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
-/// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
-/// let assert Ok(["button_a", "button_a"]) =
-///   duplicate_bag.lookup(table, "click")
-/// let assert Ok(Nil) = duplicate_bag.close(table)
-/// ```
-///
+//// DETS duplicate bag tables — multiple values per key, duplicates allowed.
+////
+//// Duplicate bag tables are like bag tables but allow storing identical
+//// key-value pairs multiple times.
+////
+//// ## Example
+////
+//// ```gleam
+//// import gleam/dynamic/decode
+//// import slate/duplicate_bag
+////
+//// let assert Ok(table) = duplicate_bag.open("events.dets",
+////   key_decoder: decode.string, value_decoder: decode.string)
+//// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
+//// let assert Ok(Nil) = duplicate_bag.insert(table, "click", "button_a")
+//// let assert Ok(["button_a", "button_a"]) =
+////   duplicate_bag.lookup(table, "click")
+//// let assert Ok(Nil) = duplicate_bag.close(table)
+//// ```
+////
+
 import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
@@ -165,8 +166,8 @@ pub fn lookup(
 ) -> Result(List(v), DetsError) {
   case ffi_lookup_all(table.ref, key) {
     Ok(dynamic_values) ->
-      list.try_map(dynamic_values, fn(dv) {
-        decode.run(dv, table.value_decoder)
+      list.try_map(dynamic_values, fn(dynamic_value) {
+        decode.run(dynamic_value, table.value_decoder)
         |> result.map_error(slate.DecodeErrors)
       })
     Error(err) -> Error(err)
