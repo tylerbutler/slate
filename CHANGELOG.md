@@ -1,6 +1,22 @@
 # Changelog
 
 
+## 1.0.1 - 2026-07-27
+
+
+### Fixed
+
+#### Module documentation now renders on HexDocs.
+
+Module-level doc comments used `///` instead of `////`, so the package and
+module docs (including the Quick Start and Limitations sections) were
+silently dropped from generated documentation.
+
+Also includes non-breaking style cleanup from a Gleam conventions review:
+qualified imports and full type annotations in the test suite, hardened
+test assertions, and clearer internal names. No public API changes.
+
+
 ## 1.0.0 - 2026-04-07
 
 
