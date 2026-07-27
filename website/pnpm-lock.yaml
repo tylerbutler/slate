@@ -17,9 +17,12 @@ importers:
       '@astrojs/starlight':
         specifier: ^0.38.3
         version: 0.38.3(astro@6.1.10(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.3)(typescript@6.0.2)(yaml@2.8.3))
-      '@fontsource/metropolis':
+      '@fontsource/schibsted-grotesk':
         specifier: ^5.2.5
-        version: 5.2.5
+        version: 5.3.0
+      '@fontsource/spline-sans-mono':
+        specifier: ^5.2.5
+        version: 5.3.0
       astro:
         specifier: ^6.1.10
         version: 6.1.10(@types/node@24.12.2)(lightningcss@1.32.0)(rollup@4.60.3)(typescript@6.0.2)(yaml@2.8.3)
@@ -342,8 +345,11 @@ packages:
     resolution: {integrity: sha512-Au3jSkt66PRwTKTCYm7KzTGfMzUmn1LYPK+cyrytfzjfOPkHpohrLcGYPLsgxV8nzc4vXxt3Ay7MlBrmeIfFLg==}
     engines: {node: '>=16.0'}
 
-  '@fontsource/metropolis@5.2.5':
-    resolution: {integrity: sha512-zAz6XS1ZXVXZadcqsOnToiePAKEiEywxOwILEaE4sRl+pVOFQI/30xMiKvjQae1NRK3TbeKxJAmt+yFkPguXJw==}
+  '@fontsource/schibsted-grotesk@5.3.0':
+    resolution: {integrity: sha512-9k+Fd2eg7umKxI2JV2HtDcOkXEM0iJx0u4Iu1b+QHikVU8Sl/MtozJ/mtZfsltR6xnVGSQjpcxXQeJPW0KGpIA==}
+
+  '@fontsource/spline-sans-mono@5.3.0':
+    resolution: {integrity: sha512-9MJxL52KuuVskwM3LbCwEP/L3ClsHsCd18gwmm5df/ZFh/TIg3LE9DT4pLyB5ptKCvEEi7JwclAe8HhCfzlBWg==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2030,6 +2036,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -2723,7 +2730,9 @@ snapshots:
       mdast-util-find-and-replace: 1.1.1
       unist-util-visit: 2.0.3
 
-  '@fontsource/metropolis@5.2.5': {}
+  '@fontsource/schibsted-grotesk@5.3.0': {}
+
+  '@fontsource/spline-sans-mono@5.3.0': {}
 
   '@img/colour@1.1.0': {}
 

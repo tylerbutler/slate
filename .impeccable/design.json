@@ -1,0 +1,114 @@
+{
+	"schemaVersion": 2,
+	"generatedAt": "2026-07-19T00:00:00Z",
+	"title": "Design System: slate",
+	"extensions": {
+		"colorMeta": {
+			"quarry-blue": {
+				"role": "primary",
+				"displayName": "Quarried Blue",
+				"canonical": "#4a8eb8",
+				"tonalRamp": ["#0d1e2a", "#1a3a52", "#2a6d96", "#3d7ea8", "#4a8eb8", "#7aaecb", "#a8cde0", "#e2eef5"]
+			},
+			"quarry-deep": {
+				"role": "primary",
+				"displayName": "Deep Quarry",
+				"canonical": "#2a6d96",
+				"tonalRamp": ["#0d1e2a", "#16405c", "#1f5679", "#2a6d96", "#3d7ea8", "#7aaecb", "#a8cde0", "#e2eef5"]
+			},
+			"ink-slate": {
+				"role": "neutral",
+				"displayName": "Slate Ink",
+				"canonical": "#0a1520",
+				"tonalRamp": ["#0a1520", "#152d40", "#244a63", "#3d6b8a", "#6a93ad", "#a0bdd0", "#dce8f0", "#eef4f8"]
+			},
+			"mist": {
+				"role": "neutral",
+				"displayName": "Mist",
+				"canonical": "#dce8f0",
+				"tonalRamp": ["#0a1520", "#152d40", "#244a63", "#3d6b8a", "#6a93ad", "#a0bdd0", "#dce8f0", "#ffffff"]
+			}
+		},
+		"typographyMeta": {
+			"body": { "displayName": "Body", "purpose": "All prose in Schibsted Grotesk 400; Starlight content column caps line length." },
+			"code": { "displayName": "Code", "purpose": "Spline Sans Mono for all code blocks and inline code — first-class content on a docs site." }
+		},
+		"shadows": [],
+		"motion": [
+			{ "name": "ease-standard", "value": "ease-out", "purpose": "Starlight default transitions only; motion conveys state, never decoration." }
+		],
+		"breakpoints": [
+			{ "name": "sl-content", "value": "72rem", "purpose": "Starlight content + sidebar layout threshold." },
+			{ "name": "sl-mobile", "value": "50rem", "purpose": "Sidebar collapses to drawer below this." }
+		]
+	},
+	"components": [
+		{
+			"name": "Primary Action",
+			"kind": "button",
+			"refersTo": "button-primary",
+			"description": "Hero and CTA button — Quarried Blue pill with ink text (dark mode values).",
+			"html": "<button class=\"ds-btn-primary\">Get started</button>",
+			"css": ".ds-btn-primary { background: #4a8eb8; color: #0a1520; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 600; font-size: 0.875rem; padding: 0.75rem 1.5rem; border: none; border-radius: 999px; cursor: pointer; transition: background 0.15s ease-out; } .ds-btn-primary:hover { background: #7aaecb; } .ds-btn-primary:focus-visible { outline: 2px solid #a8cde0; outline-offset: 2px; }"
+		},
+		{
+			"name": "Secondary Action",
+			"kind": "button",
+			"refersTo": "button-secondary",
+			"description": "Minimal tonal button for secondary paths.",
+			"html": "<button class=\"ds-btn-secondary\">What is slate?</button>",
+			"css": ".ds-btn-secondary { background: #152d40; color: #dce8f0; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 600; font-size: 0.875rem; padding: 0.75rem 1.5rem; border: 1px solid #244a63; border-radius: 999px; cursor: pointer; transition: background 0.15s ease-out; } .ds-btn-secondary:hover { background: #244a63; } .ds-btn-secondary:focus-visible { outline: 2px solid #a8cde0; outline-offset: 2px; }"
+		},
+		{
+			"name": "Sidebar Nav Link",
+			"kind": "nav",
+			"description": "Sidebar item: tonal hover, accent-wash current state — no stripes.",
+			"html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link\" href=\"#\">Installation</a><a class=\"ds-nav-link ds-nav-current\" href=\"#\" aria-current=\"page\">Quick Start</a><a class=\"ds-nav-link\" href=\"#\">Set Tables</a></nav>",
+			"css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; width: 14rem; background: #0a1520; padding: 0.5rem; border-radius: 8px; } .ds-nav-link { font-family: 'Schibsted Grotesk', sans-serif; font-size: 0.875rem; font-weight: 400; color: #a0bdd0; text-decoration: none; padding: 0.4rem 0.75rem; border-radius: 6px; transition: background 0.15s ease-out; } .ds-nav-link:hover { background: #152d40; color: #dce8f0; } .ds-nav-current { background: #1a2332; color: #a8cde0; font-weight: 600; }"
+		},
+		{
+			"name": "Feature Card",
+			"kind": "card",
+			"description": "Flat tonal card, one ramp step off the page, 1px ramp border — never a shadow.",
+			"html": "<div class=\"ds-card\"><h3 class=\"ds-card-title\">Set Tables</h3><p class=\"ds-card-body\">Unique key-value storage with one value per key. The most common table type for caches and configuration.</p></div>",
+			"css": ".ds-card { background: #152d40; border: 1px solid #244a63; border-radius: 8px; padding: 1.25rem; max-width: 22rem; } .ds-card-title { font-family: 'Schibsted Grotesk', sans-serif; font-size: 1.125rem; font-weight: 600; color: #dce8f0; margin: 0 0 0.5rem; } .ds-card-body { font-family: 'Schibsted Grotesk', sans-serif; font-size: 0.9375rem; line-height: 1.6; color: #a0bdd0; margin: 0; }"
+		},
+		{
+			"name": "Code Block",
+			"kind": "custom",
+			"refersTo": "code",
+			"description": "Signature component: Spline Sans Mono on a Strata surface — code is first-class content.",
+			"html": "<pre class=\"ds-code\"><code>import slate/set\n\nlet assert Ok(users) = set.open(\"data/users.dets\",\n  key_decoder: decode.string, value_decoder: decode.int)</code></pre>",
+			"css": ".ds-code { background: #152d40; border: 1px solid #244a63; border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; margin: 0; } .ds-code code { font-family: 'Spline Sans Mono', ui-monospace, monospace; font-size: 0.9375rem; line-height: 1.65; color: #dce8f0; }"
+		}
+	],
+	"narrative": {
+		"northStar": "The Slate Ledger",
+		"overview": "Durable records on stone. The site treats documentation the way DETS treats data: written down plainly, safe to depend on, still there after a restart. The mineral blue-gray palette is literal slate — every neutral is a tonal step quarried from the same blue hue, so light and dark modes read as two lighting conditions on the same material. This is a product-register system built on Astro Starlight: reading conventions are kept, and identity is carried by the palette, the type voice, and restraint.",
+		"keyCharacteristics": [
+			"One blue-gray mineral ramp supplies every neutral; no true grays exist in the system.",
+			"Flat and tonal: depth comes from lightness steps, never from shadows.",
+			"One typeface (Schibsted Grotesk) does all prose and UI work; Spline Sans Mono does all code.",
+			"Starlight conventions are load-bearing; custom styling is confined to tokens."
+		],
+		"rules": [
+			{ "name": "The One Stone Rule", "body": "Every neutral is a lightness step of the same blue-gray hue. Introducing a warm gray, a pure gray, or a second accent hue is forbidden — if a new value is needed, quarry it from the existing ramp.", "section": "colors" },
+			{ "name": "The Working Accent Rule", "body": "Quarried Blue appears only where something is interactive or current (links, actions, active nav). It is never a decoration, a background wash for emphasis, or a heading color.", "section": "colors" },
+			{ "name": "The Two Voices Rule", "body": "Schibsted Grotesk speaks; Spline Sans Mono quotes code. No third family, no display font, no weight above 700.", "section": "typography" },
+			{ "name": "The Inscription Rule", "body": "Nothing floats above the stone. Dropdowns and dialogs may use Starlight's defaults, but authored surfaces never add shadows, glows, or blurs.", "section": "elevation" }
+		],
+		"dos": [
+			"Do keep every neutral inside the blue-gray ramp (#0a1520 → #ffffff family); quarry new values from it rather than inventing grays.",
+			"Do hold body text at AA contrast or better: Mist (#dce8f0) on Slate Ink, Slate Ink on white — never Weathered (#6a93ad) for body copy.",
+			"Do let Starlight's reading conventions stand; identity lives in tokens, type, and copy, not layout invention.",
+			"Do treat code blocks as first-class content — Spline Sans Mono, ramp-toned surfaces, AA contrast for syntax colors."
+		],
+		"donts": [
+			"Don't ship SaaS marketing gloss — gradient heroes, metric cards, testimonial walls. This includes gradient text via background-clip: text; the splash heading must be a single solid color.",
+			"Don't regress to dry auto-generated docs: every reference page keeps a guidance layer, not just API listings.",
+			"Don't add shadows, glows, glassmorphism, or a second accent hue anywhere.",
+			"Don't use colored side-stripe borders (border-left > 1px) for callouts; Starlight asides are themed tonally instead.",
+			"Don't introduce a third font family or display type; two voices only."
+		]
+	}
+}

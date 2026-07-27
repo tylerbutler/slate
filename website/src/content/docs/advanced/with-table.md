@@ -19,7 +19,7 @@ Instead of manually opening and closing:
 import gleam/dynamic/decode
 import slate/set
 
-// ❌ Manual lifecycle — close might not be called if an error occurs
+// Manual lifecycle: close might not be called if an error occurs
 let assert Ok(table) = set.open("data/config.dets",
   key_decoder: decode.string, value_decoder: decode.string)
 let assert Ok(Nil) = set.insert(table, "theme", "dark")
@@ -32,7 +32,7 @@ Use `with_table`:
 import gleam/dynamic/decode
 import slate/set
 
-// ✅ Table is closed when the callback completes
+// The table is closed when the callback completes
 let assert Ok(Nil) = set.with_table("data/config.dets",
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) {

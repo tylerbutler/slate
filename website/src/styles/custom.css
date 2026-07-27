@@ -1,3 +1,162 @@
+/* Hero and content link-buttons: meet the 44px touch target. */
+.sl-link-button {
+	min-block-size: 2.75rem;
+}
+
+site-search button[data-open-modal] {
+	justify-content: center;
+	min-inline-size: 2.75rem;
+	min-block-size: 2.75rem;
+}
+
+/* Keep the splash page quiet and put its value proposition before its artwork. */
+/* The one place Chalk Pink appears outside the brand mark itself: a single solid-color echo of the logo's own hand-drawn wordmark (Chalk Signature Rule, DESIGN.md). */
+[data-has-hero] .hero h1 {
+	font-size: 2.25rem;
+	color: var(--slate-chalk-accent);
+}
+
+/* Keep prose readable while code, tables, and cards use the full content width. */
+.sl-markdown-content {
+	color: var(--slate-body-text);
+}
+
+/* Schibsted Grotesk's "0" (the ch unit's basis) is ~33% narrower than the font's
+   average character, so a nominal 72ch cap renders body copy at ~94 real
+   characters/line. 54ch measured against real text lands the visible line
+   length at the ~65-75 character target instead of the CSS unit's face value. */
+.sl-markdown-content > :is(p, ul, ol, blockquote, .starlight-aside) {
+	max-inline-size: 54ch;
+}
+
+[data-has-hero] .sl-markdown-content > p {
+	max-width: 53ch;
+}
+
+/* Comparison tables fill their column instead of floating in it. */
+.sl-markdown-content .slate-comparison {
+	width: 100%;
+}
+
+@media (max-width: 49.99rem) {
+	[data-has-hero] .hero {
+		gap: 1.5rem;
+		padding-block: 1.5rem 2rem;
+	}
+
+	[data-has-hero] .hero > img {
+		order: 2;
+		width: min(44vw, 10rem);
+	}
+
+	[data-has-hero] .hero > .stack {
+		order: 1;
+		gap: 1.25rem;
+	}
+
+	[data-has-hero] .hero .tagline {
+		font-size: var(--sl-text-base);
+		line-height: 1.7;
+	}
+
+	[data-has-hero] .hero .actions {
+		gap: 0.75rem 1rem;
+	}
+}
+
+@media (min-width: 50rem) {
+	[data-has-hero] .hero {
+		padding-block: clamp(3rem, 8vmin, 6rem);
+	}
+
+	[data-has-hero] .hero > img {
+		width: min(100%, 22rem);
+	}
+}
+
+/* On phones, present comparisons as labeled rows instead of clipped tables. */
+@media (max-width: 40rem) {
+	.sl-markdown-content .slate-comparison {
+		display: table;
+		overflow: visible;
+	}
+
+	.sl-markdown-content .slate-comparison thead {
+		position: absolute;
+		overflow: hidden;
+		width: 1px;
+		height: 1px;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.sl-markdown-content .slate-comparison tbody,
+	.sl-markdown-content .slate-comparison tr {
+		display: block;
+	}
+
+	.sl-markdown-content .slate-comparison tr {
+		padding-block: 0.75rem;
+		border-bottom: 1px solid var(--sl-color-gray-5);
+	}
+
+	.sl-markdown-content .slate-comparison td {
+		display: grid;
+		grid-template-columns: minmax(7.5rem, 42%) 1fr;
+		gap: 0.75rem;
+		padding: 0.125rem 0;
+		border: 0;
+	}
+
+	.sl-markdown-content .slate-comparison td:first-child {
+		display: block;
+		padding-bottom: 0.375rem;
+		color: var(--slate-body-text);
+		font-weight: 600;
+	}
+
+	.sl-markdown-content .slate-comparison td:not(:first-child)::before {
+		content: attr(data-label);
+		color: var(--sl-color-gray-2);
+		font-weight: 600;
+	}
+}
+
+/* The three table-type cards sit as one row on wide viewports. */
+@media (min-width: 72rem) {
+	[data-has-hero] .sl-markdown-content .card-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+/* LinkCard descriptions are body copy, not de-emphasized UI (One Stone Rule). */
+.sl-link-card .description {
+	color: var(--sl-color-gray-2);
+}
+
+/* The desktop TOC's active section gets the sidebar's accent-wash-not-stripe
+   treatment (see Components > Navigation, DESIGN.md); Starlight's own
+   color-only default reads too weakly to track scroll position on long pages. */
+starlight-toc a[aria-current='true'] {
+	background-color: var(--sl-color-accent-low);
+	font-weight: 600;
+}
+
+/* Callouts are tonal inscriptions, not a second semantic color system. */
+.starlight-aside {
+	--sl-color-asides-border: var(--slate-panel-border);
+	--sl-color-asides-text-accent: var(--slate-body-text);
+	border: 1px solid var(--slate-panel-border);
+	border-inline-start-width: 1px;
+	border-radius: 0.375rem;
+	background-color: var(--slate-panel-background);
+	color: var(--slate-body-text);
+}
+
+.starlight-aside__content a {
+	color: var(--sl-color-accent-high);
+}
+
 /* Dark mode colors. */
 :root {
 	--sl-color-accent-low: #1a2332;
@@ -11,6 +170,11 @@
 	--sl-color-gray-5: #244a63;
 	--sl-color-gray-6: #152d40;
 	--sl-color-black: #0a1520;
+	--slate-body-text: var(--sl-color-gray-1);
+	--slate-panel-background: var(--sl-color-gray-6);
+	--slate-panel-border: var(--sl-color-gray-5);
+	/* Chalk Signature Rule (DESIGN.md): logo + splash h1 only, never interactive. */
+	--slate-chalk-accent: #ff6ea2;
 }
 /* Light mode colors. */
 :root[data-theme='light'] {
@@ -26,4 +190,9 @@
 	--sl-color-gray-6: #dce8f0;
 	--sl-color-gray-7: #eef4f8;
 	--sl-color-black: #ffffff;
+	--slate-body-text: var(--sl-color-white);
+	--slate-panel-background: var(--sl-color-gray-7);
+	--slate-panel-border: var(--sl-color-gray-5);
+	/* Same chalk hue, cut deeper for AA contrast on Paper White (Deep Quarry's relationship to Quarried Blue). */
+	--slate-chalk-accent: #aa0e44;
 }

@@ -22,15 +22,19 @@ export default defineConfig({
 				"Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).",
 			lastUpdated: true,
 			logo: {
-				src: "./src/assets/slate.webp",
-				alt: "slate logo",
-				width: 48,
-				height: 48,
+				src: "./src/assets/slate-wordmark.webp",
+				alt: "",
+				replacesTitle: true,
+				width: 423,
+				height: 132,
 			},
-			favicon: "./src/assets/favicon small.png",
+			favicon: "/favicon.png",
 			customCss: [
-				"@fontsource/metropolis/400.css",
-				"@fontsource/metropolis/600.css",
+				"@fontsource/schibsted-grotesk/400.css",
+				"@fontsource/schibsted-grotesk/600.css",
+				"@fontsource/schibsted-grotesk/700.css",
+				"@fontsource/spline-sans-mono/400.css",
+				"@fontsource/spline-sans-mono/600.css",
 				"./src/styles/fonts.css",
 				"./src/styles/custom.css",
 			],
@@ -84,7 +88,7 @@ export default defineConfig({
 					],
 				},
 				{
-					label: "Advanced",
+					label: "Operations",
 					items: [
 						{
 							label: "Safe Resource Management",
@@ -95,16 +99,21 @@ export default defineConfig({
 							slug: "advanced/error-handling",
 						},
 						{
+							label: "Troubleshooting",
+							slug: "advanced/troubleshooting",
+						},
+					],
+				},
+				{
+					label: "Reference",
+					items: [
+						{
 							label: "Limitations",
 							slug: "advanced/limitations",
 						},
 						{
 							label: "Stability & Versioning",
 							slug: "advanced/stability",
-						},
-						{
-							label: "Troubleshooting",
-							slug: "advanced/troubleshooting",
 						},
 					],
 				},

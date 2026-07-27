@@ -2,10 +2,13 @@
 title: slate
 description: Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
 template: splash
+editUrl: false
+lastUpdated: false
 hero:
-  tagline: Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage), targeting the Erlang (BEAM) runtime.
+  tagline: Type-safe, persistent key-value storage for Gleam — the gap between "serialize to a file" and "add a database." Built on OTP's DETS, no external dependencies.
   image:
     file: ../../assets/slate.webp
+    alt: Chalk drawing on a slate chalkboard of a database cylinder under a magnifying glass, with the slate logo above it.
   actions:
     - text: Get started
       link: /quick-start/
@@ -16,32 +19,107 @@ hero:
       variant: secondary
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-## Features
+## Start here
 
-<style lang="css">{`
-  // Add a gradient to the heading on the splash page.
-  #_top {
-    background: linear-gradient(90deg, var(--sl-color-gray-2), var(--sl-color-accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-`}
-</style>
+```sh
+gleam add slate
+```
+
+slate targets Erlang, where DETS ships with OTP. There is no database service or JavaScript-target dependency to add.
+
+## What it looks like
+
+Open a table, insert, look up. Every value passes through the decoders you choose, so what comes off disk is typed — not dynamic data you have to trust.
+
+```gleam
+import gleam/dynamic/decode
+import gleam/result
+import slate/set
+
+pub fn main() {
+  use users <- set.with_table(
+    "data/users.dets",
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  use Nil <- result.try(
+    set.insert(users, "alice", 42),
+  )
+  set.lookup(users, key: "alice")
+}
+// Ok(42), and the table is closed
+```
+
+Gleam's `use value <- function(...)` syntax passes the rest of the block as a callback. Here, `with_table` supplies `users` and closes the table when that callback returns. The decoders define the key and value types expected from disk; `result.try` stops early if the insert fails.
+
+Values persist across node restarts. After an abrupt process termination, DETS may repair the file when it next opens. The [Quick Start](/quick-start/) walks through this pattern step by step, and [Safe Resource Management](/advanced/with-table/) covers long-lived tables and repair behavior.
+
+## When to use DETS
+
+<table class="slate-comparison">
+	<caption class="sr-only">Storage approaches at a glance</caption>
+	<thead>
+		<tr>
+			<th scope="col">Approach</th>
+			<th scope="col">Complexity</th>
+			<th scope="col">Persistence</th>
+			<th scope="col">Query capability</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>JSON file</td>
+			<td data-label="Complexity">Low</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">None</td>
+		</tr>
+		<tr>
+			<td><strong>DETS (slate)</strong></td>
+			<td data-label="Complexity"><strong>Low</strong></td>
+			<td data-label="Persistence"><strong>Yes</strong></td>
+			<td data-label="Queries"><strong>Key lookup, fold</strong></td>
+		</tr>
+		<tr>
+			<td>SQLite/Postgres</td>
+			<td data-label="Complexity">High</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">Full SQL</td>
+		</tr>
+		<tr>
+			<td>Mnesia</td>
+			<td data-label="Complexity">High</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">Transactions, distribution</td>
+		</tr>
+	</tbody>
+</table>
+
+If a config file is too little and a database is too much, DETS is the middle layer you already have. It has real limits — 2 GB per table, disk I/O on every operation — and they are documented plainly in [Limitations](/advanced/limitations/).
+
+## Pick a table type
+
+Every table type gets the same typed API; they differ in what happens when a key repeats.
 
 <CardGrid>
-	<Card title="Set Tables" icon="rocket">
-		Unique key-value storage with one value per key. The most common table type for caches, configuration, and general-purpose persistence.
-	</Card>
-	<Card title="Bag Tables" icon="document">
-		Store multiple distinct values per key. Ideal for tags, categories, and one-to-many relationships.
-	</Card>
-	<Card title="Duplicate Bag Tables" icon="approve-check-circle">
-		Allow duplicate key-value pairs for event logs, audit trails, and append-only storage patterns.
-	</Card>
-	<Card title="Persistent Storage" icon="setting">
-		Data survives process crashes and node restarts. Built entirely on OTP's DETS — no external database needed.
-	</Card>
+	<LinkCard
+		title="Set tables"
+		href="/guides/set-tables/"
+		description="One value per key — inserting again overwrites. For caches, configuration, and general lookups."
+	/>
+	<LinkCard
+		title="Bag tables"
+		href="/guides/bag-tables/"
+		description="Multiple distinct values per key. For tags, categories, and one-to-many relationships."
+	/>
+	<LinkCard
+		title="Duplicate bag tables"
+		href="/guides/duplicate-bag-tables/"
+		description="Duplicate key-value pairs allowed. For event logs, audit trails, and append-only patterns."
+	/>
 </CardGrid>
+
+## Ready to try it?
+
+slate is 1.0, with a public API covered by [semver guarantees](/advanced/stability/). Continue with the [Quick Start](/quick-start/) to read and write a table in about two minutes.

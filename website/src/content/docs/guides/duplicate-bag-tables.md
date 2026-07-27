@@ -131,8 +131,8 @@ let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
 
 | Behavior | Bag | Duplicate Bag |
 |----------|-----|---------------|
-| Same key, different values | ✅ Stored | ✅ Stored |
-| Same key, same value (duplicate pair) | ❌ Ignored | ✅ Stored |
+| Same key, different values | Stored | Stored |
+| Same key, same value (duplicate pair) | Ignored | Stored |
 | `delete_object` removes | One pair | All copies of the pair |
 
 ## When to use duplicate bag tables

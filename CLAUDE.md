@@ -161,3 +161,12 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 - **Disk I/O** on every operation — not suitable for high-frequency reads
 - **Tables must be closed properly** — `with_table` closes on callback return and attempts cleanup on callback failure, but abrupt process exits can still leave DETS needing repair
 - **Bounded table-name pool** — slate avoids unbounded atom growth, but only a bounded number of distinct tables can be open at once
+
+## Design Context
+
+The `website/` docs site (Astro Starlight, deployed to slate.tylerbutler.com) has captured design context:
+
+- **PRODUCT.md** (repo root) — strategic context: product register, docs-first, broader-BEAM-developer audience, "gap-filler" positioning, anti-references, WCAG AA baseline.
+- **DESIGN.md** (repo root) — visual system: the "Slate Ledger" blue-gray tonal palette, Schibsted Grotesk + Spline Sans Mono typography, flat/tonal elevation, named rules.
+
+Read both before doing any design or content work on `website/`.
