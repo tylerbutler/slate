@@ -7,10 +7,15 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   auto-tag:
-    uses: tylerbutler/actions/.github/workflows/auto-tag.yml@c697a813534c6364a835de8e2ed2c4e0c3638bbe # ratchet:tylerbutler/actions/.github/workflows/auto-tag.yml@main
+    uses: tylerbutler/actions/.github/workflows/auto-tag.yml@ed7d5e5f1d4370a5ccf06503916e3c301102ab1c # ratchet:tylerbutler/actions/.github/workflows/auto-tag.yml@main
     with:
       tag-prefix: v
       create-release: true
+    # The app token makes the tag push trigger publish.yml; a GITHUB_TOKEN push does not.
+    secrets:
+      app-id: ${{ secrets.RELEASE_APP_ID }}
+      app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
