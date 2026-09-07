@@ -12,7 +12,7 @@ import gleam/list
 import slate
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── Truncated file with AutoRepair recovers ─────────────────────────────
 // OTP: truncated file triggers repair, data may be partially recovered.
@@ -24,7 +24,7 @@ pub fn truncated_file_auto_repair_test() -> Nil {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      test_helpers.range(0, 99) |> list.map(fn(i) { #(i, i * 2) }),
+      test_helper.range(0, 99) |> list.map(fn(key) { #(key, key * 2) }),
     )
   let assert Ok(Nil) = set.close(table)
   // Get file size and truncate to half
@@ -51,7 +51,7 @@ pub fn truncated_file_auto_repair_test() -> Nil {
       Nil
     }
   }
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── NoRepair rejects damaged file ───────────────────────────────────────
@@ -74,7 +74,7 @@ pub fn no_repair_rejects_corrupted_file_test() -> Nil {
       value_decoder: decode.string,
     )
   result |> expect.to_equal(Error(slate.NeedsRepair))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── ForceRepair on corrupted file ───────────────────────────────────────
@@ -87,7 +87,7 @@ pub fn force_repair_on_corrupted_file_test() -> Nil {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      test_helpers.range(0, 49) |> list.map(fn(i) { #(i, i) }),
+      test_helper.range(0, 49) |> list.map(fn(key) { #(key, key) }),
     )
   let assert Ok(Nil) = set.close(table)
   // Corrupt a byte in the data area (far past the header)
@@ -114,7 +114,7 @@ pub fn force_repair_on_corrupted_file_test() -> Nil {
       Nil
     }
   }
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Non-DETS file fails to open ─────────────────────────────────────────
@@ -127,7 +127,7 @@ pub fn open_non_dets_file_test() -> Nil {
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   result |> expect.to_equal(Error(slate.NotADetsFile))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Severely truncated file (header only) ───────────────────────────────
@@ -150,7 +150,7 @@ pub fn truncated_to_header_test() -> Nil {
       Nil
     }
   }
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Empty file (0 bytes) ────────────────────────────────────────────────
@@ -168,7 +168,7 @@ pub fn empty_file_test() -> Nil {
       Nil
     }
   }
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── FFI helpers ─────────────────────────────────────────────────────────

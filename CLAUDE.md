@@ -43,7 +43,7 @@ src/
     └── duplicate_bag.gleam   # Duplicate bag tables (duplicates allowed)
 test/
 ├── slate_test.gleam            # Test entry point (startest.run)
-├── test_helpers.gleam          # Shared test utilities (cleanup, unique paths)
+├── test_helper.gleam           # Shared test utilities (cleanup, unique paths)
 ├── set_test.gleam              # Set table tests
 ├── bag_test.gleam              # Bag table tests
 ├── duplicate_bag_test.gleam    # Duplicate bag table tests
@@ -56,7 +56,7 @@ test/
 ├── update_counter_test.gleam   # Atomic counter tests
 ├── corruption_test.gleam       # Corruption detection and repair tests
 ├── is_dets_file_test.gleam     # File validation tests
-└── test_helpers_test.gleam     # Tests for test helpers
+└── test_helper_test.gleam      # Tests for test helpers
 ```
 
 ## Architecture

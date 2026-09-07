@@ -7,7 +7,7 @@ import gleam/string
 import slate
 import slate/bag
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── insert_new semantics for bags (OTP insert_new test) ─────────────────
 // In OTP: insert_new on a bag returns false if the *key* already exists,
@@ -26,7 +26,7 @@ pub fn bag_insert_deduplicates_test() -> Nil {
   let assert Ok(values) = bag.lookup(table, key: "color")
   values |> list.length |> expect.to_equal(1)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Multiple distinct values per key ────────────────────────────────────
@@ -37,17 +37,17 @@ pub fn bag_many_distinct_values_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let colors = ["red", "blue", "green", "yellow", "purple", "orange"]
   colors
-  |> list.each(fn(c) {
-    let assert Ok(Nil) = bag.insert(table, "color", c)
+  |> list.each(fn(color) {
+    let assert Ok(Nil) = bag.insert(table, "color", color)
     Nil
   })
   let assert Ok(values) = bag.lookup(table, key: "color")
   values |> list.length |> expect.to_equal(6)
   // All distinct colors should be present
   colors
-  |> list.each(fn(c) { list.contains(values, c) |> expect.to_be_true() })
+  |> list.each(fn(color) { list.contains(values, color) |> expect.to_be_true() })
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Integer vs Float key distinction ────────────────────────────────────
@@ -58,10 +58,10 @@ pub fn bag_int_key_test() -> Nil {
     bag.open(path, key_decoder: decode.int, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, 1, "int_a")
   let assert Ok(Nil) = bag.insert(table, 1, "int_b")
-  let assert Ok(vals) = bag.lookup(table, key: 1)
-  vals |> list.length |> expect.to_equal(2)
+  let assert Ok(values) = bag.lookup(table, key: 1)
+  values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_float_key_test() -> Nil {
@@ -70,10 +70,10 @@ pub fn bag_float_key_test() -> Nil {
     bag.open(path, key_decoder: decode.float, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, 1.0, "float_a")
   let assert Ok(Nil) = bag.insert(table, 1.0, "float_b")
-  let assert Ok(vals) = bag.lookup(table, key: 1.0)
-  vals |> list.length |> expect.to_equal(2)
+  let assert Ok(values) = bag.lookup(table, key: 1.0)
+  values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Unicode keys and values ─────────────────────────────────────────────
@@ -87,7 +87,7 @@ pub fn bag_unicode_test() -> Nil {
   let assert Ok(values) = bag.lookup(table, key: "タグ")
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Large values ────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ pub fn bag_large_values_test() -> Nil {
   let assert Ok(values) = bag.lookup(table, key: "key")
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Delete key removes all values ───────────────────────────────────────
@@ -120,7 +120,7 @@ pub fn bag_delete_key_removes_all_values_test() -> Nil {
   bag.size(table) |> expect.to_equal(Ok(0))
   bag.lookup(table, key: "k") |> expect.to_equal(Ok([]))
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── delete_all then reuse ───────────────────────────────────────────────
@@ -135,7 +135,7 @@ pub fn bag_delete_all_reuse_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "x", 42)
   bag.size(table) |> expect.to_equal(Ok(1))
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Persistence with multiple values ────────────────────────────────────
@@ -157,7 +157,7 @@ pub fn bag_persistence_multiple_values_test() -> Nil {
   list.contains(values, "erlang") |> expect.to_be_true()
   list.contains(values, "beam") |> expect.to_be_true()
   let assert Ok(Nil) = bag.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Size counts each value separately ───────────────────────────────────
@@ -173,7 +173,7 @@ pub fn bag_size_counts_objects_not_keys_test() -> Nil {
   // 4 objects total (3 for k1, 1 for k2)
   bag.size(table) |> expect.to_equal(Ok(4))
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Fold over bag accumulates all entries ────────────────────────────────
@@ -186,10 +186,11 @@ pub fn bag_fold_all_entries_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "a", 20)
   let assert Ok(Nil) = bag.insert(table, "b", 30)
   let assert Ok(Nil) = bag.insert(table, "b", 40)
-  let assert Ok(pairs) = bag.fold(table, [], fn(acc, k, v) { [#(k, v), ..acc] })
+  let assert Ok(pairs) =
+    bag.fold(table, [], fn(acc, key, value) { [#(key, value), ..acc] })
   pairs |> list.length |> expect.to_equal(4)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Boundary: negative integer keys ─────────────────────────────────────
@@ -203,7 +204,7 @@ pub fn bag_negative_keys_test() -> Nil {
   let assert Ok(values) = bag.lookup(table, key: -1)
   values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Tuple keys in bags ──────────────────────────────────────────────────
@@ -213,29 +214,29 @@ pub fn bag_tuple_keys_test() -> Nil {
   let assert Ok(table) =
     bag.open(
       path,
-      key_decoder: test_helpers.unsafe_decoder(),
+      key_decoder: test_helper.unsafe_decoder(),
       value_decoder: decode.string,
     )
   let assert Ok(Nil) = bag.insert(table, #("user", 1), "admin")
   let assert Ok(Nil) = bag.insert(table, #("user", 1), "editor")
   let assert Ok(Nil) = bag.insert(table, #("user", 2), "viewer")
-  let assert Ok(vals_1) = bag.lookup(table, key: #("user", 1))
-  vals_1 |> list.length |> expect.to_equal(2)
-  let assert Ok(vals_2) = bag.lookup(table, key: #("user", 2))
-  vals_2 |> expect.to_equal(["viewer"])
+  let assert Ok(first_user_roles) = bag.lookup(table, key: #("user", 1))
+  first_user_roles |> list.length |> expect.to_equal(2)
+  let assert Ok(second_user_roles) = bag.lookup(table, key: #("user", 2))
+  second_user_roles |> expect.to_equal(["viewer"])
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Many open/close cycles ──────────────────────────────────────────────
 
 pub fn bag_many_open_close_cycles_test() -> Nil {
   let path = "test_bag_many_cycles.dets"
-  test_helpers.range(1, 10)
-  |> list.each(fn(i) {
+  test_helper.range(1, 10)
+  |> list.each(fn(round) {
     let assert Ok(table) =
       bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
-    let assert Ok(Nil) = bag.insert(table, "round", i)
+    let assert Ok(Nil) = bag.insert(table, "round", round)
     let assert Ok(Nil) = bag.close(table)
     Nil
   })
@@ -245,7 +246,7 @@ pub fn bag_many_open_close_cycles_test() -> Nil {
   // Bag keeps distinct values, so we get 10 values
   values |> list.length |> expect.to_equal(10)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── with_table error propagation ────────────────────────────────────────
@@ -260,7 +261,7 @@ pub fn bag_with_table_error_propagation_test() -> Nil {
       fun: fn(_table) { Error(slate.UnexpectedError("test error")) },
     )
   result |> expect.to_equal(Error(slate.UnexpectedError("test error")))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Large dataset with many keys ────────────────────────────────────────
@@ -271,19 +272,19 @@ pub fn bag_large_many_keys_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   // 500 keys, 2 values each = 1000 objects
   let entries =
-    test_helpers.range(0, 499)
-    |> list.flat_map(fn(i) {
-      [#(int.to_string(i), i), #(int.to_string(i), i + 1000)]
+    test_helper.range(0, 499)
+    |> list.flat_map(fn(key) {
+      [#(int.to_string(key), key), #(int.to_string(key), key + 1000)]
     })
   let assert Ok(Nil) = bag.insert_list(table, entries)
   bag.size(table) |> expect.to_equal(Ok(1000))
   // Each key should have 2 values
-  let assert Ok(vals) = bag.lookup(table, key: "0")
-  vals |> list.length |> expect.to_equal(2)
-  let assert Ok(vals_last) = bag.lookup(table, key: "499")
-  vals_last |> list.length |> expect.to_equal(2)
+  let assert Ok(first_key_values) = bag.lookup(table, key: "0")
+  first_key_values |> list.length |> expect.to_equal(2)
+  let assert Ok(last_key_values) = bag.lookup(table, key: "499")
+  last_key_values |> list.length |> expect.to_equal(2)
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── member on empty bag ─────────────────────────────────────────────────
@@ -294,7 +295,7 @@ pub fn bag_member_empty_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   bag.member(table, key: "anything") |> expect.to_equal(Ok(False))
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Sync then reopen ────────────────────────────────────────────────────
@@ -310,5 +311,5 @@ pub fn bag_sync_then_reopen_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(["synced"]) = bag.lookup(table2, key: "key")
   let assert Ok(Nil) = bag.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
