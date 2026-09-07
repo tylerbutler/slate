@@ -19,7 +19,7 @@ All public functions in these modules are covered by semver guarantees.
 
 ## Internal surfaces
 
-The Erlang FFI files (`dets_ffi.erl` and `with_table_ffi.erl`) are internal implementation details. They are **not** part of the public API and may change in any release without notice. Do not call FFI functions directly — use the Gleam module APIs instead.
+The Erlang FFI files (`slate_dets_ffi.erl` and `slate_with_table_ffi.erl`) are internal implementation details. They are **not** part of the public API and may change in any release without notice. Do not call FFI functions directly — use the Gleam module APIs instead.
 
 ## Semver policy
 

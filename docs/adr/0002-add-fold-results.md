@@ -56,7 +56,7 @@ existing `fold` and `to_list` unchanged.
 pub fn fold_results(
   over table: Set(k, v),
   from initial: acc,
-  with fun: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
+  with callback: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
 ) -> Result(acc, DetsError)
 ```
 
@@ -76,7 +76,7 @@ tuple, count of errors, etc.). This keeps the API surface small.
 - Users dealing with schema drift or mixed-type tables can recover healthy
   records without losing the entire read.
 - The existing `fold` and `to_list` remain the simple, recommended default.
-- No FFI changes required — the same `dets_ffi:fold/3` function is reused. The
+- No FFI changes required — the same `slate_dets_ffi:fold/3` function is reused. The
   Gleam wrapper simply never returns an error result to the FFI, so it never
   triggers the abort path.
 - Added to all three table modules to maintain API symmetry.

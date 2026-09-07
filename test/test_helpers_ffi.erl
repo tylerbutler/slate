@@ -14,14 +14,13 @@ did_panic(Fun) ->
     end.
 
 is_table_open(Path) ->
-    CanonicalPath = dets_ffi:canonicalize_path(Path),
+    CanonicalPath = slate_dets_ffi:canonicalize_path(Path),
     lists:any(
         fun(Name) ->
             case dets:info(Name, filename) of
                 undefined -> false;
-                OpenPath -> dets_ffi:canonicalize_path(OpenPath) =:= CanonicalPath
+                OpenPath -> slate_dets_ffi:canonicalize_path(OpenPath) =:= CanonicalPath
             end
         end,
         dets:all()
     ).
-

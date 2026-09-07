@@ -28,14 +28,14 @@ import slate/internal
 /// An open DETS duplicate bag table with typed keys and values.
 pub opaque type DuplicateBag(k, v) {
   DuplicateBag(
-    ref: TableRef,
+    reference: TableReference,
     key_decoder: Decoder(k),
     value_decoder: Decoder(v),
   )
 }
 
 /// Internal reference to the DETS table (Erlang atom).
-type TableRef
+type TableReference
 
 // ── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -82,7 +82,9 @@ pub fn open_with(
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
   ffi_open_duplicate_bag(path, repair)
-  |> result.map(fn(ref) { DuplicateBag(ref:, key_decoder:, value_decoder:) })
+  |> result.map(fn(reference) {
+    DuplicateBag(reference:, key_decoder:, value_decoder:)
+  })
 }
 
 /// Open a DETS duplicate bag table with repair and access mode options.
@@ -96,7 +98,7 @@ pub fn open_with(
 /// let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
 ///   repair: AutoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
-/// let assert Ok(vals) = duplicate_bag.lookup(table, key: "key")
+/// let assert Ok(values) = duplicate_bag.lookup(table, key: "key")
 /// // duplicate_bag.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
 ///
@@ -108,12 +110,14 @@ pub fn open_with_access(
   value_decoder value_decoder: Decoder(v),
 ) -> Result(DuplicateBag(k, v), DetsError) {
   ffi_open_duplicate_bag_with_access(path, repair, access)
-  |> result.map(fn(ref) { DuplicateBag(ref:, key_decoder:, value_decoder:) })
+  |> result.map(fn(reference) {
+    DuplicateBag(reference:, key_decoder:, value_decoder:)
+  })
 }
 
 /// Close the table, flushing all pending writes to disk.
 pub fn close(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
-  ffi_close(table.ref)
+  ffi_close(table.reference)
 }
 
 /// Flush pending writes to disk without closing the table.
@@ -121,7 +125,7 @@ pub fn close(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
 /// DETS auto-syncs periodically, so this is only needed when you require
 /// a durability guarantee at a specific point (e.g., after a critical write).
 pub fn sync(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
-  ffi_sync(table.ref)
+  ffi_sync(table.reference)
 }
 
 /// Use a table within a callback, ensuring it is closed afterward.
@@ -144,11 +148,11 @@ pub fn with_table(
   path: String,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
-  fun fun: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
+  fun callback: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open(path, key_decoder:, value_decoder:) {
-    Ok(table) -> ffi_with_close(table, fun, close)
-    Error(err) -> Error(err)
+    Ok(table) -> ffi_with_close(table, callback, close)
+    Error(error) -> Error(error)
   }
 }
 
@@ -164,13 +168,13 @@ pub fn lookup(
   from table: DuplicateBag(k, v),
   key key: k,
 ) -> Result(List(v), DetsError) {
-  case ffi_lookup_all(table.ref, key) {
+  case ffi_lookup_all(table.reference, key) {
     Ok(dynamic_values) ->
       list.try_map(dynamic_values, fn(dynamic_value) {
         decode.run(dynamic_value, table.value_decoder)
         |> result.map_error(slate.DecodeErrors)
       })
-    Error(err) -> Error(err)
+    Error(error) -> Error(error)
   }
 }
 
@@ -179,7 +183,7 @@ pub fn member(
   of table: DuplicateBag(k, v),
   key key: k,
 ) -> Result(Bool, DetsError) {
-  ffi_member(table.ref, key)
+  ffi_member(table.reference, key)
 }
 
 /// Return all key-value pairs as a list.
@@ -190,10 +194,10 @@ pub fn member(
 pub fn to_list(
   from table: DuplicateBag(k, v),
 ) -> Result(List(#(k, v)), DetsError) {
-  case ffi_to_list(table.ref) {
+  case ffi_to_list(table.reference) {
     Ok(entries) ->
       internal.decode_entries(entries, table.key_decoder, table.value_decoder)
-    Error(err) -> Error(err)
+    Error(error) -> Error(error)
   }
 }
 
@@ -205,21 +209,21 @@ pub fn to_list(
 pub fn fold(
   over table: DuplicateBag(k, v),
   from initial: acc,
-  with fun: fn(acc, k, v) -> acc,
+  with callback: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
-  let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
-    case acc_result {
-      Error(err) -> Error(err)
+  let wrapper = fn(entry: Dynamic, accumulator_result: Result(acc, DetsError)) {
+    case accumulator_result {
+      Error(error) -> Error(error)
       Ok(acc) ->
         case decode.run(entry, entry_decoder) {
-          Ok(#(k, v)) -> Ok(fun(acc, k, v))
+          Ok(#(key, value)) -> Ok(callback(acc, key, value))
           Error(errors) -> Error(slate.DecodeErrors(errors))
         }
     }
   }
-  ffi_fold(table.ref, wrapper, Ok(initial))
+  ffi_fold(table.reference, wrapper, Ok(initial))
   |> result.flatten
 }
 
@@ -241,7 +245,7 @@ pub fn fold(
 /// ```gleam
 /// duplicate_bag.fold_results(table, [], fn(acc, entry) {
 ///   case entry {
-///     Ok(#(k, v)) -> [#(k, v), ..acc]
+///     Ok(#(key, value)) -> [#(key, value), ..acc]
 ///     Error(_) -> acc
 ///   }
 /// })
@@ -252,28 +256,28 @@ pub fn fold(
 /// ```gleam
 /// duplicate_bag.fold_results(table, #([], []), fn(acc, entry) {
 ///   case entry {
-///     Ok(#(k, v)) -> #([#(k, v), ..acc.0], acc.1)
-///     Error(errs) -> #(acc.0, [errs, ..acc.1])
+///     Ok(#(key, value)) -> #([#(key, value), ..acc.0], acc.1)
+///     Error(errors) -> #(acc.0, [errors, ..acc.1])
 ///   }
 /// })
 /// ```
 pub fn fold_results(
   over table: DuplicateBag(k, v),
   from initial: acc,
-  with fun: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
+  with callback: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
   let wrapper = fn(entry: Dynamic, acc: acc) {
     let decoded = decode.run(entry, entry_decoder)
-    fun(acc, decoded)
+    callback(acc, decoded)
   }
-  ffi_fold(table.ref, wrapper, initial)
+  ffi_fold(table.reference, wrapper, initial)
 }
 
 /// Return the number of objects stored.
 pub fn size(of table: DuplicateBag(k, v)) -> Result(Int, DetsError) {
-  ffi_info_size(table.ref)
+  ffi_info_size(table.reference)
 }
 
 // ── Write ───────────────────────────────────────────────────────────────
@@ -287,7 +291,7 @@ pub fn insert(
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_insert(table.ref, #(key, value))
+  ffi_insert(table.reference, #(key, value))
 }
 
 /// Insert multiple key-value pairs.
@@ -295,7 +299,7 @@ pub fn insert_list(
   into table: DuplicateBag(k, v),
   entries entries: List(#(k, v)),
 ) -> Result(Nil, DetsError) {
-  ffi_insert_list(table.ref, entries)
+  ffi_insert_list(table.reference, entries)
 }
 
 // ── Delete ──────────────────────────────────────────────────────────────
@@ -308,7 +312,7 @@ pub fn delete_key(
   from table: DuplicateBag(k, v),
   key key: k,
 ) -> Result(Nil, DetsError) {
-  ffi_delete_key(table.ref, key)
+  ffi_delete_key(table.reference, key)
 }
 
 /// Delete all occurrences of a specific key-value pair from the table.
@@ -332,90 +336,96 @@ pub fn delete_object(
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_delete_object(table.ref, #(key, value))
+  ffi_delete_object(table.reference, #(key, value))
 }
 
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
-  ffi_delete_all(table.ref)
+  ffi_delete_all(table.reference)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
 
 /// Get information about an open table.
 pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {
-  case ffi_info_file_size(table.ref), ffi_info_size(table.ref) {
-    Ok(file_size), Ok(object_count) ->
-      Ok(slate.TableInfo(file_size:, object_count:))
-    Error(err), _ -> Error(err)
-    _, Error(err) -> Error(err)
-  }
+  use file_size <- result.try(ffi_info_file_size(table.reference))
+  use object_count <- result.try(ffi_info_size(table.reference))
+  Ok(slate.TableInfo(file_size:, object_count:))
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────
 
-@external(erlang, "dets_ffi", "open_duplicate_bag")
+@external(erlang, "slate_dets_ffi", "open_duplicate_bag")
 fn ffi_open_duplicate_bag(
   path: String,
   repair: RepairPolicy,
-) -> Result(TableRef, DetsError)
+) -> Result(TableReference, DetsError)
 
-@external(erlang, "dets_ffi", "open_duplicate_bag_with_access")
+@external(erlang, "slate_dets_ffi", "open_duplicate_bag_with_access")
 fn ffi_open_duplicate_bag_with_access(
   path: String,
   repair: RepairPolicy,
   access: AccessMode,
-) -> Result(TableRef, DetsError)
+) -> Result(TableReference, DetsError)
 
-@external(erlang, "dets_ffi", "close")
-fn ffi_close(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "close")
+fn ffi_close(reference: TableReference) -> Result(Nil, DetsError)
 
-@external(erlang, "with_table_ffi", "with_close")
+@external(erlang, "slate_with_table_ffi", "with_close")
 fn ffi_with_close(
   table: DuplicateBag(k, v),
-  fun: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
+  callback: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
   close: fn(DuplicateBag(k, v)) -> Result(Nil, DetsError),
 ) -> Result(a, DetsError)
 
-@external(erlang, "dets_ffi", "sync")
-fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "sync")
+fn ffi_sync(reference: TableReference) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert")
-fn ffi_insert(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "insert")
+fn ffi_insert(
+  reference: TableReference,
+  objects: #(k, v),
+) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert")
+@external(erlang, "slate_dets_ffi", "insert")
 fn ffi_insert_list(
-  ref: TableRef,
+  reference: TableReference,
   objects: List(#(k, v)),
 ) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "lookup_all")
-fn ffi_lookup_all(ref: TableRef, key: k) -> Result(List(Dynamic), DetsError)
+@external(erlang, "slate_dets_ffi", "lookup_all")
+fn ffi_lookup_all(
+  reference: TableReference,
+  key: k,
+) -> Result(List(Dynamic), DetsError)
 
-@external(erlang, "dets_ffi", "member")
-fn ffi_member(ref: TableRef, key: k) -> Result(Bool, DetsError)
+@external(erlang, "slate_dets_ffi", "member")
+fn ffi_member(reference: TableReference, key: k) -> Result(Bool, DetsError)
 
-@external(erlang, "dets_ffi", "to_list")
-fn ffi_to_list(ref: TableRef) -> Result(List(Dynamic), DetsError)
+@external(erlang, "slate_dets_ffi", "to_list")
+fn ffi_to_list(reference: TableReference) -> Result(List(Dynamic), DetsError)
 
-@external(erlang, "dets_ffi", "fold")
+@external(erlang, "slate_dets_ffi", "fold")
 fn ffi_fold(
-  ref: TableRef,
-  fun: fn(Dynamic, acc) -> acc,
+  reference: TableReference,
+  callback: fn(Dynamic, acc) -> acc,
   acc: acc,
 ) -> Result(acc, DetsError)
 
-@external(erlang, "dets_ffi", "info_size")
-fn ffi_info_size(ref: TableRef) -> Result(Int, DetsError)
+@external(erlang, "slate_dets_ffi", "info_size")
+fn ffi_info_size(reference: TableReference) -> Result(Int, DetsError)
 
-@external(erlang, "dets_ffi", "info_file_size")
-fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
+@external(erlang, "slate_dets_ffi", "info_file_size")
+fn ffi_info_file_size(reference: TableReference) -> Result(Int, DetsError)
 
-@external(erlang, "dets_ffi", "delete_key")
-fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_key")
+fn ffi_delete_key(reference: TableReference, key: k) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "delete_object")
-fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_object")
+fn ffi_delete_object(
+  reference: TableReference,
+  object: #(k, v),
+) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "delete_all")
-fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_all")
+fn ffi_delete_all(reference: TableReference) -> Result(Nil, DetsError)

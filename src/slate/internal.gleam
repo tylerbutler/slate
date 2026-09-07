@@ -12,9 +12,9 @@ pub fn tuple_decoder(
   key_decoder: Decoder(k),
   value_decoder: Decoder(v),
 ) -> Decoder(#(k, v)) {
-  use k <- decode.field(0, key_decoder)
-  use v <- decode.field(1, value_decoder)
-  decode.success(#(k, v))
+  use key <- decode.field(0, key_decoder)
+  use value <- decode.field(1, value_decoder)
+  decode.success(#(key, value))
 }
 
 /// Decode a list of DETS tuple entries into typed key-value pairs.

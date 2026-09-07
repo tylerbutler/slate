@@ -7,5 +7,5 @@ count_ffi_fold_invocations({_Type, TableRef, _KeyDec, _ValDec}) ->
         put(ffi_fold_counter, get(ffi_fold_counter) + 1),
         {error, decode_error}
     end,
-    dets_ffi:fold(TableRef, Fun, ok),
+    slate_dets_ffi:fold(TableRef, Fun, ok),
     get(ffi_fold_counter).
