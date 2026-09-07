@@ -11,6 +11,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
+import glisten/transport
 import lustre
 import lustre/attribute
 import lustre/effect.{type Effect}
@@ -23,7 +24,8 @@ import slate
 
 // --- Types ---
 
-type Screen {
+/// The screen currently shown in the browser.
+pub type Screen {
   NoteList
   NoteDetail(id: Int)
   NoteCreate
@@ -31,7 +33,8 @@ type Screen {
   ConfirmDelete(id: Int)
 }
 
-type Model {
+/// Browser state, separate from effects so updates can be tested directly.
+pub type Model {
   Model(
     store: Store,
     screen: Screen,
@@ -47,14 +50,15 @@ type Model {
   )
 }
 
-type Message {
+/// Input events and note-specific effect results.
+pub type Message {
   // Async results
   NotesLoaded(Result(List(#(Int, Note)), String))
-  NoteDetailLoaded(Result(#(Note, List(String), List(Revision)), String))
+  NoteDetailLoaded(Int, Result(#(Note, List(String), List(Revision)), String))
   NoteCreated(Result(Int, String))
-  NoteUpdated(Result(Nil, String))
+  NoteUpdated(Int, Result(Nil, String))
   NoteDeleted(Result(Nil, String))
-  TagToggled(Result(Bool, String))
+  TagToggled(Int, Result(Bool, String))
   // Navigation
   GoToList
   GoToCreate
@@ -134,34 +138,49 @@ fn serve_html() -> Response(ResponseData) {
   |> response.set_header("content-type", "text/html")
 }
 
-fn serve_runtime() -> Response(ResponseData) {
-  let assert Ok(lustre_priv) = application.priv_directory("lustre")
-  let path = lustre_priv <> "/static/lustre-server-component.mjs"
-
-  case mist.send_file(path, offset: 0, limit: None) {
+/// Serve the installed Lustre browser runtime.
+pub fn serve_runtime() -> Response(ResponseData) {
+  let file = {
+    use lustre_priv <- result.try(
+      application.priv_directory("lustre")
+      |> result.map_error(fn(_) { "Cannot locate the Lustre runtime directory" }),
+    )
+    mist.send_file(
+      lustre_priv <> "/static/lustre-server-component.mjs",
+      offset: 0,
+      limit: None,
+    )
+    |> result.map_error(fn(_) { "Cannot read the Lustre browser runtime" })
+  }
+  case file {
     Ok(file) ->
       response.new(200)
       |> response.set_header("content-type", "application/javascript")
       |> response.set_body(file)
-    Error(_) ->
-      response.new(404)
-      |> response.set_body(mist.Bytes(bytes_tree.new()))
+    Error(message) -> {
+      io.println(message)
+      response.new(500)
+      |> response.set_body(mist.Bytes(bytes_tree.from_string(message)))
+    }
   }
 }
 
 // --- WebSocket Handler ---
 
-type Socket {
+/// The component owned by one WebSocket process and its client subject.
+pub type Socket {
   Socket(
     component: lustre.Runtime(Message),
     self: Subject(server_component.ClientMessage(Message)),
   )
 }
 
-type SocketMessage =
+/// Messages sent from the component to its browser client.
+pub type SocketMessage =
   server_component.ClientMessage(Message)
 
-type SocketInit =
+/// Initial state and message selector required by Mist.
+pub type SocketInit =
   #(Socket, Option(Selector(SocketMessage)))
 
 fn serve_websocket(
@@ -170,15 +189,19 @@ fn serve_websocket(
 ) -> Response(ResponseData) {
   mist.websocket(
     request: request,
-    on_init: fn(_connection) -> SocketInit { init_socket(store) },
+    on_init: fn(connection) -> SocketInit {
+      init_socket(store)
+      |> finish_socket_init(connection, _)
+    },
     handler: loop_socket,
     on_close: close_socket,
   )
 }
 
-fn init_socket(store: Store) -> SocketInit {
+/// Start a component in its owning WebSocket process.
+pub fn init_socket(store: Store) -> Result(SocketInit, lustre.Error) {
   let app = lustre.application(fn(_) { init(store) }, update, view)
-  let assert Ok(component) = lustre.start_server_component(app, Nil)
+  use component <- result.try(lustre.start_server_component(app, Nil))
 
   let self = process.new_subject()
   let selector =
@@ -188,10 +211,34 @@ fn init_socket(store: Store) -> SocketInit {
   server_component.register_subject(self)
   |> lustre.send(to: component)
 
-  #(Socket(component:, self:), Some(selector))
+  Ok(#(Socket(component:, self:), Some(selector)))
 }
 
-fn loop_socket(
+/// Adapt a fallible component start to Mist's infallible init callback.
+pub fn finish_socket_init(
+  connection: mist.WebsocketConnection,
+  started: Result(SocketInit, lustre.Error),
+) -> SocketInit {
+  case started {
+    Ok(initialised) -> initialised
+    Error(_) -> {
+      io.println("Cannot start the dotes WebSocket component")
+      // Mist cannot return an init error. Close the upgraded connection before
+      // exiting so its factory supervisor observes a failed child start.
+      case transport.close(connection.transport, connection.socket) {
+        Ok(Nil) -> Nil
+        Error(_) -> io.println("Cannot close the failed dotes WebSocket")
+      }
+      exit_socket_init("Cannot start the dotes WebSocket component")
+    }
+  }
+}
+
+@external(erlang, "erlang", "exit")
+fn exit_socket_init(reason: String) -> SocketInit
+
+/// Handle frames, stopping on send failure so Mist invokes close_socket.
+pub fn loop_socket(
   state: Socket,
   message: mist.WebsocketMessage(SocketMessage),
   connection: mist.WebsocketConnection,
@@ -209,23 +256,29 @@ fn loop_socket(
 
     mist.Custom(client_message) -> {
       let message = server_component.client_message_to_json(client_message)
-      let assert Ok(_) =
-        mist.send_text_frame(connection, json.to_string(message))
-      mist.continue(state)
+      case mist.send_text_frame(connection, json.to_string(message)) {
+        Ok(Nil) -> mist.continue(state)
+        Error(_) -> {
+          io.println("Cannot send a dotes WebSocket frame")
+          mist.stop()
+        }
+      }
     }
 
     mist.Closed | mist.Shutdown -> mist.stop()
   }
 }
 
-fn close_socket(state: Socket) -> Nil {
+/// Shut down the component when Mist closes its connection.
+pub fn close_socket(state: Socket) -> Nil {
   lustre.shutdown()
   |> lustre.send(to: state.component)
 }
 
 // --- Init ---
 
-fn init(store: Store) -> #(Model, Effect(Message)) {
+/// Create the browser state and its initial load effect.
+pub fn init(store: Store) -> #(Model, Effect(Message)) {
   let model =
     Model(
       store: store,
@@ -257,11 +310,11 @@ fn load_notes_effect(store: Store) -> Effect(Message) {
 fn load_detail_effect(store: Store, id: Int) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.get_note(store, id) {
-      Error(e) -> dispatch(NoteDetailLoaded(Error(slate.error_message(e))))
+      Error(e) -> dispatch(NoteDetailLoaded(id, Error(slate.error_message(e))))
       Ok(note) -> {
         let tags = store.get_tags(store, id) |> result.unwrap([])
         let history = store.get_history(store, id) |> result.unwrap([])
-        dispatch(NoteDetailLoaded(Ok(#(note, tags, history))))
+        dispatch(NoteDetailLoaded(id, Ok(#(note, tags, history))))
       }
     }
   })
@@ -283,8 +336,8 @@ fn create_note_effect(
 fn update_note_effect(store: Store, id: Int, body: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.update_note(store, id: id, body: body) {
-      Ok(Nil) -> dispatch(NoteUpdated(Ok(Nil)))
-      Error(e) -> dispatch(NoteUpdated(Error(slate.error_message(e))))
+      Ok(Nil) -> dispatch(NoteUpdated(id, Ok(Nil)))
+      Error(e) -> dispatch(NoteUpdated(id, Error(slate.error_message(e))))
     }
   })
 }
@@ -292,8 +345,8 @@ fn update_note_effect(store: Store, id: Int, body: String) -> Effect(Message) {
 fn toggle_tag_effect(store: Store, id: Int, tag: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.toggle_tag(store, id: id, tag: tag) {
-      Ok(added) -> dispatch(TagToggled(Ok(added)))
-      Error(e) -> dispatch(TagToggled(Error(slate.error_message(e))))
+      Ok(added) -> dispatch(TagToggled(id, Ok(added)))
+      Error(e) -> dispatch(TagToggled(id, Error(slate.error_message(e))))
     }
   })
 }
@@ -309,7 +362,8 @@ fn delete_note_effect(store: Store, id: Int) -> Effect(Message) {
 
 // --- Update ---
 
-fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
+/// Apply an event without running its returned effect.
+pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
     // Data loaded
     NotesLoaded(Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
@@ -318,19 +372,35 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       effect.none(),
     )
 
-    NoteDetailLoaded(Ok(#(note, tags, history))) -> #(
-      Model(
-        ..model,
-        detail_note: Ok(note),
-        detail_tags: tags,
-        detail_history: history,
-      ),
-      effect.none(),
-    )
-    NoteDetailLoaded(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True, screen: NoteList),
-      load_notes_effect(model.store),
-    )
+    NoteDetailLoaded(id, result) ->
+      case model.screen {
+        NoteDetail(current_id) if current_id == id ->
+          case result {
+            Ok(#(note, tags, history)) -> #(
+              Model(
+                ..model,
+                detail_note: Ok(note),
+                detail_tags: tags,
+                detail_history: history,
+              ),
+              effect.none(),
+            )
+            Error(error) -> #(
+              Model(
+                ..model,
+                status_message: error,
+                status_is_error: True,
+                screen: NoteList,
+              ),
+              load_notes_effect(model.store),
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteEdit(_)
+        | ConfirmDelete(_)
+        | NoteDetail(_) -> #(model, effect.none())
+      }
 
     // Navigation
     GoToList -> #(
@@ -355,7 +425,15 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       effect.none(),
     )
     GoToDetail(id) -> #(
-      Model(..model, screen: NoteDetail(id), tag_input: "", status_message: ""),
+      Model(
+        ..model,
+        screen: NoteDetail(id),
+        detail_note: Error(Nil),
+        detail_tags: [],
+        detail_history: [],
+        tag_input: "",
+        status_message: "",
+      ),
       load_detail_effect(model.store, id),
     )
     GoToEdit(id) -> {
@@ -415,25 +493,31 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       effect.none(),
     )
 
-    NoteUpdated(Ok(Nil)) -> {
-      let id = case model.screen {
-        NoteEdit(id) -> id
-        _ -> 0
+    NoteUpdated(id, result) ->
+      case model.screen {
+        NoteEdit(current_id) if current_id == id ->
+          case result {
+            Ok(Nil) -> #(
+              Model(
+                ..model,
+                screen: NoteDetail(id),
+                detail_note: Error(Nil),
+                status_message: "Note updated",
+                status_is_error: False,
+              ),
+              load_detail_effect(model.store, id),
+            )
+            Error(error) -> #(
+              Model(..model, status_message: error, status_is_error: True),
+              effect.none(),
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteDetail(_)
+        | ConfirmDelete(_)
+        | NoteEdit(_) -> #(model, effect.none())
       }
-      #(
-        Model(
-          ..model,
-          screen: NoteDetail(id),
-          status_message: "Note updated",
-          status_is_error: False,
-        ),
-        load_detail_effect(model.store, id),
-      )
-    }
-    NoteUpdated(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      effect.none(),
-    )
 
     NoteDeleted(Ok(Nil)) -> #(
       Model(
@@ -449,29 +533,36 @@ fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       effect.none(),
     )
 
-    TagToggled(Ok(added)) -> {
-      let id = case model.screen {
-        NoteDetail(id) -> id
-        _ -> 0
+    TagToggled(id, result) ->
+      case model.screen {
+        NoteDetail(current_id) if current_id == id ->
+          case result {
+            Ok(added) -> {
+              let message = case added {
+                True -> "Tag added"
+                False -> "Tag removed"
+              }
+              #(
+                Model(
+                  ..model,
+                  tag_input: "",
+                  status_message: message,
+                  status_is_error: False,
+                ),
+                load_detail_effect(model.store, id),
+              )
+            }
+            Error(error) -> #(
+              Model(..model, status_message: error, status_is_error: True),
+              effect.none(),
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteEdit(_)
+        | ConfirmDelete(_)
+        | NoteDetail(_) -> #(model, effect.none())
       }
-      let message = case added {
-        True -> "Tag added"
-        False -> "Tag removed"
-      }
-      #(
-        Model(
-          ..model,
-          tag_input: "",
-          status_message: message,
-          status_is_error: False,
-        ),
-        load_detail_effect(model.store, id),
-      )
-    }
-    TagToggled(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      effect.none(),
-    )
   }
 }
 

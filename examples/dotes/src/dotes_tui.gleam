@@ -14,7 +14,8 @@ import slate
 
 // --- Types ---
 
-type Screen {
+/// The screen currently shown in the terminal.
+pub type Screen {
   NoteList
   NoteDetail(id: Int)
   NoteCreate
@@ -22,7 +23,8 @@ type Screen {
   ConfirmDelete(id: Int)
 }
 
-type Model {
+/// Terminal state, separate from commands so updates can be tested directly.
+pub type Model {
   Model(
     store: Store,
     screen: Screen,
@@ -39,14 +41,15 @@ type Model {
   )
 }
 
-type Message {
+/// Input events and note-specific command results.
+pub type Message {
   // Async results
   NotesLoaded(Result(List(#(Int, Note)), String))
-  NoteDetailLoaded(Result(#(Note, List(String), List(Revision)), String))
+  NoteDetailLoaded(Int, Result(#(Note, List(String), List(Revision)), String))
   NoteCreated(Result(Int, String))
-  NoteUpdated(Result(Nil, String))
+  NoteUpdated(Int, Result(Nil, String))
   NoteDeleted(Result(Nil, String))
-  TagToggled(Result(Bool, String))
+  TagToggled(Int, Result(Bool, String))
   // Navigation
   GoToList
   GoToCreate
@@ -90,7 +93,8 @@ pub fn main() -> Nil {
 
 // --- Init ---
 
-fn init(store: Store) -> #(Model, List(fn() -> Message)) {
+/// Create the terminal state and its initial load command.
+pub fn init(store: Store) -> #(Model, List(fn() -> Message)) {
   let model =
     Model(
       store: store,
@@ -123,11 +127,11 @@ fn load_notes_command(store: Store) -> fn() -> Message {
 fn load_detail_command(store: Store, id: Int) -> fn() -> Message {
   fn() {
     case store.get_note(store, id) {
-      Error(e) -> NoteDetailLoaded(Error(slate.error_message(e)))
+      Error(e) -> NoteDetailLoaded(id, Error(slate.error_message(e)))
       Ok(note) -> {
         let tags = store.get_tags(store, id) |> result.unwrap([])
         let history = store.get_history(store, id) |> result.unwrap([])
-        NoteDetailLoaded(Ok(#(note, tags, history)))
+        NoteDetailLoaded(id, Ok(#(note, tags, history)))
       }
     }
   }
@@ -149,8 +153,8 @@ fn create_note_command(
 fn update_note_command(store: Store, id: Int, body: String) -> fn() -> Message {
   fn() {
     case store.update_note(store, id: id, body: body) {
-      Ok(Nil) -> NoteUpdated(Ok(Nil))
-      Error(e) -> NoteUpdated(Error(slate.error_message(e)))
+      Ok(Nil) -> NoteUpdated(id, Ok(Nil))
+      Error(e) -> NoteUpdated(id, Error(slate.error_message(e)))
     }
   }
 }
@@ -158,8 +162,8 @@ fn update_note_command(store: Store, id: Int, body: String) -> fn() -> Message {
 fn toggle_tag_command(store: Store, id: Int, tag: String) -> fn() -> Message {
   fn() {
     case store.toggle_tag(store, id: id, tag: tag) {
-      Ok(added) -> TagToggled(Ok(added))
-      Error(e) -> TagToggled(Error(slate.error_message(e)))
+      Ok(added) -> TagToggled(id, Ok(added))
+      Error(e) -> TagToggled(id, Error(slate.error_message(e)))
     }
   }
 }
@@ -175,7 +179,11 @@ fn delete_note_command(store: Store, id: Int) -> fn() -> Message {
 
 // --- Update ---
 
-fn update(model: Model, message: Message) -> #(Model, List(fn() -> Message)) {
+/// Apply an event without running its returned commands.
+pub fn update(
+  model: Model,
+  message: Message,
+) -> #(Model, List(fn() -> Message)) {
   case message {
     // Data loaded
     NotesLoaded(Ok(notes)) -> {
@@ -187,19 +195,35 @@ fn update(model: Model, message: Message) -> #(Model, List(fn() -> Message)) {
       [],
     )
 
-    NoteDetailLoaded(Ok(#(note, tags, history))) -> #(
-      Model(
-        ..model,
-        detail_note: Ok(note),
-        detail_tags: tags,
-        detail_history: history,
-      ),
-      [],
-    )
-    NoteDetailLoaded(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True, screen: NoteList),
-      [load_notes_command(model.store)],
-    )
+    NoteDetailLoaded(id, result) ->
+      case model.screen {
+        NoteDetail(current_id) if current_id == id ->
+          case result {
+            Ok(#(note, tags, history)) -> #(
+              Model(
+                ..model,
+                detail_note: Ok(note),
+                detail_tags: tags,
+                detail_history: history,
+              ),
+              [],
+            )
+            Error(error) -> #(
+              Model(
+                ..model,
+                status_message: error,
+                status_is_error: True,
+                screen: NoteList,
+              ),
+              [load_notes_command(model.store)],
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteEdit(_)
+        | ConfirmDelete(_)
+        | NoteDetail(_) -> #(model, [])
+      }
 
     // Navigation
     GoToList -> #(
@@ -224,7 +248,15 @@ fn update(model: Model, message: Message) -> #(Model, List(fn() -> Message)) {
       [],
     )
     GoToDetail(id) -> #(
-      Model(..model, screen: NoteDetail(id), tag_input: "", status_message: ""),
+      Model(
+        ..model,
+        screen: NoteDetail(id),
+        detail_note: Error(Nil),
+        detail_tags: [],
+        detail_history: [],
+        tag_input: "",
+        status_message: "",
+      ),
       [load_detail_command(model.store, id)],
     )
     GoToEdit(id) -> {
@@ -298,25 +330,31 @@ fn update(model: Model, message: Message) -> #(Model, List(fn() -> Message)) {
       [],
     )
 
-    NoteUpdated(Ok(Nil)) -> {
-      let id = case model.screen {
-        NoteEdit(id) -> id
-        _ -> 0
+    NoteUpdated(id, result) ->
+      case model.screen {
+        NoteEdit(current_id) if current_id == id ->
+          case result {
+            Ok(Nil) -> #(
+              Model(
+                ..model,
+                screen: NoteDetail(id),
+                detail_note: Error(Nil),
+                status_message: "Note updated",
+                status_is_error: False,
+              ),
+              [load_detail_command(model.store, id)],
+            )
+            Error(error) -> #(
+              Model(..model, status_message: error, status_is_error: True),
+              [],
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteDetail(_)
+        | ConfirmDelete(_)
+        | NoteEdit(_) -> #(model, [])
       }
-      #(
-        Model(
-          ..model,
-          screen: NoteDetail(id),
-          status_message: "Note updated",
-          status_is_error: False,
-        ),
-        [load_detail_command(model.store, id)],
-      )
-    }
-    NoteUpdated(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      [],
-    )
 
     NoteDeleted(Ok(Nil)) -> #(
       Model(
@@ -333,29 +371,36 @@ fn update(model: Model, message: Message) -> #(Model, List(fn() -> Message)) {
       [],
     )
 
-    TagToggled(Ok(added)) -> {
-      let id = case model.screen {
-        NoteDetail(id) -> id
-        _ -> 0
+    TagToggled(id, result) ->
+      case model.screen {
+        NoteDetail(current_id) if current_id == id ->
+          case result {
+            Ok(added) -> {
+              let message = case added {
+                True -> "Tag added"
+                False -> "Tag removed"
+              }
+              #(
+                Model(
+                  ..model,
+                  tag_input: "",
+                  status_message: message,
+                  status_is_error: False,
+                ),
+                [load_detail_command(model.store, id)],
+              )
+            }
+            Error(error) -> #(
+              Model(..model, status_message: error, status_is_error: True),
+              [],
+            )
+          }
+        NoteList
+        | NoteCreate
+        | NoteEdit(_)
+        | ConfirmDelete(_)
+        | NoteDetail(_) -> #(model, [])
       }
-      let message = case added {
-        True -> "Tag added"
-        False -> "Tag removed"
-      }
-      #(
-        Model(
-          ..model,
-          tag_input: "",
-          status_message: message,
-          status_is_error: False,
-        ),
-        [load_detail_command(model.store, id)],
-      )
-    }
-    TagToggled(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      [],
-    )
   }
 }
 
