@@ -7,7 +7,7 @@ slate wraps Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html), w
 
 ## File size limit
 
-DETS tables are limited to **2 GB** per file. This is a hard limit in the DETS implementation and cannot be configured. If a table exceeds this size, operations will return `Error(FileSizeLimitExceeded)`.
+DETS tables are limited to **2 GB** per file. This is a hard limit in the DETS implementation and cannot be configured. If a table exceeds this size, operations will return `Error(FileSizeLimitExceeded(context))`.
 
 :::tip
 If you need more than 2 GB of storage, consider splitting data across multiple tables, or using a database like SQLite or Postgres.

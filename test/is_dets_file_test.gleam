@@ -2,6 +2,7 @@
 //// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
 
 import gleam/dynamic/decode
+import gleam/option.{Some}
 import slate
 import slate/set
 import startest/expect
@@ -45,15 +46,16 @@ pub fn is_dets_file_empty_table_test() -> Nil {
 // ── Non-existent file ───────────────────────────────────────────────────
 
 pub fn is_dets_file_nonexistent_test() -> Nil {
-  let result = slate.is_dets_file("nonexistent_file_12345.dets")
-  // Should return an error (file doesn't exist)
-  case result {
-    Error(_) -> Nil
-    Ok(_) -> {
-      // Some implementations might return Ok(False) for missing files
-      Nil
-    }
-  }
+  let path = "nonexistent_file_12345.dets"
+  slate.is_dets_file(path)
+  |> expect.to_equal(
+    Error(
+      slate.FileNotFound(slate.FileErrorContext(
+        path: Some(path),
+        reason: "enoent",
+      )),
+    ),
+  )
 }
 
 // ── DETS file with data, verified after reopen ──────────────────────────

@@ -1,6 +1,7 @@
 //// Tests for read-only access mode.
 //// Adapted from OTP dets_SUITE access/1 test.
 
+import file_error_test_helpers
 import gleam/dynamic/decode
 import gleam/list
 import gleam/string
@@ -10,6 +11,34 @@ import slate/duplicate_bag
 import slate/set
 import startest/expect
 import test_helper
+
+fn expect_access_denied(
+  result: Result(a, slate.DetsError),
+  path: String,
+) -> Nil {
+  result
+  |> expect.to_equal(
+    Error(
+      slate.AccessDenied(file_error_test_helpers.context(path, "access_mode")),
+    ),
+  )
+}
+
+// OTP/platform versions can reject delete_all at the access check or at the
+// file driver. Assert only these known reasons, not an arbitrary error.
+fn expect_delete_all_denied(
+  result: Result(a, slate.DetsError),
+  path: String,
+) -> Nil {
+  let assert Error(slate.AccessDenied(context)) = result
+  context.path
+  |> expect.to_equal(file_error_test_helpers.context(path, "access_mode").path)
+  list.contains(
+    ["access_mode", "{error,einval}", "{error,eacces}"],
+    context.reason,
+  )
+  |> expect.to_be_true()
+}
 
 // ── Set: read-only prevents writes ──────────────────────────────────────
 
@@ -51,7 +80,7 @@ pub fn set_readonly_insert_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = set.insert(read_only_table, "new_key", "val")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -71,7 +100,7 @@ pub fn set_readonly_delete_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = set.delete_key(read_only_table, key: "key")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   // Key should still exist
   let assert Ok("val") = set.lookup(read_only_table, key: "key")
   let assert Ok(Nil) = set.close(read_only_table)
@@ -92,7 +121,7 @@ pub fn set_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  set.delete_all(read_only_table) |> expect.to_equal(Error(slate.AccessDenied))
+  expect_delete_all_denied(set.delete_all(read_only_table), path)
   let _ = set.close(read_only_table)
   let assert Ok(read_write_table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -115,7 +144,7 @@ pub fn set_readonly_insert_new_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = set.insert_new(read_only_table, "key", "val")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -193,14 +222,11 @@ pub fn set_readonly_nonexistent_file_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  case result {
-    Error(_) -> Nil
-    Ok(table) -> {
-      let assert Ok(Nil) = set.close(table)
-      test_helper.cleanup(path)
-      panic as "should have failed to open non-existent file as read-only"
-    }
-  }
+  result
+  |> expect.to_equal(
+    Error(slate.FileNotFound(file_error_test_helpers.context(path, "enoent"))),
+  )
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 }
 
 // ── Bag: read-only ──────────────────────────────────────────────────────
@@ -242,7 +268,7 @@ pub fn bag_readonly_insert_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = bag.insert(read_only_table, "k", "v")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   let assert Ok(Nil) = bag.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -262,7 +288,7 @@ pub fn bag_readonly_delete_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = bag.delete_key(read_only_table, key: "k")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   let assert Ok(Nil) = bag.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -281,7 +307,7 @@ pub fn bag_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  bag.delete_all(read_only_table) |> expect.to_equal(Error(slate.AccessDenied))
+  expect_delete_all_denied(bag.delete_all(read_only_table), path)
   let _ = bag.close(read_only_table)
   let assert Ok(read_write_table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -335,7 +361,7 @@ pub fn duplicate_bag_readonly_insert_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let result = duplicate_bag.insert(read_only_table, "k", "v")
-  result |> expect.to_equal(Error(slate.AccessDenied))
+  expect_access_denied(result, path)
   let assert Ok(Nil) = duplicate_bag.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -358,8 +384,7 @@ pub fn duplicate_bag_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  duplicate_bag.delete_all(read_only_table)
-  |> expect.to_equal(Error(slate.AccessDenied))
+  expect_delete_all_denied(duplicate_bag.delete_all(read_only_table), path)
   let _ = duplicate_bag.close(read_only_table)
   test_helper.cleanup(path)
 }

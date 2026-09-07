@@ -1,4 +1,6 @@
+import file_error_test_helpers
 import gleam/dynamic/decode
+import gleam/option.{None}
 import slate
 import slate/set
 import startest/expect
@@ -11,21 +13,24 @@ fn write_garbage(path: String) -> Result(Nil, Nil)
 fn corrupt_byte(path: String, position: Int) -> Result(Nil, Nil)
 
 pub fn error_code_and_message_helpers_test() -> Nil {
+  let context = slate.FileErrorContext(path: None, reason: "diagnostic")
   slate.error_code(slate.NotFound) |> expect.to_equal("not_found")
   slate.error_code(slate.UnexpectedError("boom"))
   |> expect.to_equal("unexpected_error")
-  slate.error_code(slate.NotADetsFile) |> expect.to_equal("not_a_dets_file")
-  slate.error_code(slate.NeedsRepair) |> expect.to_equal("needs_repair")
+  slate.error_code(slate.NotADetsFile(context))
+  |> expect.to_equal("not_a_dets_file")
+  slate.error_code(slate.NeedsRepair(context))
+  |> expect.to_equal("needs_repair")
 
-  slate.error_message(slate.AccessDenied)
+  slate.error_message(slate.AccessDenied(context))
   |> expect.to_equal(
     "The requested operation is not allowed with the current access mode.",
   )
   slate.error_message(slate.UnexpectedError("boom"))
   |> expect.to_equal("An unexpected DETS error occurred.")
-  slate.error_message(slate.NotADetsFile)
+  slate.error_message(slate.NotADetsFile(context))
   |> expect.to_equal("The file exists but is not a valid DETS file.")
-  slate.error_message(slate.NeedsRepair)
+  slate.error_message(slate.NeedsRepair(context))
   |> expect.to_equal(
     "The table file was not closed cleanly and needs repair. Open with AutoRepair or ForceRepair.",
   )
@@ -42,7 +47,15 @@ pub fn not_a_dets_file_error_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result |> expect.to_equal(Error(slate.NotADetsFile))
+  result
+  |> expect.to_equal(
+    Error(
+      slate.NotADetsFile(file_error_test_helpers.context(
+        path,
+        "not_a_dets_file",
+      )),
+    ),
+  )
   test_helper.cleanup(path)
 }
 
@@ -63,7 +76,12 @@ pub fn needs_repair_error_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result |> expect.to_equal(Error(slate.NeedsRepair))
+  result
+  |> expect.to_equal(
+    Error(
+      slate.NeedsRepair(file_error_test_helpers.context(path, "needs_repair")),
+    ),
+  )
   test_helper.cleanup(path)
 }
 

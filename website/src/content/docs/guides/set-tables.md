@@ -158,5 +158,5 @@ let assert Ok(table) = set.open_with_access(path: "data/users.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.int)
 let assert Ok(42) = set.lookup(table, key: "alice")
-// set.insert(table, "alice", 99) would return Error(AccessDenied)
+// set.insert(table, "alice", 99) would return Error(AccessDenied(context))
 ```

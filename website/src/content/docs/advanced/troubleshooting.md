@@ -212,18 +212,25 @@ slate provides two helper functions for working with errors programmatically:
 - **`slate.error_code(error)`** returns a stable, machine-readable string like `"not_found"` or `"decode_error"`. Use this for logging, metrics, and programmatic error handling.
 - **`slate.error_message(error)`** returns a human-readable description like `"No value was found for the requested key."` Use this for user-facing messages and debug output.
 
+File-error context does not change either output. Paths and lower-level reasons
+are diagnostic data, not safe user-facing messages. See
+[File context and migration](/advanced/error-handling/#file-context-and-migration-breaking)
+for the six constructors that now carry `FileErrorContext`.
+
 ### Error code reference
 
 | Error | Code | Message |
 |-------|------|---------|
 | `NotFound` | `"not_found"` | No value was found for the requested key. |
-| `FileNotFound` | `"file_not_found"` | The DETS file could not be found. |
+| `FileNotFound(_)` | `"file_not_found"` | The DETS file could not be found. |
 | `AlreadyOpen` | `"already_open"` | The table is already open with incompatible options. |
 | `TableDoesNotExist` | `"table_does_not_exist"` | The table is not currently open. |
-| `FileSizeLimitExceeded` | `"file_size_limit_exceeded"` | The DETS file exceeded the 2 GB size limit. |
+| `FileSizeLimitExceeded(_)` | `"file_size_limit_exceeded"` | The DETS file exceeded the 2 GB size limit. |
 | `KeyAlreadyPresent` | `"key_already_present"` | The key or key-value pair is already present. |
-| `AccessDenied` | `"access_denied"` | The requested operation is not allowed with the current access mode. |
-| `TypeMismatch` | `"type_mismatch"` | The file was opened with the wrong DETS table type. |
+| `AccessDenied(_)` | `"access_denied"` | The requested operation is not allowed with the current access mode. |
+| `TypeMismatch(_)` | `"type_mismatch"` | The file was opened with the wrong DETS table type. |
+| `NotADetsFile(_)` | `"not_a_dets_file"` | The file exists but is not a valid DETS file. |
+| `NeedsRepair(_)` | `"needs_repair"` | The table file was not closed cleanly and needs repair. Open with AutoRepair or ForceRepair. |
 | `TableNamePoolExhausted` | `"table_name_pool_exhausted"` | Too many different DETS tables are open at once. |
 | `DecodeErrors(_)` | `"decode_error"` | Data on disk did not match the expected Gleam types. |
 | `UnexpectedError(_)` | `"unexpected_error"` | An unexpected DETS error occurred. |

@@ -1,3 +1,4 @@
+import file_error_test_helpers
 import gleam/dynamic/decode
 import gleam/int
 import gleam/list
@@ -336,7 +337,9 @@ pub fn duplicate_bag_with_table_open_error_test() -> Nil {
     value_decoder: decode.string,
     fun: fn(_table) { Ok(Nil) },
   )
-  |> expect.to_equal(Error(slate.FileNotFound))
+  |> expect.to_equal(
+    Error(slate.FileNotFound(file_error_test_helpers.context(path, "enoent"))),
+  )
   test_helper.is_table_open(path) |> expect.to_equal(False)
 }
 

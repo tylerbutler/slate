@@ -1,6 +1,7 @@
 //// Tests for error handling edge cases.
 //// Adapted from OTP dets_SUITE badarg, repair, and access tests.
 
+import file_error_test_helpers
 import gleam/dynamic/decode
 import gleam/int
 import gleam/list
@@ -11,12 +12,16 @@ import slate/set
 import startest/expect
 import test_helper
 
-fn expect_type_mismatch_open(result: Result(a, slate.DetsError)) -> Nil {
-  case result {
-    Error(slate.UnexpectedError(_)) -> Nil
-    Error(error) -> error |> expect.to_equal(slate.TypeMismatch)
-    Ok(_) -> panic as "opening a table with a different type must fail"
-  }
+fn expect_type_mismatch_open(
+  result: Result(a, slate.DetsError),
+  path: String,
+) -> Nil {
+  result
+  |> expect.to_equal(
+    Error(
+      slate.TypeMismatch(file_error_test_helpers.context(path, "type_mismatch")),
+    ),
+  )
 }
 
 // ── Type mismatch: open set file as bag ─────────────────────────────────
@@ -32,7 +37,7 @@ pub fn type_mismatch_set_as_bag_test() -> Nil {
   // Try to open as bag — should fail
   let result =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 
@@ -48,7 +53,7 @@ pub fn type_mismatch_set_as_duplicate_bag_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 
@@ -60,7 +65,7 @@ pub fn type_mismatch_bag_as_set_test() -> Nil {
   let assert Ok(Nil) = bag.close(table)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 
@@ -76,7 +81,7 @@ pub fn type_mismatch_bag_as_duplicate_bag_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 
@@ -92,7 +97,7 @@ pub fn type_mismatch_duplicate_bag_as_set_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 
@@ -108,7 +113,7 @@ pub fn type_mismatch_duplicate_bag_as_bag_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.close(table)
   let result =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  expect_type_mismatch_open(result)
+  expect_type_mismatch_open(result, path)
   test_helper.cleanup(path)
 }
 

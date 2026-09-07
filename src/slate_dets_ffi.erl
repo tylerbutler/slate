@@ -7,7 +7,7 @@
     member/2, sync/1, fold/3, to_list/1,
     info_size/1, info_file_size/1,
     is_dets_file/1, update_counter/3,
-    canonicalize_path/1
+    canonicalize_path/1, translate_error/1
 ]).
 
 -define(TABLE_NAME_POOL_SIZE, 4096).
@@ -341,31 +341,68 @@ update_counter_translated_error(Reason) ->
     {ffi_table_error, Reason}.
 
 %% ── Error translation ──────────────────────────────────────────────────
-%% Maps Erlang DETS errors to atoms matching Gleam DetsError constructors.
+%% Internal translation shared by every operation (also exercised by tests).
+%% Gleam payload variants are tuples; Option(String) is none | {some, Binary}.
 
 translate_error(not_found) -> not_found;
 translate_error(key_already_present) -> key_already_present;
-translate_error(not_a_dets_file) -> not_a_dets_file;
-translate_error(needs_repair) -> needs_repair;
-translate_error({file_error, _, enoent}) -> file_not_found;
-translate_error({file_error, _, eacces}) -> access_denied;
-translate_error({file_error, _, {error, eacces}}) -> access_denied;
-translate_error({file_error, _, {error, einval}}) -> access_denied;
-translate_error({access_mode, _}) -> access_denied;
-translate_error({type_mismatch, _}) -> type_mismatch;
-translate_error({keypos_mismatch, _}) -> type_mismatch;
+translate_error(not_a_dets_file) ->
+    contextual_error(not_a_dets_file, none, not_a_dets_file);
+translate_error(needs_repair) ->
+    contextual_error(needs_repair, none, needs_repair);
+translate_error({file_error, Path, Reason} = Error) ->
+    case file_error_kind(Reason) of
+        unexpected -> unexpected_error(Error);
+        Kind -> contextual_file_error(Kind, Path, Reason)
+    end;
+translate_error({access_mode, Path}) ->
+    contextual_file_error(access_denied, Path, access_mode);
+translate_error({type_mismatch, Path}) ->
+    contextual_file_error(type_mismatch, Path, type_mismatch);
+translate_error({keypos_mismatch, Path}) ->
+    contextual_file_error(type_mismatch, Path, keypos_mismatch);
 translate_error({incompatible_arguments, _}) -> already_open;
 translate_error(incompatible_arguments) -> already_open;
 translate_error(badarg) -> table_does_not_exist;
 translate_error({no_such_table, _}) -> table_does_not_exist;
-translate_error({file_error, _, efbig}) -> file_size_limit_exceeded;
+translate_error({no_more_space_on_file, Path}) ->
+    contextual_file_error(file_size_limit_exceeded, Path, no_more_space_on_file);
 translate_error(no_available_table_name) -> table_name_pool_exhausted;
-translate_error({not_a_dets_file, _}) -> not_a_dets_file;
-translate_error({needs_repair, _}) -> needs_repair;
+translate_error({not_a_dets_file, Path}) ->
+    contextual_file_error(not_a_dets_file, Path, not_a_dets_file);
+translate_error({needs_repair, Path}) ->
+    contextual_file_error(needs_repair, Path, needs_repair);
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->
     unexpected_error(Reason).
 
+%% Unwrap only the known OTP error envelope for classification. Keep the
+%% original reason in the context, including nested {error, Reason} tuples.
+file_error_kind(enoent) -> file_not_found;
+file_error_kind(eacces) -> access_denied;
+file_error_kind({error, einval}) -> access_denied;
+file_error_kind(efbig) -> file_size_limit_exceeded;
+file_error_kind({error, Reason}) -> file_error_kind(Reason);
+file_error_kind(_) -> unexpected.
+
+contextual_file_error(Kind, Path, Reason) when is_binary(Path) ->
+    contextual_error(Kind, {some, Path}, Reason);
+contextual_file_error(Kind, Path, Reason) when is_list(Path) ->
+    %% slate passes UTF-8 bytes to OTP via binary_to_list/1, not codepoints.
+    contextual_error(Kind, {some, list_to_binary(Path)}, Reason);
+contextual_file_error(Kind, undefined, Reason) ->
+    contextual_error(Kind, none, Reason);
+contextual_file_error(Kind, {From, To}, Reason) ->
+    %% dets_utils:rename/2 reports both filenames. Neither alone identifies
+    %% the failure, so retain the complete diagnostic rather than pick one.
+    contextual_error(Kind, none, {file_error, {From, To}, Reason}).
+
+contextual_error(Kind, Path, Reason) ->
+    {Kind, {file_error_context, Path, format_reason(Reason)}}.
+
 unexpected_error(Reason) ->
-    {unexpected_error, list_to_binary(io_lib:format("~p", [Reason]))}.
+    {unexpected_error, format_reason(Reason)}.
+
+format_reason(Reason) ->
+    list_to_binary(io_lib:format("~p", [Reason])).
