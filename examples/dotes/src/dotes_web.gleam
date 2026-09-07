@@ -1,5 +1,4 @@
-import dotes/store.{type Store}
-import dotes/types.{type Note, type Revision}
+import dotes/store.{type Note, type Revision, type Store}
 import gleam/bytes_tree
 import gleam/erlang/application
 import gleam/erlang/process.{type Selector, type Subject}
@@ -48,7 +47,7 @@ type Model {
   )
 }
 
-type Msg {
+type Message {
   // Async results
   NotesLoaded(Result(List(#(Int, Note)), String))
   NoteDetailLoaded(Result(#(Note, List(String), List(Revision)), String))
@@ -76,15 +75,15 @@ type Msg {
 
 // --- Main ---
 
-pub fn main() {
-  let assert Ok(s) = store.open()
+pub fn main() -> Nil {
+  let assert Ok(store) = store.open()
 
   let assert Ok(_) =
-    fn(req: Request(Connection)) -> Response(ResponseData) {
-      case request.path_segments(req) {
+    fn(request: Request(Connection)) -> Response(ResponseData) {
+      case request.path_segments(request) {
         [] -> serve_html()
         ["lustre", "runtime.mjs"] -> serve_runtime()
-        ["ws"] -> serve_ws(req, s)
+        ["ws"] -> serve_websocket(request, store)
         _ ->
           response.new(404)
           |> response.set_body(mist.Bytes(bytes_tree.new()))
@@ -154,31 +153,31 @@ fn serve_runtime() -> Response(ResponseData) {
 
 type Socket {
   Socket(
-    component: lustre.Runtime(Msg),
-    self: Subject(server_component.ClientMessage(Msg)),
+    component: lustre.Runtime(Message),
+    self: Subject(server_component.ClientMessage(Message)),
   )
 }
 
 type SocketMessage =
-  server_component.ClientMessage(Msg)
+  server_component.ClientMessage(Message)
 
 type SocketInit =
   #(Socket, Option(Selector(SocketMessage)))
 
-fn serve_ws(
-  req: Request(Connection),
-  s: Store,
+fn serve_websocket(
+  request: Request(Connection),
+  store: Store,
 ) -> Response(ResponseData) {
   mist.websocket(
-    request: req,
-    on_init: fn(_conn) -> SocketInit { init_socket(s) },
+    request: request,
+    on_init: fn(_connection) -> SocketInit { init_socket(store) },
     handler: loop_socket,
     on_close: close_socket,
   )
 }
 
-fn init_socket(s: Store) -> SocketInit {
-  let app = lustre.application(fn(_) { init(s) }, update, view)
+fn init_socket(store: Store) -> SocketInit {
+  let app = lustre.application(fn(_) { init(store) }, update, view)
   let assert Ok(component) = lustre.start_server_component(app, Nil)
 
   let self = process.new_subject()
@@ -209,9 +208,9 @@ fn loop_socket(
     mist.Binary(_) -> mist.continue(state)
 
     mist.Custom(client_message) -> {
-      let msg = server_component.client_message_to_json(client_message)
+      let message = server_component.client_message_to_json(client_message)
       let assert Ok(_) =
-        mist.send_text_frame(connection, json.to_string(msg))
+        mist.send_text_frame(connection, json.to_string(message))
       mist.continue(state)
     }
 
@@ -226,10 +225,10 @@ fn close_socket(state: Socket) -> Nil {
 
 // --- Init ---
 
-fn init(s: Store) -> #(Model, Effect(Msg)) {
+fn init(store: Store) -> #(Model, Effect(Message)) {
   let model =
     Model(
-      store: s,
+      store: store,
       screen: NoteList,
       notes: [],
       detail_note: Error(Nil),
@@ -241,63 +240,67 @@ fn init(s: Store) -> #(Model, Effect(Msg)) {
       status_message: "",
       status_is_error: False,
     )
-  #(model, load_notes_effect(s))
+  #(model, load_notes_effect(store))
 }
 
 // --- Effects ---
 
-fn load_notes_effect(s: Store) -> Effect(Msg) {
+fn load_notes_effect(store: Store) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.list_notes(s) {
+    case store.list_notes(store) {
       Ok(notes) -> dispatch(NotesLoaded(Ok(notes)))
       Error(e) -> dispatch(NotesLoaded(Error(slate.error_message(e))))
     }
   })
 }
 
-fn load_detail_effect(s: Store, id: Int) -> Effect(Msg) {
+fn load_detail_effect(store: Store, id: Int) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.get_note(s, id) {
+    case store.get_note(store, id) {
       Error(e) -> dispatch(NoteDetailLoaded(Error(slate.error_message(e))))
       Ok(note) -> {
-        let tags = store.get_tags(s, id) |> result.unwrap([])
-        let history = store.get_history(s, id) |> result.unwrap([])
+        let tags = store.get_tags(store, id) |> result.unwrap([])
+        let history = store.get_history(store, id) |> result.unwrap([])
         dispatch(NoteDetailLoaded(Ok(#(note, tags, history))))
       }
     }
   })
 }
 
-fn create_note_effect(s: Store, title: String, body: String) -> Effect(Msg) {
+fn create_note_effect(
+  store: Store,
+  title: String,
+  body: String,
+) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.create_note(s, title: title, body: body) {
+    case store.create_note(store, title: title, body: body) {
       Ok(id) -> dispatch(NoteCreated(Ok(id)))
       Error(e) -> dispatch(NoteCreated(Error(slate.error_message(e))))
     }
   })
 }
 
-fn update_note_effect(s: Store, id: Int, body: String) -> Effect(Msg) {
+fn update_note_effect(store: Store, id: Int, body: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.update_note(s, id: id, body: body) {
+    case store.update_note(store, id: id, body: body) {
       Ok(Nil) -> dispatch(NoteUpdated(Ok(Nil)))
       Error(e) -> dispatch(NoteUpdated(Error(slate.error_message(e))))
     }
   })
 }
 
-fn toggle_tag_effect(s: Store, id: Int, tag: String) -> Effect(Msg) {
+fn toggle_tag_effect(store: Store, id: Int, tag: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.toggle_tag(s, id: id, tag: tag) {
+    case store.toggle_tag(store, id: id, tag: tag) {
       Ok(added) -> dispatch(TagToggled(Ok(added)))
       Error(e) -> dispatch(TagToggled(Error(slate.error_message(e))))
     }
   })
 }
 
-fn delete_note_effect(s: Store, id: Int) -> Effect(Msg) {
+fn delete_note_effect(store: Store, id: Int) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.delete_note(s, id) {
+    case store.delete_note(store, id) {
       Ok(Nil) -> dispatch(NoteDeleted(Ok(Nil)))
       Error(e) -> dispatch(NoteDeleted(Error(slate.error_message(e))))
     }
@@ -306,8 +309,8 @@ fn delete_note_effect(s: Store, id: Int) -> Effect(Msg) {
 
 // --- Update ---
 
-fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
-  case msg {
+fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
+  case message {
     // Data loaded
     NotesLoaded(Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
     NotesLoaded(Error(e)) -> #(
@@ -361,7 +364,12 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         Error(_) -> ""
       }
       #(
-        Model(..model, screen: NoteEdit(id), body_input: body, status_message: ""),
+        Model(
+          ..model,
+          screen: NoteEdit(id),
+          body_input: body,
+          status_message: "",
+        ),
         effect.none(),
       )
     }
@@ -369,9 +377,9 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
     CancelDelete -> #(Model(..model, screen: NoteList), effect.none())
 
     // Form input
-    TitleChanged(val) -> #(Model(..model, title_input: val), effect.none())
-    BodyChanged(val) -> #(Model(..model, body_input: val), effect.none())
-    TagChanged(val) -> #(Model(..model, tag_input: val), effect.none())
+    TitleChanged(value) -> #(Model(..model, title_input: value), effect.none())
+    BodyChanged(value) -> #(Model(..model, body_input: value), effect.none())
+    TagChanged(value) -> #(Model(..model, tag_input: value), effect.none())
 
     // Actions
     SubmitCreate -> #(
@@ -446,7 +454,7 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         NoteDetail(id) -> id
         _ -> 0
       }
-      let msg = case added {
+      let message = case added {
         True -> "Tag added"
         False -> "Tag removed"
       }
@@ -454,7 +462,7 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
         Model(
           ..model,
           tag_input: "",
-          status_message: msg,
+          status_message: message,
           status_is_error: False,
         ),
         load_detail_effect(model.store, id),
@@ -469,7 +477,7 @@ fn update(model: Model, msg: Msg) -> #(Model, Effect(Msg)) {
 
 // --- View ---
 
-fn view(model: Model) -> Element(Msg) {
+fn view(model: Model) -> Element(Message) {
   html.main([attribute.class("container")], [
     case model.screen {
       NoteList -> view_list(model)
@@ -482,7 +490,7 @@ fn view(model: Model) -> Element(Msg) {
   ])
 }
 
-fn view_list(model: Model) -> Element(Msg) {
+fn view_list(model: Model) -> Element(Message) {
   html.section([attribute.class("box")], [
     html.h2([], [html.text("dotes")]),
     case model.notes {
@@ -509,7 +517,7 @@ fn view_list(model: Model) -> Element(Msg) {
                     html.text(note.title),
                   ]),
                   html.span([attribute.class("note-date")], [
-                    html.text(types.format_timestamp(note.created_at)),
+                    html.text(store.unix_seconds_to_rfc3339(note.created_at)),
                   ]),
                 ],
               ),
@@ -523,7 +531,7 @@ fn view_list(model: Model) -> Element(Msg) {
   ])
 }
 
-fn view_detail(model: Model, id: Int) -> Element(Msg) {
+fn view_detail(model: Model, id: Int) -> Element(Message) {
   html.section([attribute.class("box")], [
     html.h2([], [html.text("Note #" <> int.to_string(id))]),
     case model.detail_note {
@@ -531,10 +539,13 @@ fn view_detail(model: Model, id: Int) -> Element(Msg) {
       Ok(note) ->
         element.fragment([
           html.table([attribute.class("kv-table")], [
-            kv_row("Title", note.title),
-            kv_row("Body", note.body),
-            kv_row("Created", types.format_timestamp(note.created_at)),
-            kv_row("Tags", case model.detail_tags {
+            key_value_row("Title", note.title),
+            key_value_row("Body", note.body),
+            key_value_row(
+              "Created",
+              store.unix_seconds_to_rfc3339(note.created_at),
+            ),
+            key_value_row("Tags", case model.detail_tags {
               [] -> "(none)"
               tags -> string.join(tags, ", ")
             }),
@@ -568,7 +579,7 @@ fn view_detail(model: Model, id: Int) -> Element(Msg) {
   ])
 }
 
-fn view_history(revisions: List(Revision)) -> Element(Msg) {
+fn view_history(revisions: List(Revision)) -> Element(Message) {
   case revisions {
     [] -> element.none()
     _ ->
@@ -582,12 +593,12 @@ fn view_history(revisions: List(Revision)) -> Element(Msg) {
         ]),
         html.ul(
           [],
-          list.map(revisions, fn(rev) {
+          list.map(revisions, fn(revision) {
             html.li([], [
               html.span([attribute.class("note-date")], [
-                html.text(types.format_timestamp(rev.edited_at)),
+                html.text(store.unix_seconds_to_rfc3339(revision.edited_at)),
               ]),
-              html.text(" " <> rev.body),
+              html.text(" " <> revision.body),
             ])
           }),
         ),
@@ -595,7 +606,7 @@ fn view_history(revisions: List(Revision)) -> Element(Msg) {
   }
 }
 
-fn view_create(model: Model) -> Element(Msg) {
+fn view_create(model: Model) -> Element(Message) {
   html.section([attribute.class("box")], [
     html.h2([], [html.text("New Note")]),
     html.div([attribute.class("form")], [
@@ -623,7 +634,7 @@ fn view_create(model: Model) -> Element(Msg) {
   ])
 }
 
-fn view_edit(model: Model, id: Int) -> Element(Msg) {
+fn view_edit(model: Model, id: Int) -> Element(Message) {
   let title_text = case model.detail_note {
     Ok(note) -> note.title
     Error(_) -> ""
@@ -655,7 +666,7 @@ fn view_edit(model: Model, id: Int) -> Element(Msg) {
   ])
 }
 
-fn view_confirm_delete(model: Model, id: Int) -> Element(Msg) {
+fn view_confirm_delete(model: Model, id: Int) -> Element(Message) {
   let note_title = case
     list.find(model.notes, fn(pair) {
       let #(note_id, _) = pair
@@ -690,22 +701,22 @@ fn view_confirm_delete(model: Model, id: Int) -> Element(Msg) {
 
 // --- Helpers ---
 
-fn kv_row(key: String, value: String) -> Element(Msg) {
+fn key_value_row(key: String, value: String) -> Element(Message) {
   html.tr([], [
     html.th([], [html.text(key)]),
     html.td([], [html.text(value)]),
   ])
 }
 
-fn view_status(model: Model) -> Element(Msg) {
+fn view_status(model: Model) -> Element(Message) {
   case model.status_message {
     "" -> element.none()
-    msg -> {
+    message -> {
       let class = case model.status_is_error {
         True -> "status error"
         False -> "status success"
       }
-      html.div([attribute.class(class)], [html.text(msg)])
+      html.div([attribute.class(class)], [html.text(message)])
     }
   }
 }
