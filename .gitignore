@@ -23,3 +23,7 @@ examples/dotes/.dotes
 
 # DETS data files (from README examples)
 data/*.dets
+
+
+# APM dependencies
+apm_modules/
