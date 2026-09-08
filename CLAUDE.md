@@ -128,7 +128,7 @@ Tests create temporary `.dets` files and clean them up after each test.
 
 Managed via `.tool-versions` (source of truth for CI):
 - Erlang 27.2.1
-- Gleam 1.14.0
+- Gleam 1.18.1
 - just 1.38.0
 - Trellis: `github:tylerbutler/trellis` in `.tool-versions`, also pinned in `.mise.toml`
 

@@ -13,8 +13,9 @@ Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
 `gleam.toml` under `[tools.trellis]`. Only the root `slate` package is a
 member; `examples/dotes` keeps its separate build and release scope.
-Pin Trellis to the same version in `.mise.toml` and `.tool-versions`.
-CI reads the latter through `.github/actions/setup-trellis`.
+Pin Gleam and Trellis to the same versions in `.mise.toml` and `.tool-versions`.
+CI reads the latter through `.github/actions/setup` and
+`.github/actions/setup-trellis`.
 
 ## Just tasks
 
