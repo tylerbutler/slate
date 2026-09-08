@@ -1,4 +1,9 @@
 kind: Fixed
 body: |-
-    Kept dotes async results on the correct note and closed failed WebSocket sessions.
+    Fixed note navigation and connection cleanup in the dotes example.
+
+    The terminal and web interfaces now ignore delayed load, save, and tag
+    results after you leave the relevant note screen. The web interface
+    also closes WebSocket connections when component startup or message
+    sending fails.
 time: 2026-09-07T23:38:00.000000+00:00
