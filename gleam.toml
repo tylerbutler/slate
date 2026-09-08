@@ -14,3 +14,27 @@ gleam_erlang = ">= 1.0.0 and < 2.0.0"
 
 [dev-dependencies]
 startest = ">= 0.8.0 and < 1.0.0"
+
+[tools.trellis]
+members = ["."]
+
+[tools.trellis.publish]
+exact_tag_format = "v{version}"
+
+[tools.trellis.changelog]
+strictness = "warn"
+header_format = "# Changelog"
+version_format = "## {{ version }} - {{ date }}"
+change_format = "#### {{ body }}"
+kinds = [
+  { label = "Breaking", bump = "major" },
+  { label = "Added", bump = "minor" },
+  { label = "Changed", bump = "patch" },
+  { label = "Deprecated", bump = "patch" },
+  { label = "Fixed", bump = "patch" },
+  { label = "Performance", bump = "patch" },
+  { label = "Removed", bump = "patch" },
+  { label = "Reverted", bump = "patch" },
+  { label = "Dependencies", bump = "patch" },
+  { label = "Security", bump = "patch" },
+]

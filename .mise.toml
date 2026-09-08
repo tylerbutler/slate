@@ -1,5 +1,5 @@
 [tools]
-changie = "latest"
+"github:tylerbutler/trellis" = "0.13.0"
 erlang = "27"
 gleam = "latest"
 just = "latest"

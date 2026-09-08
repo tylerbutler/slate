@@ -1,0 +1,7 @@
+package = "slate"
+kind = "Changed"
+body = """
+Prefixed internal Erlang module names with `slate_`.
+
+The new names reduce the risk of conflicts with modules in other
+dependencies. The public Gleam API is unchanged."""

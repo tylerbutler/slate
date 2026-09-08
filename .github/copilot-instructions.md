@@ -7,8 +7,12 @@ gleam build              # Compile
 gleam test               # Run all tests
 gleam check              # Type check only
 gleam format src test    # Format code
-just ci                  # Full CI: format-check, check, test, build --warnings-as-errors
+just ci                  # Full CI: doctor, format-check, check, test, strict build
 ```
+
+Keep `just` for top-level coordination. Its package recipes call Trellis,
+configured in `[tools.trellis]` in the root `gleam.toml`. Only the root
+`slate` package is a member.
 
 Gleam's test runner (`startest`) discovers test functions by the `_test` suffix — there is no built-in way to run a single test. To run one test file, temporarily comment out other imports or isolate the file.
 
@@ -48,4 +52,14 @@ DETS table names are the file path converted to an Erlang atom via `binary_to_at
 
 ## Changelog
 
-New changes require a changelog entry via `changie new` (aliased as `just change`). CI checks for a `.changes/unreleased/` entry on PRs.
+Create Trellis TOML entries with `just change <kind> "<body>"`, which calls
+`trellis changelog new`. Add entries in `.changes/unreleased/` for user-facing
+changes, not contributor-only tooling, CI, or internal documentation changes.
+Missing-entry reminders are advisory; invalid fragments fail CI. Preview version bumps
+with `just changelog-preview`. Preserve the kind-to-version rules in
+`gleam.toml`.
+
+Trellis updates the release PR on `release/next`, batches sections under
+`.changes/slate/`, and generates `CHANGELOG.md`. Do not edit the generated
+changelog to add entries. Commitlint accepts Trellis's
+`release: slate v<version>` titles.

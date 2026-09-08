@@ -1,7 +1,0 @@
-kind: Changed
-body: |-
-    Prefixed internal Erlang module names with `slate_`.
-
-    The new names reduce the risk of conflicts with modules in other
-    dependencies. The public Gleam API is unchanged.
-time: 2026-09-07T23:31:20.000000+00:00
