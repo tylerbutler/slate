@@ -5,7 +5,7 @@
     close/1, insert/2, insert_new/2, insert_new_object/2,
     lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
-    info_size/1, info_file_size/1,
+    info_size/1, info_file_size/1, info_path/1,
     is_dets_file/1, update_counter/3,
     canonicalize_path/1
 ]).
@@ -279,6 +279,18 @@ info_size(Name) ->
 
 info_file_size(Name) ->
     info_integer(Name, file_size).
+
+info_path(Name) ->
+    try dets:info(Name, filename) of
+        undefined -> {error, table_does_not_exist};
+        Path when is_list(Path) ->
+            %% canonicalize_path/1 supplies UTF-8 bytes, not codepoints.
+            {ok, list_to_binary(Path)};
+        Path when is_binary(Path) -> {ok, Path};
+        Other -> {error, unexpected_error({dets_info, filename, Other})}
+    catch
+        error:Reason -> {error, translate_error(Reason)}
+    end.
 
 info_integer(Name, Item) ->
     try dets:info(Name, Item) of

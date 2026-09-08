@@ -191,6 +191,7 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `open_with_access(path, repair, access, key_decoder, value_decoder)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
+| `path(table)` | Get the open table's absolute file path |
 | `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |

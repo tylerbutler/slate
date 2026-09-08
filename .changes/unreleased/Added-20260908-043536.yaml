@@ -1,0 +1,8 @@
+kind: Added
+body: |-
+    Added file path accessors for open tables.
+
+    Use `path(table)` in `slate/set`, `slate/bag`, or `slate/duplicate_bag`
+    to get the absolute file path as `Result(String, DetsError)`.
+    The accessor returns `TableDoesNotExist` if the table is no longer open.
+time: 2026-09-08T04:35:36.000000+00:00

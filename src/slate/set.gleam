@@ -377,6 +377,16 @@ pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
   }
 }
 
+/// Return the file path of an open table.
+///
+/// Returns the absolute path used by DETS, with `.` and `..` segments
+/// normalized by `open`. Symlinks are not resolved.
+/// Returns `Error(TableDoesNotExist)` if the table is no longer open.
+/// As with other operations, do not use the handle after closing it.
+pub fn path(table: Set(k, v)) -> Result(String, DetsError) {
+  ffi_info_path(table.ref)
+}
+
 // ── FFI bindings ────────────────────────────────────────────────────────
 
 @external(erlang, "dets_ffi", "open_set")
@@ -438,6 +448,9 @@ fn ffi_info_size(ref: TableRef) -> Result(Int, DetsError)
 
 @external(erlang, "dets_ffi", "info_file_size")
 fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
+
+@external(erlang, "dets_ffi", "info_path")
+fn ffi_info_path(ref: TableRef) -> Result(String, DetsError)
 
 @external(erlang, "dets_ffi", "update_counter")
 fn ffi_update_counter(
