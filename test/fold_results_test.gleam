@@ -5,7 +5,7 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── Success path ────────────────────────────────────────────────────────
 
@@ -20,14 +20,14 @@ pub fn set_fold_results_success_test() -> Nil {
   let assert Ok(sum) =
     set.fold_results(table, 0, fn(acc, entry) {
       case entry {
-        Ok(#(_k, v)) -> acc + v
+        Ok(#(_key, value)) -> acc + value
         Error(_) -> acc
       }
     })
   sum |> expect.to_equal(60)
 
   let assert Ok(Nil) = set.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_fold_results_success_test() -> Nil {
@@ -41,14 +41,14 @@ pub fn bag_fold_results_success_test() -> Nil {
   let assert Ok(sum) =
     bag.fold_results(table, 0, fn(acc, entry) {
       case entry {
-        Ok(#(_k, v)) -> acc + v
+        Ok(#(_key, value)) -> acc + value
         Error(_) -> acc
       }
     })
   sum |> expect.to_equal(6)
 
   let assert Ok(Nil) = bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn duplicate_bag_fold_results_success_test() -> Nil {
@@ -66,14 +66,14 @@ pub fn duplicate_bag_fold_results_success_test() -> Nil {
   let assert Ok(sum) =
     duplicate_bag.fold_results(table, 0, fn(acc, entry) {
       case entry {
-        Ok(#(_k, v)) -> acc + v
+        Ok(#(_key, value)) -> acc + value
         Error(_) -> acc
       }
     })
   sum |> expect.to_equal(5)
 
   let assert Ok(Nil) = duplicate_bag.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn set_fold_results_empty_table_test() -> Nil {
@@ -85,7 +85,7 @@ pub fn set_fold_results_empty_table_test() -> Nil {
   count |> expect.to_equal(0)
 
   let assert Ok(Nil) = set.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Partial failure — skip errors ───────────────────────────────────────
@@ -97,7 +97,7 @@ pub fn set_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      test_helpers.range(1, 50) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helper.range(1, 50) |> list.map(fn(key) { #(key, key * 10) }),
     )
   let assert Ok(Nil) = set.close(table)
 
@@ -109,14 +109,14 @@ pub fn set_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(items) =
     set.fold_results(table2, [], fn(acc, entry) {
       case entry {
-        Ok(#(k, v)) -> [#(k, v), ..acc]
+        Ok(#(key, value)) -> [#(key, value), ..acc]
         Error(_) -> acc
       }
     })
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = set.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_fold_results_skips_decode_errors_test() -> Nil {
@@ -126,7 +126,7 @@ pub fn bag_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(Nil) =
     bag.insert_list(
       table,
-      test_helpers.range(1, 10) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helper.range(1, 10) |> list.map(fn(key) { #(key, key * 10) }),
     )
   let assert Ok(Nil) = bag.close(table)
 
@@ -136,14 +136,14 @@ pub fn bag_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(items) =
     bag.fold_results(table2, [], fn(acc, entry) {
       case entry {
-        Ok(#(k, v)) -> [#(k, v), ..acc]
+        Ok(#(key, value)) -> [#(key, value), ..acc]
         Error(_) -> acc
       }
     })
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = bag.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn duplicate_bag_fold_results_skips_decode_errors_test() -> Nil {
@@ -153,7 +153,7 @@ pub fn duplicate_bag_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(Nil) =
     duplicate_bag.insert_list(
       table,
-      test_helpers.range(1, 10) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helper.range(1, 10) |> list.map(fn(key) { #(key, key * 10) }),
     )
   let assert Ok(Nil) = duplicate_bag.close(table)
 
@@ -167,14 +167,14 @@ pub fn duplicate_bag_fold_results_skips_decode_errors_test() -> Nil {
   let assert Ok(items) =
     duplicate_bag.fold_results(table2, [], fn(acc, entry) {
       case entry {
-        Ok(#(k, v)) -> [#(k, v), ..acc]
+        Ok(#(key, value)) -> [#(key, value), ..acc]
         Error(_) -> acc
       }
     })
   items |> expect.to_equal([])
 
   let assert Ok(Nil) = duplicate_bag.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Partial failure — partition pattern ─────────────────────────────────
@@ -186,7 +186,7 @@ pub fn set_fold_results_partition_test() -> Nil {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      test_helpers.range(1, 20) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helper.range(1, 20) |> list.map(fn(key) { #(key, key * 10) }),
     )
   let assert Ok(Nil) = set.close(table)
 
@@ -197,15 +197,15 @@ pub fn set_fold_results_partition_test() -> Nil {
   let assert Ok(#(good, bad)) =
     set.fold_results(table2, #([], []), fn(acc, entry) {
       case entry {
-        Ok(#(k, v)) -> #([#(k, v), ..acc.0], acc.1)
-        Error(errs) -> #(acc.0, [errs, ..acc.1])
+        Ok(#(key, value)) -> #([#(key, value), ..acc.0], acc.1)
+        Error(errors) -> #(acc.0, [errors, ..acc.1])
       }
     })
   good |> expect.to_equal([])
   list.length(bad) |> expect.to_equal(20)
 
   let assert Ok(Nil) = set.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Visits all entries (no short-circuit) ───────────────────────────────
@@ -218,7 +218,7 @@ pub fn set_fold_results_visits_all_entries_test() -> Nil {
   let assert Ok(Nil) =
     set.insert_list(
       table,
-      test_helpers.range(1, count) |> list.map(fn(i) { #(i, i * 10) }),
+      test_helper.range(1, count) |> list.map(fn(key) { #(key, key * 10) }),
     )
   let assert Ok(Nil) = set.close(table)
 
@@ -231,7 +231,7 @@ pub fn set_fold_results_visits_all_entries_test() -> Nil {
   visited |> expect.to_equal(count)
 
   let assert Ok(Nil) = set.close(table2)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Collect keys with correct key decoder ───────────────────────────────
@@ -245,12 +245,12 @@ pub fn set_fold_results_collects_keys_test() -> Nil {
   let assert Ok(keys) =
     set.fold_results(table, [], fn(acc, entry) {
       case entry {
-        Ok(#(k, _v)) -> [k, ..acc]
+        Ok(#(key, _value)) -> [key, ..acc]
         Error(_) -> acc
       }
     })
   keys |> list.sort(string.compare) |> expect.to_equal(["a", "b", "c"])
 
   let assert Ok(Nil) = set.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }

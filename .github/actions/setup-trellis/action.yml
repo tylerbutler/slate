@@ -1,0 +1,13 @@
+name: "Setup Trellis"
+description: "Install the Trellis version pinned in .tool-versions"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Trellis
+      shell: bash
+      run: |
+        version="$(awk '$1 == "github:tylerbutler/trellis" { print $2 }' .tool-versions)"
+        test -n "$version"
+        curl --proto '=https' --tlsv1.2 -LsSf \
+          "https://github.com/tylerbutler/trellis/releases/download/v${version}/trellis-gleam-installer.sh" | sh

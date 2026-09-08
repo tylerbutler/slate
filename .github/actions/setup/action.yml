@@ -10,6 +10,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup Trellis
+      uses: ./.github/actions/setup-trellis
+
     - name: Setup just
       uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # ratchet:extractions/setup-just@v2
 

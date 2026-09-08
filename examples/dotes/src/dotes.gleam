@@ -1,19 +1,18 @@
 import argv
-import dotes/store
-import dotes/types.{type Revision}
+import dotes/store.{type Revision}
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
 import slate
 
-pub fn main() {
+pub fn main() -> Nil {
   case argv.load().arguments {
-    ["save", first, second] -> cmd_save(first, second)
-    ["show"] -> cmd_list()
-    ["show", id_str] -> cmd_show(id_str)
-    ["tag", id_str, tag] -> cmd_tag(id_str, tag)
-    ["delete", id_str] -> cmd_delete(id_str)
+    ["save", first, second] -> command_save(first, second)
+    ["show"] -> command_list()
+    ["show", id_string] -> command_show(id_string)
+    ["tag", id_string, tag] -> command_tag(id_string, tag)
+    ["delete", id_string] -> command_delete(id_string)
     _ -> print_usage()
   }
 }
@@ -21,9 +20,9 @@ pub fn main() {
 /// Run a function with an open store, closing it afterward.
 fn with_store(f: fn(store.Store) -> Nil) -> Nil {
   case store.open() {
-    Ok(s) -> {
-      f(s)
-      case store.close(s) {
+    Ok(store) -> {
+      f(store)
+      case store.close(store) {
         Ok(Nil) -> Nil
         Error(e) ->
           io.println("Error closing store: " <> slate.error_message(e))
@@ -34,25 +33,26 @@ fn with_store(f: fn(store.Store) -> Nil) -> Nil {
 }
 
 /// Parse a note ID from a string, printing an error and calling f on success.
-fn with_id(id_str: String, f: fn(Int) -> Nil) -> Nil {
-  case int.parse(id_str) {
-    Error(_) -> io.println("Error: '" <> id_str <> "' is not a valid note ID")
+fn with_id(id_string: String, f: fn(Int) -> Nil) -> Nil {
+  case int.parse(id_string) {
+    Error(_) ->
+      io.println("Error: '" <> id_string <> "' is not a valid note ID")
     Ok(id) -> f(id)
   }
 }
 
-fn cmd_save(first: String, second: String) -> Nil {
+fn command_save(first: String, second: String) -> Nil {
   case int.parse(first) {
     Ok(id) ->
-      with_store(fn(s) {
-        case store.update_note(s, id: id, body: second) {
+      with_store(fn(store) {
+        case store.update_note(store, id: id, body: second) {
           Ok(Nil) -> io.println("✓ Updated note #" <> int.to_string(id))
           Error(e) -> io.println("Error: " <> slate.error_message(e))
         }
       })
     Error(_) ->
-      with_store(fn(s) {
-        case store.create_note(s, title: first, body: second) {
+      with_store(fn(store) {
+        case store.create_note(store, title: first, body: second) {
           Ok(id) -> io.println("✓ Created note #" <> int.to_string(id))
           Error(e) -> io.println("Error: " <> slate.error_message(e))
         }
@@ -60,9 +60,9 @@ fn cmd_save(first: String, second: String) -> Nil {
   }
 }
 
-fn cmd_list() -> Nil {
-  with_store(fn(s) {
-    case store.list_notes(s) {
+fn command_list() -> Nil {
+  with_store(fn(store) {
+    case store.list_notes(store) {
       Ok([]) ->
         io.println(
           "No notes yet. Create one with: dotes save \"Title\" \"Body\"",
@@ -77,7 +77,7 @@ fn cmd_list() -> Nil {
             <> "  "
             <> note.title
             <> "  ("
-            <> types.format_timestamp(note.created_at)
+            <> store.unix_seconds_to_rfc3339(note.created_at)
             <> ")",
           )
         })
@@ -87,26 +87,28 @@ fn cmd_list() -> Nil {
   })
 }
 
-fn cmd_show(id_str: String) -> Nil {
-  with_id(id_str, fn(id) {
-    with_store(fn(s) {
-      case store.get_note(s, id) {
+fn command_show(id_string: String) -> Nil {
+  with_id(id_string, fn(id) {
+    with_store(fn(store) {
+      case store.get_note(store, id) {
         Error(e) -> io.println("Error: " <> slate.error_message(e))
         Ok(note) -> {
           io.println("Note #" <> int.to_string(id))
           io.println("Title:   " <> note.title)
           io.println("Body:    " <> note.body)
-          io.println("Created: " <> types.format_timestamp(note.created_at))
+          io.println(
+            "Created: " <> store.unix_seconds_to_rfc3339(note.created_at),
+          )
 
           // Tags and history are optional display sections — if the
           // lookups fail, omit the section rather than blocking the note.
-          case store.get_tags(s, id) {
+          case store.get_tags(store, id) {
             Ok([]) -> Nil
             Ok(tags) -> io.println("Tags:    " <> string.join(tags, ", "))
             Error(_) -> Nil
           }
 
-          case store.get_history(s, id) {
+          case store.get_history(store, id) {
             Ok([]) -> Nil
             Ok(revisions) -> {
               io.println(
@@ -114,12 +116,12 @@ fn cmd_show(id_str: String) -> Nil {
                 <> int.to_string(list.length(revisions))
                 <> " revisions):",
               )
-              list.each(revisions, fn(rev: Revision) {
+              list.each(revisions, fn(revision: Revision) {
                 io.println(
                   "  ["
-                  <> types.format_timestamp(rev.edited_at)
+                  <> store.unix_seconds_to_rfc3339(revision.edited_at)
                   <> "] "
-                  <> rev.body,
+                  <> revision.body,
                 )
               })
             }
@@ -131,10 +133,10 @@ fn cmd_show(id_str: String) -> Nil {
   })
 }
 
-fn cmd_tag(id_str: String, tag: String) -> Nil {
-  with_id(id_str, fn(id) {
-    with_store(fn(s) {
-      case store.toggle_tag(s, id: id, tag: tag) {
+fn command_tag(id_string: String, tag: String) -> Nil {
+  with_id(id_string, fn(id) {
+    with_store(fn(store) {
+      case store.toggle_tag(store, id: id, tag: tag) {
         Ok(True) ->
           io.println(
             "✓ Added tag '" <> tag <> "' to note #" <> int.to_string(id),
@@ -149,10 +151,10 @@ fn cmd_tag(id_str: String, tag: String) -> Nil {
   })
 }
 
-fn cmd_delete(id_str: String) -> Nil {
-  with_id(id_str, fn(id) {
-    with_store(fn(s) {
-      case store.delete_note(s, id) {
+fn command_delete(id_string: String) -> Nil {
+  with_id(id_string, fn(id) {
+    with_store(fn(store) {
+      case store.delete_note(store, id) {
         Ok(Nil) -> io.println("✓ Deleted note #" <> int.to_string(id))
         Error(e) -> io.println("Error: " <> slate.error_message(e))
       }

@@ -5,7 +5,7 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 pub fn set_with_table_options_test() -> Nil {
   check_options(
@@ -71,32 +71,31 @@ fn check_options(
     slate.RepairPolicy,
     slate.AccessMode,
     fn(table) -> Result(Int, slate.DetsError),
-  ) ->
-    Result(Int, slate.DetsError),
+  ) -> Result(Int, slate.DetsError),
   insert: fn(table, String, Int) -> Result(Nil, slate.DetsError),
   size: fn(table) -> Result(Int, slate.DetsError),
   close: fn(table) -> Result(Nil, slate.DetsError),
 ) -> Nil {
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
   with_table(path, slate.NoRepair, slate.ReadWrite, fn(table) {
     let assert Ok(Nil) = insert(table, "key", 42)
     Ok(42)
   })
   |> expect.to_equal(Ok(42))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
     insert(table, "other", 99) |> expect.to_equal(Error(slate.AccessDenied))
     size(table)
   })
   |> expect.to_equal(Ok(1))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(_table) {
     Error(slate.NotFound)
   })
   |> expect.to_equal(Error(slate.NotFound))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 
   let close_error =
     with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
@@ -118,31 +117,31 @@ fn check_options(
   })
   |> expect.to_equal(Error(slate.NotFound))
 
-  test_helpers.did_panic(fn() {
+  test_helper.did_panic(fn() {
     with_table(path, slate.NoRepair, slate.ReadOnly, fn(_table) {
       panic as "callback failed"
     })
   })
   |> expect.to_equal(True)
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 
   let assert Ok(Nil) = corrupt_byte(path, 11)
   with_table(path, slate.NoRepair, slate.ReadWrite, fn(_table) {
     panic as "callback must not run when repair is required"
   })
   |> expect.to_equal(Error(slate.NeedsRepair))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 
   with_table(path, slate.ForceRepair, slate.ReadWrite, size)
   |> expect.to_equal(Ok(1))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
-  test_helpers.cleanup(path)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
+  test_helper.cleanup(path)
 
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(_table) {
     panic as "callback must not run when the file is missing"
   })
   |> expect.to_equal(Error(slate.FileNotFound))
-  test_helpers.is_table_open(path) |> expect.to_equal(False)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
 }
 
 @external(erlang, "corruption_test_ffi", "corrupt_byte")

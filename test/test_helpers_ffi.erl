@@ -1,7 +1,7 @@
 -module(test_helpers_ffi).
 -export([did_panic/1, identity/1, is_table_open/1]).
 
-%% Unsafe identity function used by test_helpers.unsafe_decoder/0
+%% Unsafe identity function used by test_helper.unsafe_decoder/0
 %% to bypass type checking in tests with complex value types.
 identity(X) -> X.
 

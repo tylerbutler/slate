@@ -17,6 +17,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Check workspace
+        run: trellis doctor --format github
+
       - name: Check formatting
         run: just format-check
 

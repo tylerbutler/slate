@@ -82,3 +82,15 @@ dotes uses **four DETS tables**, one for each slate table type:
 | `delete` | `set.lookup`, `set.delete_key`, `bag.delete_key`, `duplicate_bag.delete_key` |
 
 Data is stored in a `.dotes/` directory in the current working directory.
+
+## Tests
+
+Run `gleam test` from this directory. Tests use Startest, as the slate library does.
+They cover note-specific async results and real loopback WebSocket connections,
+including component startup failure, frame send failure, and process cleanup.
+Test data is created under `build/` and removed after each successful test.
+
+Late edit, tag, and detail-load results cannot replace a different note or screen.
+The web server returns HTTP 500 if the Lustre runtime is unavailable. If a
+WebSocket component cannot start, it logs the failure and closes the connection.
+Failed frame sends stop the WebSocket and shut down its component.

@@ -8,8 +8,8 @@ pub fn cleanup(path: String) -> Nil {
 }
 
 /// Returns `True` when the provided function exits abnormally.
-pub fn did_panic(fun: fn() -> a) -> Bool {
-  ffi_did_panic(fun)
+pub fn did_panic(callback: fn() -> a) -> Bool {
+  ffi_did_panic(callback)
 }
 
 /// Returns `True` when the DETS table for `path` is currently open.
@@ -25,7 +25,9 @@ pub fn range(from: Int, to: Int) -> List(Int) {
   case from > to {
     True -> []
     False ->
-      int.range(from: to, to: from - 1, with: [], run: fn(acc, i) { [i, ..acc] })
+      int.range(from: to, to: from - 1, with: [], run: fn(acc, value) {
+        [value, ..acc]
+      })
   }
 }
 
@@ -35,7 +37,7 @@ pub fn range(from: Int, to: Int) -> List(Int) {
 /// within a single test (e.g., complex nested types like tuples of
 /// tuples, Result values, etc.).
 pub fn unsafe_decoder() -> Decoder(a) {
-  decode.new_primitive_decoder("unsafe", fn(dyn) { Ok(unsafe_coerce(dyn)) })
+  decode.new_primitive_decoder("unsafe", fn(value) { Ok(unsafe_coerce(value)) })
 }
 
 @external(erlang, "file", "delete")
@@ -45,7 +47,7 @@ fn delete_file(path: String) -> Result(Nil, DynamicError)
 type DynamicError
 
 @external(erlang, "test_helpers_ffi", "did_panic")
-fn ffi_did_panic(fun: fn() -> a) -> Bool
+fn ffi_did_panic(callback: fn() -> a) -> Bool
 
 @external(erlang, "test_helpers_ffi", "is_table_open")
 fn ffi_is_table_open(path: String) -> Bool

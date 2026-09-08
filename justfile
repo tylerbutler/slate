@@ -15,68 +15,73 @@ default:
 
 # Download project dependencies
 deps:
-    gleam deps download
+    trellis run deps
 
 # === BUILD ===
 
 # Build project (Erlang target)
 build:
-    gleam build
+    trellis run build
 
 # Build with warnings as errors
 build-strict:
-    gleam build --warnings-as-errors
+    trellis run build --strict
 
 # === TESTING ===
 
 # Run all tests
 test:
-    gleam test
+    trellis run test
 
 # === CODE QUALITY ===
 
 # Format source code
 format:
-    gleam format src test
+    trellis run format
 
 # Check formatting without changes
 format-check:
-    gleam format --check src test
+    trellis run format --check
 
 # Type check without building
 check:
-    gleam check
+    trellis run check
 
 # === DOCUMENTATION ===
 
 # Build documentation
 docs:
-    gleam docs build
+    trellis run docs
 
 # === CHANGELOG ===
 
 # Create a new changelog entry
-change:
-    changie new
+[positional-arguments]
+change kind body:
+    trellis changelog new --kind "$1" --body "$2"
 
 # Preview unreleased changelog
 changelog-preview:
-    changie batch auto --dry-run
+    trellis version plan
 
-# Generate CHANGELOG.md
-changelog:
-    changie merge
+# Create or update the release PR (requires a clean working tree)
+release-pr:
+    trellis release pr --base main --branch release/next
 
 # === MAINTENANCE ===
 
 # Remove build artifacts
 clean:
-    rm -rf build
+    trellis run clean
 
 # === CI ===
 
-# Run all CI checks (format, check, test, build)
-ci: format-check check test build-strict
+# Check workspace and changelog configuration
+doctor:
+    trellis doctor
+
+# Run all CI checks (doctor, format, check, test, build)
+ci: doctor format-check check test build-strict
 
 # Alias for PR checks
 alias pr := ci

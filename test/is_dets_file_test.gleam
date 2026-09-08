@@ -5,7 +5,7 @@ import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── Valid DETS file ─────────────────────────────────────────────────────
 
@@ -18,7 +18,7 @@ pub fn is_dets_file_valid_test() -> Nil {
   let assert Ok(Nil) = set.close(table)
   // Check it
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Non-DETS file ───────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ pub fn is_dets_file_not_dets_test() -> Nil {
   // Write a plain text file
   let assert Ok(Nil) = write_file(path, "hello world this is not dets")
   slate.is_dets_file(path) |> expect.to_equal(Ok(False))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Empty DETS file (opened and closed without data) ────────────────────
@@ -39,7 +39,7 @@ pub fn is_dets_file_empty_table_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Non-existent file ───────────────────────────────────────────────────
@@ -68,7 +68,7 @@ pub fn is_dets_file_after_use_test() -> Nil {
   let assert Ok(Nil) = set.sync(table)
   let assert Ok(Nil) = set.close(table)
   slate.is_dets_file(path) |> expect.to_equal(Ok(True))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 // ── Helper: write a plain file ──────────────────────────────────────────

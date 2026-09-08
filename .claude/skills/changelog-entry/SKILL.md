@@ -1,140 +1,60 @@
 ---
 name: changelog-entry
-description: Use after completing code changes to create a changie changelog entry in .changes/unreleased/. Infers the change kind and body from the current session's work, confirms with the user, then writes the YAML file directly.
+description: Use after completing user-facing changes to create a Trellis TOML changelog entry in .changes/unreleased/. Skip contributor-only changes; otherwise infer the kind and body, confirm with the user, then run trellis changelog new.
 ---
 
-<required>
-*CRITICAL* Add the following steps to your Todo list using TodoWrite:
+# Changelog entry
 
-1. Review changes made in this session
-2. Infer changelog kind and draft body
-3. Confirm kind and body with the user
-4. Write the changelog YAML file to `.changes/unreleased/`
-5. Verify the file was created correctly
-</required>
+1. Review this session's changes with `git --no-pager diff` and the conversation.
+   Keep unrelated work out of the entry. Stop without creating an entry if
+   the change only affects contributor tooling, CI, or internal documentation.
+2. Choose a kind and draft the body.
+3. Use `ask_user` to confirm the kind and body. Revise if requested.
+4. Create the entry with `trellis changelog new --kind <kind> --body <body>`,
+   or `just change <kind> <body>`. Quote the body as one shell argument.
+5. Read the generated TOML file and run `trellis version plan` to confirm
+   that the entry parses and gives the expected bump.
 
-# Overview
+## Kind
 
-This skill creates changelog entries for the slate project using the [changie](https://changie.dev/) format. Instead of running the interactive `changie new` command, you write the YAML file directly to `.changes/unreleased/`.
+Use the kinds configured in `[tools.trellis.changelog]` in `gleam.toml`:
 
-# Step-by-Step Process
+| Kind | When to use | Version bump |
+| --- | --- | --- |
+| Breaking | Incompatible public API changes | major |
+| Added | New features or public API | minor |
+| Changed | Non-breaking user-facing behavior changes | patch |
+| Deprecated | Features marked for future removal | patch |
+| Fixed | Bug fixes | patch |
+| Performance | Performance improvements | patch |
+| Removed | Removals that do not break the public API | patch |
+| Reverted | Reverted changes | patch |
+| Dependencies | Dependency updates | patch |
+| Security | Security fixes | patch |
 
-## 1. Review changes made in this session
+## Body
 
-Run `git --no-pager diff --stat` and `git --no-pager diff` (or `git --no-pager diff --cached` for staged changes) to understand what changed. Also review any context from the current conversation about what was implemented.
+Use a summary sentence as the first line. Add a blank line before details,
+migration notes, or examples. Use past tense or present-effect tense:
+"Added batch insert support" or "`with_table` now closes on exception."
+For Breaking entries, include before/after Gleam examples.
 
-## 2. Infer the changelog kind and draft the body
+## Format
 
-Pick exactly **one** kind from this list:
+Trellis writes `.changes/unreleased/slate-<body-slug>.toml`. It selects the
+package because `slate` is the only releasable member. There is no timestamp.
 
-| Kind           | When to use                                | Version bump |
-|----------------|--------------------------------------------|--------------|
-| **Breaking**   | Public API changed in incompatible ways    | minor        |
-| **Added**      | New features or public API surface         | minor        |
-| **Changed**    | Non-breaking changes to existing behavior  | patch        |
-| **Deprecated** | Features marked for future removal         | patch        |
-| **Fixed**      | Bug fixes                                  | patch        |
-| **Performance**| Performance improvements                   | patch        |
-| **Removed**    | Removed features or API surface            | patch        |
-| **Reverted**   | Reverted a previous change                 | patch        |
-| **Dependencies** | Dependency updates                       | patch        |
-| **Security**   | Security-related fixes                     | patch        |
+```toml
+package = "slate"
+kind = "Fixed"
+body = """
+`with_table` now closes the table when the callback raises.
 
-Draft the body following these conventions:
-
-- **First line**: A concise summary sentence describing the change. This becomes the entry title.
-- **Remaining lines** (optional): A longer explanation, migration notes, or before/after code examples.
-- Use Gleam fenced code blocks (` ```gleam `) for code examples when showing API changes.
-- For **Breaking** changes, always include before/after code examples showing the migration path.
-- Write in past tense or present-effect tense (e.g., "Added batch insert support" or "`with_table` now closes on exception").
-
-## 3. Confirm with the user
-
-Use the `ask_user` tool to present the inferred kind and drafted body. Ask the user to confirm or adjust. Example:
-
-> I'd like to create this changelog entry:
->
-> **Kind:** Fixed
->
-> **Body:**
-> ```
-> `with_table/3` now closes the table handle when the callback throws an exception.
->
-> Previously, if the user-supplied callback raised an exception, the DETS table
-> handle would be left open. The table is now closed in all cases.
-> ```
->
-> Does this look correct?
-
-If the user wants changes, revise and confirm again.
-
-## 4. Write the changelog YAML file
-
-Generate a timestamp and write the file to `.changes/unreleased/`.
-
-**Filename format:** `{Kind}-{YYYYMMDD}-{HHMMSS}.yaml`
-
-Generate the timestamp by running:
-
-```bash
-date -u +"%Y%m%d-%H%M%S"
+Previously, a callback exception could leave the table open."""
 ```
 
-Use the output to construct the filename. For example, if the kind is `Fixed` and the timestamp is `20260328-041500`, the file is:
-
-```
-.changes/unreleased/Fixed-20260328-041500.yaml
-```
-
-**File format:**
-
-```yaml
-kind: {Kind}
-body: |-
-    {first line of body}
-
-    {remaining lines of body, preserving blank lines and indentation}
-time: {ISO 8601 timestamp with timezone}
-```
-
-Generate the ISO 8601 timestamp by running:
-
-```bash
-date -u +"%Y-%m-%dT%H:%M:%S.000000+00:00"
-```
-
-**Important YAML rules:**
-- Use `body: |-` (literal block scalar, strip final newline)
-- Indent every line of the body by exactly 4 spaces
-- Preserve blank lines within the body (they become empty lines in the block scalar)
-- The `time` field uses full ISO 8601 with microsecond precision and timezone offset
-
-## 5. Verify the file
-
-After writing, run:
-
-```bash
-cat .changes/unreleased/{filename}
-```
-
-Confirm the YAML is valid and the content matches what the user approved.
-
-# Example Entry
-
-```yaml
-kind: Fixed
-body: |-
-    `with_table/3` now closes the table handle when the callback throws an exception.
-
-    Previously, if the user-supplied callback raised an exception, the DETS table
-    handle would be left open. The table is now closed in all cases, including
-    when the callback throws.
-time: 2026-03-22T00:00:00.000000+00:00
-```
-
-# Notes
-
-- Only create **one** changelog entry per logical change. If a session includes multiple unrelated changes, create separate entries for each.
-- The `.changes/unreleased/` directory must already exist. If it doesn't, create it.
-- CI checks for changelog entries on PRs, so every user-facing change needs one.
-- Do **not** modify `CHANGELOG.md` directly — it is generated by `changie merge`.
+Keep one entry per logical user-facing change. Missing-entry reminders in CI
+are advisory; they do not make contributor-only changes need release notes.
+Do not edit `CHANGELOG.md` to add entries:
+Trellis generates it from the version sections in `.changes/slate/` when
+it updates the release PR.
