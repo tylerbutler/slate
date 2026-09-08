@@ -71,7 +71,8 @@ fn check_options(
     slate.RepairPolicy,
     slate.AccessMode,
     fn(table) -> Result(Int, slate.DetsError),
-  ) -> Result(Int, slate.DetsError),
+  ) ->
+    Result(Int, slate.DetsError),
   insert: fn(table, String, Int) -> Result(Nil, slate.DetsError),
   size: fn(table) -> Result(Int, slate.DetsError),
   close: fn(table) -> Result(Nil, slate.DetsError),
