@@ -87,16 +87,22 @@ Gleam `RepairPolicy` constructors map directly to Erlang atoms:
 DETS error atoms map back to Gleam `DetsError` constructors:
 - `not_found` → `NotFound`
 - `key_already_present` → `KeyAlreadyPresent`
-- `{file_error, _, enoent}` → `FileNotFound`
-- `{file_error, _, eacces}` / `{file_error, _, {error, eacces}}` / `{file_error, _, {error, einval}}` / `{access_mode, _}` → `AccessDenied`
-- `{type_mismatch, _}` / `{keypos_mismatch, _}` → `TypeMismatch`
-- `{incompatible_arguments, _}` / `incompatible_arguments` → `AlreadyOpen`
-- `{file_error, _, efbig}` → `FileSizeLimitExceeded`
+- `{file_error, path, enoent}` → `FileNotFound(context)`
+- `{file_error, path, eacces}` / `{file_error, path, {error, eacces}}` / `{file_error, path, {error, einval}}` / `{access_mode, path}` → `AccessDenied(context)`
+- `{type_mismatch, path}` / `{keypos_mismatch, path}` → `TypeMismatch(context)`
+- `{incompatible_arguments, path}` / `incompatible_arguments` → `AlreadyOpen(context)` (open supplies its known path when OTP omits it)
+- `{file_error, path, efbig}` / `{no_more_space_on_file, path}` → `FileSizeLimitExceeded(context)`
 - `badarg` / `{no_such_table, _}` → `TableDoesNotExist`
-- `{not_a_dets_file, _}` → `NotADetsFile`
-- `{needs_repair, _}` → `NeedsRepair`
+- `{not_a_dets_file, path}` → `NotADetsFile(context)`
+- `{needs_repair, path}` → `NeedsRepair(context)`
 - `DecodeErrors(List(decode.DecodeError))` — returned by read operations when data on disk doesn't match the provided decoders
 - Any other error → `UnexpectedError(formatted_string)`
+
+`FileErrorContext(path: Option(String), reason: String)` keeps OTP filenames and
+diagnostic reasons, including nested file-error reasons. Pathless errors use
+`None`; rename failures retain both filenames in `reason` rather than choosing
+one. `error_code` and `error_message` omit this context. Constructor payloads are
+a breaking change; see `docs/file-error-context-migration.md`.
 
 ### Key Design Decisions
 

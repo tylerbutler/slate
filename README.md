@@ -173,9 +173,22 @@ case set.lookup(table, key: "missing") {
 not a stable API contract, and `error_message` intentionally returns a generic
 message for that variant.
 
-When opening existing files, `Error(slate.NotADetsFile)` means the path is
-readable but not a DETS file, and `Error(slate.NeedsRepair)` means the file was
+When opening existing files, `Error(slate.NotADetsFile(context))` means the path is
+readable but not a DETS file, and `Error(slate.NeedsRepair(context))` means the file was
 not closed cleanly and you opened it with `NoRepair`.
+
+File-related errors carry `FileErrorContext(path: Option(String), reason: String)`.
+The path comes from OTP; `None` means OTP supplied no single filename. The reason
+retains lower-level diagnostics, including nested OTP reasons. Both fields are
+for trusted diagnostics only and can contain sensitive data. `error_code` and
+`error_message` do not include these details and their outputs are unchanged.
+
+**Breaking migration:** `FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`,
+`NeedsRepair`, `NotADetsFile`, and `FileSizeLimitExceeded` now require context.
+Change patterns such as `Error(slate.AccessDenied)` to
+`Error(slate.AccessDenied(_))`, or bind `context` to inspect it. See the
+[migration guide](docs/file-error-context-migration.md) for before/after examples,
+including code that constructs errors. No DETS file migration is needed.
 
 For `set.update_counter`, match `Error(set.CounterValueNotInteger)` directly and
 unwrap shared table failures as `Error(set.TableError(error))`.
@@ -238,7 +251,7 @@ The top-level `slate` module also provides:
 
 slate follows [Semantic Versioning](https://semver.org/). The **public API** covered by semver guarantees consists of four modules:
 
-- `slate` — shared types (`DetsError`, `AccessMode`, `RepairPolicy`, `TableInfo`) and helpers
+- `slate` — shared types (`DetsError`, `FileErrorContext`, `AccessMode`, `RepairPolicy`, `TableInfo`) and helpers
 - `slate/set` — set tables
 - `slate/bag` — bag tables
 - `slate/duplicate_bag` — duplicate bag tables

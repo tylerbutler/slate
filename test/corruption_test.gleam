@@ -7,6 +7,7 @@
 //// - NoRepair mode rejects damaged files
 //// - AutoRepair mode fixes damaged files
 
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/list
 import slate
@@ -73,7 +74,13 @@ pub fn no_repair_rejects_corrupted_file_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result |> expect.to_equal(Error(slate.NeedsRepair))
+  result
+  |> expect.to_equal(
+    Error(
+      slate.NeedsRepair(file_error_test_helper.context(path, "needs_repair")),
+    ),
+  )
+  test_helper.is_table_open(path) |> expect.to_equal(False)
   test_helper.cleanup(path)
 }
 
@@ -126,7 +133,13 @@ pub fn open_non_dets_file_test() -> Nil {
   let assert Ok(Nil) = write_garbage(path)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  result |> expect.to_equal(Error(slate.NotADetsFile))
+  result
+  |> expect.to_equal(
+    Error(
+      slate.NotADetsFile(file_error_test_helper.context(path, "not_a_dets_file")),
+    ),
+  )
+  test_helper.is_table_open(path) |> expect.to_equal(False)
   test_helper.cleanup(path)
 }
 
