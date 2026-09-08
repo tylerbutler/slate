@@ -12,10 +12,7 @@ import slate/set
 import startest/expect
 import test_helper
 
-fn expect_access_denied(
-  result: Result(a, slate.DetsError),
-  path: String,
-) -> Nil {
+fn expect_access_denied(result: Result(a, slate.DetsError), path: String) -> Nil {
   result
   |> expect.to_equal(
     Error(
