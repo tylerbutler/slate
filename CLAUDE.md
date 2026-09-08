@@ -24,11 +24,18 @@ just format       # Format code
 just format-check # Check formatting
 just check        # Type check
 just docs         # Build documentation
-just ci           # Run all CI checks (format, check, test, build)
+just ci           # Run all CI checks (doctor, format, check, test, build)
 just pr           # Alias for ci (use before PR)
 just main         # Extended checks for main branch
 just clean        # Remove build artifacts
+just doctor       # Check Trellis workspace and changelog invariants
+just changelog-preview # Preview the next version
+just release-pr   # Create or update the release PR (clean checkout required)
 ```
+
+Keep `just` for top-level coordination; its package recipes call Trellis.
+Configure Trellis in `[tools.trellis]` in the root `gleam.toml`. The root
+`slate` package is the only member; examples keep their separate build scope.
 
 ## Project Structure
 
@@ -121,18 +128,29 @@ Tests create temporary `.dets` files and clean them up after each test.
 
 Managed via `.tool-versions` (source of truth for CI):
 - Erlang 27.2.1
-- Gleam 1.14.0
+- Gleam 1.18.1
 - just 1.38.0
+- Trellis: `github:tylerbutler/trellis` in `.tool-versions`, also pinned in `.mise.toml`
 
 ## CI/CD
 
 ### Workflows
-- **ci.yml**: Format check, type check, build, test
-- **pr.yml**: PR title validation (commitlint), changelog entry check (changie)
-- **release.yml**: Automated versioning via changie-release
-  - Release PR titles must pass commitlint (pr.yml) — configured via `pr-title-template` in release.yml
-- **auto-tag.yml**: Auto-tag on release PR merge
-- **publish.yml**: Publish to Hex.pm on tag push
+- **ci.yml**: Trellis doctor, format check, type check, build, test, docs
+- **pr.yml**: PR title validation (commitlint), Trellis changelog check and preview
+- **release.yml**: Trellis versioning and release PR on `release/next`
+  - Trellis titles use `release: slate v<version>`; commitlint accepts `release`.
+- **auto-tag.yml**: Trellis tags the release PR's merge commit as `v<version>`
+- **publish.yml**: Run CI, then use Trellis for the GitHub Release and Hex publish
+
+### Changelog
+
+Run `just change <kind> "<body>"` to create a Trellis TOML fragment in
+`.changes/unreleased/` for user-facing changes. Omit entries for contributor-only
+tooling, CI, and internal documentation changes. Missing-entry reminders are
+advisory; invalid fragments fail CI. Keep the existing kind-to-version rules in
+`gleam.toml`: Breaking is major, Added is minor, and the other kinds are patch.
+Trellis generates `CHANGELOG.md` from `.changes/slate/v<version>.md`; do not
+edit the generated file to add entries.
 
 ## Conventions
 
