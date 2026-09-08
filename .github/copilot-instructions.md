@@ -22,7 +22,7 @@ This is a Gleam library (Erlang target only) wrapping Erlang's DETS disk storage
 
 ### FFI layer
 
-All three modules call into a single Erlang FFI file (`src/dets_ffi.erl`). The FFI wraps every `dets:*` call in try-catch and translates Erlang error tuples into atoms that map to the `DetsError` Gleam type in `src/slate.gleam`. When adding new DETS operations, add the Erlang wrapper in `dets_ffi.erl`, then add `@external` bindings in the relevant Gleam module(s).
+All three modules call into a single Erlang FFI file (`src/slate_dets_ffi.erl`). The FFI wraps every `dets:*` call in try-catch and translates Erlang error tuples into atoms that map to the `DetsError` Gleam type in `src/slate.gleam`. When adding new DETS operations, add the Erlang wrapper in `slate_dets_ffi.erl`, then add `@external` bindings in the relevant Gleam module(s).
 
 Gleam constructors map to Erlang atoms automatically by convention (e.g., `AutoRepair` → `auto_repair`). The FFI pattern-matches on these atoms.
 

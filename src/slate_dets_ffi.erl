@@ -1,4 +1,4 @@
--module(dets_ffi).
+-module(slate_dets_ffi).
 -export([
     open_set/2, open_bag/2, open_duplicate_bag/2,
     open_set_with_access/3, open_bag_with_access/3, open_duplicate_bag_with_access/3,
@@ -36,10 +36,10 @@ do_open(Path, Type, Repair, Access) ->
     try
         CanonicalPath = canonicalize_path(Path),
         Name = table_name_for_path(CanonicalPath),
-        RepairVal = repair_value(Repair),
-        AccessVal = access_value(Access),
-        Opts = [{file, CanonicalPath}, {type, Type}, {repair, RepairVal}, {access, AccessVal}],
-        case dets:open_file(Name, Opts) of
+        RepairValue = repair_value(Repair),
+        AccessValue = access_value(Access),
+        Options = [{file, CanonicalPath}, {type, Type}, {repair, RepairValue}, {access, AccessValue}],
+        case dets:open_file(Name, Options) of
             {ok, Name} -> {ok, Name};
             {error, OpenReason} -> {error, translate_error(OpenReason)}
         end
@@ -66,8 +66,8 @@ canonicalize_path(Path) when is_list(Path) ->
 %% Collapse "." and ".." segments so that "./foo.dets" and "../cwd/foo.dets"
 %% resolve to the same canonical path.  Does NOT follow symlinks (the file
 %% may not exist yet).
-normalize_path(AbsPath) ->
-    Parts = filename:split(AbsPath),
+normalize_path(AbsolutePath) ->
+    Parts = filename:split(AbsolutePath),
     filename:join(normalize_parts(Parts, [])).
 
 normalize_parts([], Acc) -> lists:reverse(Acc);
@@ -198,7 +198,7 @@ lookup(Name, Key) ->
 lookup_all(Name, Key) ->
     try dets:lookup(Name, Key) of
         Results when is_list(Results) ->
-            Values = [V || {_, V} <- Results],
+            Values = [Value || {_, Value} <- Results],
             {ok, Values};
         {error, Reason} -> {error, translate_error(Reason)}
     catch
@@ -242,22 +242,22 @@ member(Name, Key) ->
         _:Reason -> {error, translate_error(Reason)}
     end.
 
-fold(Name, Fun, Acc0) ->
+fold(Name, Callback, Initial) ->
     AbortTag = make_ref(),
     CallbackExceptionTag = make_ref(),
-    WrappedFun = fun(Entry, Acc) ->
-        try Fun(Entry, Acc) of
-            {error, _} = Err -> throw({AbortTag, Err});
+    WrappedCallback = fun(Entry, Acc) ->
+        try Callback(Entry, Acc) of
+            {error, _} = Error -> throw({AbortTag, Error});
             Result -> Result
         catch
             Class:Reason:Stacktrace ->
                 throw({CallbackExceptionTag, Class, Reason, Stacktrace})
         end
     end,
-    try dets:foldl(WrappedFun, Acc0, Name) of
+    try dets:foldl(WrappedCallback, Initial, Name) of
         Result -> {ok, Result}
     catch
-        throw:{AbortTag, Err} -> {ok, Err};
+        throw:{AbortTag, Error} -> {ok, Error};
         throw:{CallbackExceptionTag, Class, Reason, Stacktrace} ->
             erlang:raise(Class, Reason, Stacktrace);
         error:Reason -> {error, translate_error(Reason)};
@@ -266,7 +266,7 @@ fold(Name, Fun, Acc0) ->
     end.
 
 to_list(Name) ->
-    try dets:foldl(fun(Obj, Acc) -> [Obj | Acc] end, [], Name) of
+    try dets:foldl(fun(Object, Acc) -> [Object | Acc] end, [], Name) of
         Result -> {ok, Result}
     catch
         _:Reason -> {error, translate_error(Reason)}
@@ -302,7 +302,7 @@ is_dets_file(Path) ->
 
 update_counter(Name, Key, Increment) ->
     try dets:update_counter(Name, Key, Increment) of
-        NewVal when is_integer(NewVal) -> {ok, NewVal};
+        NewValue when is_integer(NewValue) -> {ok, NewValue};
         {error, Reason} -> {error, update_counter_table_error(Reason)};
         Other -> {error, update_counter_table_error({update_counter, Other})}
     catch
