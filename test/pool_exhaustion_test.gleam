@@ -1,4 +1,4 @@
-//// Tests for the bounded table-name pool in `dets_ffi.erl`.
+//// Tests for the bounded table-name pool in `slate_dets_ffi.erl`.
 ////
 //// The pool has 4096 slots (`?TABLE_NAME_POOL_SIZE`). When a table is opened,
 //// `allocate_table_name/1` hashes the canonical path to pick a starting slot
@@ -15,7 +15,7 @@
 ////      (no extra slot consumed).
 ////
 //// The exhaustion error path (`TableNamePoolExhausted`) has
-//// been verified by code review of `dets_ffi.erl` lines 92-93.
+//// been verified by code review of `slate_dets_ffi.erl`'s `allocate_table_name/3`.
 
 import gleam/dynamic/decode
 import gleam/int

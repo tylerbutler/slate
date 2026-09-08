@@ -11,7 +11,7 @@ Primary objective:
 
 Repository context:
 - slate wraps DETS via Gleam modules in `src/slate/{set,bag,duplicate_bag}.gleam`.
-- FFI and low-level behavior live in `src/dets_ffi.erl` and `src/with_table_ffi.erl`.
+- FFI and low-level behavior live in `src/slate_dets_ffi.erl` and `src/slate_with_table_ffi.erl`.
 
 Performance strategy:
 - Prefer OTP-native architectures: supervised workers, clear process ownership, bounded mailboxes, and failure isolation.

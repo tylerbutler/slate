@@ -33,11 +33,15 @@ pub type UpdateCounterError {
 
 /// An open DETS set table with typed keys and values.
 pub opaque type Set(k, v) {
-  Set(ref: TableRef, key_decoder: Decoder(k), value_decoder: Decoder(v))
+  Set(
+    reference: TableReference,
+    key_decoder: Decoder(k),
+    value_decoder: Decoder(v),
+  )
 }
 
 /// Internal reference to the DETS table (Erlang atom).
-type TableRef
+type TableReference
 
 type UpdateCounterFfiError {
   FfiCounterValueNotInteger
@@ -89,7 +93,7 @@ pub fn open_with(
   value_decoder value_decoder: Decoder(v),
 ) -> Result(Set(k, v), DetsError) {
   ffi_open_set(path, repair)
-  |> result.map(fn(ref) { Set(ref:, key_decoder:, value_decoder:) })
+  |> result.map(fn(reference) { Set(reference:, key_decoder:, value_decoder:) })
 }
 
 /// Open a DETS set table with repair and access mode options.
@@ -103,7 +107,7 @@ pub fn open_with(
 /// let assert Ok(table) = set.open_with_access(path: "data/cache.dets",
 ///   repair: AutoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
-/// let assert Ok(val) = set.lookup(table, key: "key")
+/// let assert Ok(value) = set.lookup(table, key: "key")
 /// // set.insert(table, "key", "val") would return Error(AccessDenied)
 /// ```
 ///
@@ -115,14 +119,14 @@ pub fn open_with_access(
   value_decoder value_decoder: Decoder(v),
 ) -> Result(Set(k, v), DetsError) {
   ffi_open_set_with_access(path, repair, access)
-  |> result.map(fn(ref) { Set(ref:, key_decoder:, value_decoder:) })
+  |> result.map(fn(reference) { Set(reference:, key_decoder:, value_decoder:) })
 }
 
 /// Close the table, flushing all pending writes to disk.
 ///
 /// The table handle must not be used after closing.
 pub fn close(table: Set(k, v)) -> Result(Nil, DetsError) {
-  ffi_close(table.ref)
+  ffi_close(table.reference)
 }
 
 /// Flush pending writes to disk without closing the table.
@@ -130,7 +134,7 @@ pub fn close(table: Set(k, v)) -> Result(Nil, DetsError) {
 /// DETS auto-syncs periodically, so this is only needed when you require
 /// a durability guarantee at a specific point (e.g., after a critical write).
 pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
-  ffi_sync(table.ref)
+  ffi_sync(table.reference)
 }
 
 /// Use a table within a callback, ensuring it is closed afterward.
@@ -153,11 +157,11 @@ pub fn with_table(
   path: String,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
-  fun fun: fn(Set(k, v)) -> Result(a, DetsError),
+  fun callback: fn(Set(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open(path, key_decoder:, value_decoder:) {
-    Ok(table) -> ffi_with_close(table, fun, close)
-    Error(err) -> Error(err)
+    Ok(table) -> ffi_with_close(table, callback, close)
+    Error(error) -> Error(error)
   }
 }
 
@@ -173,17 +177,17 @@ pub fn with_table(
 /// for missing keys instead of `Error(NotFound)`, since those table types
 /// naturally return a list of values.
 pub fn lookup(from table: Set(k, v), key key: k) -> Result(v, DetsError) {
-  case ffi_lookup(table.ref, key) {
+  case ffi_lookup(table.reference, key) {
     Ok(dynamic_value) ->
       decode.run(dynamic_value, table.value_decoder)
       |> result.map_error(slate.DecodeErrors)
-    Error(err) -> Error(err)
+    Error(error) -> Error(error)
   }
 }
 
 /// Check if a key exists without returning the value.
 pub fn member(of table: Set(k, v), key key: k) -> Result(Bool, DetsError) {
-  ffi_member(table.ref, key)
+  ffi_member(table.reference, key)
 }
 
 /// Return all key-value pairs as a list.
@@ -192,10 +196,10 @@ pub fn member(of table: Set(k, v), key key: k) -> Result(Bool, DetsError) {
 /// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
 /// expected types.
 pub fn to_list(from table: Set(k, v)) -> Result(List(#(k, v)), DetsError) {
-  case ffi_to_list(table.ref) {
+  case ffi_to_list(table.reference) {
     Ok(entries) ->
       internal.decode_entries(entries, table.key_decoder, table.value_decoder)
-    Error(err) -> Error(err)
+    Error(error) -> Error(error)
   }
 }
 
@@ -207,21 +211,21 @@ pub fn to_list(from table: Set(k, v)) -> Result(List(#(k, v)), DetsError) {
 pub fn fold(
   over table: Set(k, v),
   from initial: acc,
-  with fun: fn(acc, k, v) -> acc,
+  with callback: fn(acc, k, v) -> acc,
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
-  let wrapper = fn(entry: Dynamic, acc_result: Result(acc, DetsError)) {
-    case acc_result {
-      Error(err) -> Error(err)
+  let wrapper = fn(entry: Dynamic, accumulator_result: Result(acc, DetsError)) {
+    case accumulator_result {
+      Error(error) -> Error(error)
       Ok(acc) ->
         case decode.run(entry, entry_decoder) {
-          Ok(#(k, v)) -> Ok(fun(acc, k, v))
+          Ok(#(key, value)) -> Ok(callback(acc, key, value))
           Error(errors) -> Error(slate.DecodeErrors(errors))
         }
     }
   }
-  ffi_fold(table.ref, wrapper, Ok(initial))
+  ffi_fold(table.reference, wrapper, Ok(initial))
   |> result.flatten
 }
 
@@ -243,7 +247,7 @@ pub fn fold(
 /// ```gleam
 /// set.fold_results(table, [], fn(acc, entry) {
 ///   case entry {
-///     Ok(#(k, v)) -> [#(k, v), ..acc]
+///     Ok(#(key, value)) -> [#(key, value), ..acc]
 ///     Error(_) -> acc
 ///   }
 /// })
@@ -254,28 +258,28 @@ pub fn fold(
 /// ```gleam
 /// set.fold_results(table, #([], []), fn(acc, entry) {
 ///   case entry {
-///     Ok(#(k, v)) -> #([#(k, v), ..acc.0], acc.1)
-///     Error(errs) -> #(acc.0, [errs, ..acc.1])
+///     Ok(#(key, value)) -> #([#(key, value), ..acc.0], acc.1)
+///     Error(errors) -> #(acc.0, [errors, ..acc.1])
 ///   }
 /// })
 /// ```
 pub fn fold_results(
   over table: Set(k, v),
   from initial: acc,
-  with fun: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
+  with callback: fn(acc, Result(#(k, v), List(decode.DecodeError))) -> acc,
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
   let wrapper = fn(entry: Dynamic, acc: acc) {
     let decoded = decode.run(entry, entry_decoder)
-    fun(acc, decoded)
+    callback(acc, decoded)
   }
-  ffi_fold(table.ref, wrapper, initial)
+  ffi_fold(table.reference, wrapper, initial)
 }
 
 /// Return the number of objects stored.
 pub fn size(of table: Set(k, v)) -> Result(Int, DetsError) {
-  ffi_info_size(table.ref)
+  ffi_info_size(table.reference)
 }
 
 // ── Write ───────────────────────────────────────────────────────────────
@@ -286,7 +290,7 @@ pub fn insert(
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_insert(table.ref, #(key, value))
+  ffi_insert(table.reference, #(key, value))
 }
 
 /// Insert multiple key-value pairs.
@@ -294,7 +298,7 @@ pub fn insert_list(
   into table: Set(k, v),
   entries entries: List(#(k, v)),
 ) -> Result(Nil, DetsError) {
-  ffi_insert_list(table.ref, entries)
+  ffi_insert_list(table.reference, entries)
 }
 
 /// Insert only if the key does not already exist.
@@ -305,7 +309,7 @@ pub fn insert_new(
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_insert_new(table.ref, #(key, value))
+  ffi_insert_new(table.reference, #(key, value))
 }
 
 // ── Delete ──────────────────────────────────────────────────────────────
@@ -315,7 +319,7 @@ pub fn insert_new(
 /// This operation is idempotent — deleting a key that does not exist
 /// succeeds with `Ok(Nil)`.
 pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
-  ffi_delete_key(table.ref, key)
+  ffi_delete_key(table.reference, key)
 }
 
 /// Delete a specific key-value pair from the table.
@@ -328,12 +332,12 @@ pub fn delete_object(
   key key: k,
   value value: v,
 ) -> Result(Nil, DetsError) {
-  ffi_delete_object(table.ref, #(key, value))
+  ffi_delete_object(table.reference, #(key, value))
 }
 
 /// Delete all objects in the table (keeps the table open).
 pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
-  ffi_delete_all(table.ref)
+  ffi_delete_all(table.reference)
 }
 
 // ── Counters ────────────────────────────────────────────────────────────
@@ -361,98 +365,104 @@ pub fn update_counter(
   key key: k,
   increment amount: Int,
 ) -> Result(Int, UpdateCounterError) {
-  ffi_update_counter(table.ref, key, amount)
-  |> result.map_error(update_counter_error_from_ffi)
+  ffi_update_counter(table.reference, key, amount)
+  |> result.map_error(ffi_error_to_update_counter_error)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
 
 /// Get information about an open table.
 pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {
-  case ffi_info_file_size(table.ref), ffi_info_size(table.ref) {
-    Ok(file_size), Ok(object_count) ->
-      Ok(slate.TableInfo(file_size:, object_count:))
-    Error(err), _ -> Error(err)
-    _, Error(err) -> Error(err)
-  }
+  use file_size <- result.try(ffi_info_file_size(table.reference))
+  use object_count <- result.try(ffi_info_size(table.reference))
+  Ok(slate.TableInfo(file_size:, object_count:))
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────
 
-@external(erlang, "dets_ffi", "open_set")
+@external(erlang, "slate_dets_ffi", "open_set")
 fn ffi_open_set(
   path: String,
   repair: RepairPolicy,
-) -> Result(TableRef, DetsError)
+) -> Result(TableReference, DetsError)
 
-@external(erlang, "dets_ffi", "open_set_with_access")
+@external(erlang, "slate_dets_ffi", "open_set_with_access")
 fn ffi_open_set_with_access(
   path: String,
   repair: RepairPolicy,
   access: AccessMode,
-) -> Result(TableRef, DetsError)
+) -> Result(TableReference, DetsError)
 
-@external(erlang, "dets_ffi", "close")
-fn ffi_close(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "close")
+fn ffi_close(reference: TableReference) -> Result(Nil, DetsError)
 
-@external(erlang, "with_table_ffi", "with_close")
+@external(erlang, "slate_with_table_ffi", "with_close")
 fn ffi_with_close(
   table: Set(k, v),
-  fun: fn(Set(k, v)) -> Result(a, DetsError),
+  callback: fn(Set(k, v)) -> Result(a, DetsError),
   close: fn(Set(k, v)) -> Result(Nil, DetsError),
 ) -> Result(a, DetsError)
 
-@external(erlang, "dets_ffi", "sync")
-fn ffi_sync(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "sync")
+fn ffi_sync(reference: TableReference) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert")
-fn ffi_insert(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "insert")
+fn ffi_insert(
+  reference: TableReference,
+  objects: #(k, v),
+) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert")
+@external(erlang, "slate_dets_ffi", "insert")
 fn ffi_insert_list(
-  ref: TableRef,
+  reference: TableReference,
   objects: List(#(k, v)),
 ) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "insert_new")
-fn ffi_insert_new(ref: TableRef, objects: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "insert_new")
+fn ffi_insert_new(
+  reference: TableReference,
+  objects: #(k, v),
+) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "lookup")
-fn ffi_lookup(ref: TableRef, key: k) -> Result(Dynamic, DetsError)
+@external(erlang, "slate_dets_ffi", "lookup")
+fn ffi_lookup(reference: TableReference, key: k) -> Result(Dynamic, DetsError)
 
-@external(erlang, "dets_ffi", "member")
-fn ffi_member(ref: TableRef, key: k) -> Result(Bool, DetsError)
+@external(erlang, "slate_dets_ffi", "member")
+fn ffi_member(reference: TableReference, key: k) -> Result(Bool, DetsError)
 
-@external(erlang, "dets_ffi", "to_list")
-fn ffi_to_list(ref: TableRef) -> Result(List(Dynamic), DetsError)
+@external(erlang, "slate_dets_ffi", "to_list")
+fn ffi_to_list(reference: TableReference) -> Result(List(Dynamic), DetsError)
 
-@external(erlang, "dets_ffi", "fold")
+@external(erlang, "slate_dets_ffi", "fold")
 fn ffi_fold(
-  ref: TableRef,
-  fun: fn(Dynamic, acc) -> acc,
+  reference: TableReference,
+  callback: fn(Dynamic, acc) -> acc,
   acc: acc,
 ) -> Result(acc, DetsError)
 
-@external(erlang, "dets_ffi", "info_size")
-fn ffi_info_size(ref: TableRef) -> Result(Int, DetsError)
+@external(erlang, "slate_dets_ffi", "info_size")
+fn ffi_info_size(reference: TableReference) -> Result(Int, DetsError)
 
-@external(erlang, "dets_ffi", "info_file_size")
-fn ffi_info_file_size(ref: TableRef) -> Result(Int, DetsError)
+@external(erlang, "slate_dets_ffi", "info_file_size")
+fn ffi_info_file_size(reference: TableReference) -> Result(Int, DetsError)
 
-@external(erlang, "dets_ffi", "update_counter")
+@external(erlang, "slate_dets_ffi", "update_counter")
 fn ffi_update_counter(
-  ref: TableRef,
+  reference: TableReference,
   key: k,
   increment: Int,
 ) -> Result(Int, UpdateCounterFfiError)
 
-@external(erlang, "dets_ffi", "delete_key")
-fn ffi_delete_key(ref: TableRef, key: k) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_key")
+fn ffi_delete_key(reference: TableReference, key: k) -> Result(Nil, DetsError)
 
-@external(erlang, "dets_ffi", "delete_object")
-fn ffi_delete_object(ref: TableRef, object: #(k, v)) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_object")
+fn ffi_delete_object(
+  reference: TableReference,
+  object: #(k, v),
+) -> Result(Nil, DetsError)
 
-fn update_counter_error_from_ffi(
+fn ffi_error_to_update_counter_error(
   error: UpdateCounterFfiError,
 ) -> UpdateCounterError {
   case error {
@@ -461,5 +471,5 @@ fn update_counter_error_from_ffi(
   }
 }
 
-@external(erlang, "dets_ffi", "delete_all")
-fn ffi_delete_all(ref: TableRef) -> Result(Nil, DetsError)
+@external(erlang, "slate_dets_ffi", "delete_all")
+fn ffi_delete_all(reference: TableReference) -> Result(Nil, DetsError)
