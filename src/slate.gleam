@@ -38,8 +38,9 @@ import gleam/option.{type Option}
 
 /// Diagnostic context for an expected file error.
 ///
-/// `path` is the filename reported by OTP, not a table name. Open operations
-/// normally report an absolute path; `is_dets_file` can report a relative path.
+/// `path` is the filename reported by OTP, not a table name. For a pathless
+/// `AlreadyOpen` error, open operations supply the path they passed to OTP.
+/// Opens normally report an absolute path; `is_dets_file` can report a relative path.
 /// `None` means OTP supplied no single filename (for example, a pathless error
 /// or a rename failure with two filenames). No table lookup is needed, so
 /// context remains usable after the table closes.
@@ -68,7 +69,7 @@ pub type DetsError {
   /// Table file or a parent directory does not exist
   FileNotFound(FileErrorContext)
   /// Table is already open with a different configuration
-  AlreadyOpen
+  AlreadyOpen(FileErrorContext)
   /// The table does not exist (not open)
   TableDoesNotExist
   /// File exceeds the 2 GB DETS limit
@@ -122,7 +123,7 @@ pub fn error_code(of error: DetsError) -> String {
   case error {
     NotFound -> "not_found"
     FileNotFound(_) -> "file_not_found"
-    AlreadyOpen -> "already_open"
+    AlreadyOpen(_) -> "already_open"
     TableDoesNotExist -> "table_does_not_exist"
     FileSizeLimitExceeded(_) -> "file_size_limit_exceeded"
     KeyAlreadyPresent -> "key_already_present"
@@ -144,7 +145,7 @@ pub fn error_message(of error: DetsError) -> String {
   case error {
     NotFound -> "No value was found for the requested key."
     FileNotFound(_) -> "The DETS file could not be found."
-    AlreadyOpen -> "The table is already open with incompatible options."
+    AlreadyOpen(_) -> "The table is already open with incompatible options."
     TableDoesNotExist -> "The table is not currently open."
     FileSizeLimitExceeded(_) -> "The DETS file exceeded the 2 GB size limit."
     KeyAlreadyPresent -> "The key or key-value pair is already present."

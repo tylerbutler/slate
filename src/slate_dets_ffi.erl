@@ -41,6 +41,9 @@ do_open(Path, Type, Repair, Access) ->
         Options = [{file, CanonicalPath}, {type, Type}, {repair, RepairValue}, {access, AccessValue}],
         case dets:open_file(Name, Options) of
             {ok, Name} -> {ok, Name};
+            {error, incompatible_arguments} ->
+                %% OTP omits the filename for conflicting open options.
+                {error, contextual_file_error(already_open, CanonicalPath, incompatible_arguments)};
             {error, OpenReason} -> {error, translate_error(OpenReason)}
         end
     catch
@@ -361,8 +364,12 @@ translate_error({type_mismatch, Path}) ->
     contextual_file_error(type_mismatch, Path, type_mismatch);
 translate_error({keypos_mismatch, Path}) ->
     contextual_file_error(type_mismatch, Path, keypos_mismatch);
-translate_error({incompatible_arguments, _}) -> already_open;
-translate_error(incompatible_arguments) -> already_open;
+translate_error({incompatible_arguments, Path}) when is_binary(Path); is_list(Path) ->
+    contextual_file_error(already_open, Path, incompatible_arguments);
+translate_error({incompatible_arguments, Context}) ->
+    contextual_error(already_open, none, {incompatible_arguments, Context});
+translate_error(incompatible_arguments) ->
+    contextual_error(already_open, none, incompatible_arguments);
 translate_error(badarg) -> table_does_not_exist;
 translate_error({no_such_table, _}) -> table_does_not_exist;
 translate_error({no_more_space_on_file, Path}) ->

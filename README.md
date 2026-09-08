@@ -183,7 +183,7 @@ retains lower-level diagnostics, including nested OTP reasons. Both fields are
 for trusted diagnostics only and can contain sensitive data. `error_code` and
 `error_message` do not include these details and their outputs are unchanged.
 
-**Breaking migration:** `FileNotFound`, `AccessDenied`, `TypeMismatch`,
+**Breaking migration:** `FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`,
 `NeedsRepair`, `NotADetsFile`, and `FileSizeLimitExceeded` now require context.
 Change patterns such as `Error(slate.AccessDenied)` to
 `Error(slate.AccessDenied(_))`, or bind `context` to inspect it. See the

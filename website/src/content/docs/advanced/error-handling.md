@@ -9,7 +9,7 @@ For a stable machine-readable code or a user-facing message, use [`slate.error_c
 
 ## File context and migration (breaking)
 
-`FileNotFound`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`, `NotADetsFile`,
+`FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`, `NotADetsFile`,
 and `FileSizeLimitExceeded` now each carry
 `FileErrorContext(path: Option(String), reason: String)`.
 
@@ -32,13 +32,14 @@ let error = slate.NeedsRepair(
 ```
 
 Use `(_)` instead of `(context)` when only the category matters. Apply this
-change to all six constructors, including errors inside `set.TableError`.
+change to all seven constructors, including errors inside `set.TableError`.
 `NotFound`, `KeyAlreadyPresent`, and `DecodeErrors` do not change. No DETS
 file-format migration is needed, unless your application stores `DetsError`
 values themselves as data.
 
-The path is the filename reported by OTP. Opens normally report an absolute
-path; `is_dets_file` can report a relative path. `None` means OTP supplied no
+The path is the filename reported by OTP. For a pathless `AlreadyOpen` error,
+open operations retain the known path they passed to OTP. Opens normally report
+an absolute path; `is_dets_file` can report a relative path. `None` means there is no
 single filename—never substitute an empty string or guess from a table-name atom.
 For rename failures, both filenames remain in `reason` and `path` is `None`.
 Context is kept in the error value and remains usable after the table closes.
@@ -130,6 +131,8 @@ The file was not closed cleanly and you opened it with `NoRepair`. Reopen with `
 ### `AlreadyOpen`
 
 The table is already open with an incompatible configuration (for example, different access mode).
+Match `AlreadyOpen(context)` to inspect the path and the
+`"incompatible_arguments"` reason.
 
 ### `TableDoesNotExist`
 
@@ -207,7 +210,7 @@ let assert Ok(Nil) = set.insert(table, "key", "value")
 | `FileNotFound(_)` | File or parent directory missing | `open*`, `is_dets_file` |
 | `NotADetsFile(_)` | Path exists but is not a DETS file | `open*` (`is_dets_file` returns `Ok(False)`) |
 | `NeedsRepair(_)` | File not closed cleanly, opened with `NoRepair` | `open_with`, `open_with_access` |
-| `AlreadyOpen` | Table open with different config | `open*` |
+| `AlreadyOpen(context)` | Table open with different config | `open*` |
 | `TableDoesNotExist` | Invalid table handle (already closed) | Most operations |
 | `FileSizeLimitExceeded(_)` | Write would exceed 2 GB | Write operations |
 | `TableNamePoolExhausted` | Too many tables open at once | `open*` |

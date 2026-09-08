@@ -2,11 +2,13 @@ kind: Breaking
 body: |-
     Added structured context to expected file errors.
 
-    `FileNotFound`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`,
+    `FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`,
     `NotADetsFile`, and `FileSizeLimitExceeded` now each carry
     `FileErrorContext(path: Option(String), reason: String)`. The FFI retains
     OTP filenames and lower-level reasons, including nested file errors.
-    Pathless errors use `None`, not an empty string or a guessed filename.
+    Open operations retain the known path when OTP omits it from an
+    `AlreadyOpen` error. Other pathless errors use `None`, not an empty
+    string or a guessed filename.
     `no_more_space_on_file` now maps to `FileSizeLimitExceeded`.
 
     Before:
@@ -28,7 +30,7 @@ body: |-
     ```
 
     Bind `(context)` instead of `(_)` to inspect `context.path` and
-    `context.reason`. Update all six constructor patterns and values,
+    `context.reason`. Update all seven constructor patterns and values,
     including those inside `set.TableError`.
 
     This breaks source and in-memory error representation compatibility.

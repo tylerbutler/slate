@@ -26,6 +26,11 @@ pub fn file_error_context_pathless_otp_errors_test() -> Nil {
     slate.NotADetsFile(slate.FileErrorContext(None, "not_a_dets_file")),
     slate.NeedsRepair(slate.FileErrorContext(None, "needs_repair")),
     slate.AccessDenied(slate.FileErrorContext(None, "eacces")),
+    slate.AlreadyOpen(slate.FileErrorContext(None, "incompatible_arguments")),
+    slate.AlreadyOpen(slate.FileErrorContext(
+      None,
+      "{incompatible_arguments,slate_context_table}",
+    )),
     slate.TableDoesNotExist,
     slate.TableDoesNotExist,
   ])
@@ -52,6 +57,74 @@ pub fn file_error_context_missing_parent_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   context |> expect.to_equal(file_error_test_helper.context(path, "enoent"))
   test_helper.is_table_open(path) |> expect.to_equal(False)
+}
+
+pub fn file_error_context_set_conflicting_options_test() -> Nil {
+  check_conflicting_options(
+    "test_context_set_conflict.dets",
+    fn(path, access) {
+      set.open_with_access(
+        path:,
+        repair: slate.AutoRepair,
+        access:,
+        key_decoder: decode.string,
+        value_decoder: decode.int,
+      )
+    },
+    set.close,
+  )
+}
+
+pub fn file_error_context_bag_conflicting_options_test() -> Nil {
+  check_conflicting_options(
+    "test_context_bag_conflict.dets",
+    fn(path, access) {
+      bag.open_with_access(
+        path:,
+        repair: slate.AutoRepair,
+        access:,
+        key_decoder: decode.string,
+        value_decoder: decode.int,
+      )
+    },
+    bag.close,
+  )
+}
+
+pub fn file_error_context_duplicate_bag_conflicting_options_test() -> Nil {
+  check_conflicting_options(
+    "test_context_duplicate_bag_conflict.dets",
+    fn(path, access) {
+      duplicate_bag.open_with_access(
+        path:,
+        repair: slate.AutoRepair,
+        access:,
+        key_decoder: decode.string,
+        value_decoder: decode.int,
+      )
+    },
+    duplicate_bag.close,
+  )
+}
+
+fn check_conflicting_options(
+  path: String,
+  open: fn(String, slate.AccessMode) -> Result(table, slate.DetsError),
+  close: fn(table) -> Result(Nil, slate.DetsError),
+) -> Nil {
+  let assert Ok(table) = open(path, slate.ReadWrite)
+  let assert Error(slate.AlreadyOpen(context)) =
+    open("./unused/../" <> path, slate.ReadOnly)
+  let assert Ok(Nil) = close(table)
+  test_helper.is_table_open(path) |> expect.to_equal(False)
+  context
+  |> expect.to_equal(file_error_test_helper.context(
+    path,
+    "incompatible_arguments",
+  ))
+  let assert Ok(table) = open(path, slate.ReadOnly)
+  let assert Ok(Nil) = close(table)
+  test_helper.cleanup(path)
 }
 
 pub fn file_error_context_readonly_counter_test() -> Nil {
@@ -178,7 +251,7 @@ pub fn file_error_context_stable_safe_codes_and_messages_test() -> Nil {
         "The DETS file could not be found.",
       ),
       #(
-        slate.AlreadyOpen,
+        slate.AlreadyOpen(context),
         "already_open",
         "The table is already open with incompatible options.",
       ),
@@ -244,6 +317,7 @@ pub fn file_error_context_stable_safe_codes_and_messages_test() -> Nil {
 fn file_context(error: slate.DetsError) -> Result(slate.FileErrorContext, Nil) {
   case error {
     slate.FileNotFound(context)
+    | slate.AlreadyOpen(context)
     | slate.AccessDenied(context)
     | slate.TypeMismatch(context)
     | slate.NeedsRepair(context)
@@ -251,7 +325,6 @@ fn file_context(error: slate.DetsError) -> Result(slate.FileErrorContext, Nil) {
     | slate.FileSizeLimitExceeded(context) -> Ok(context)
     slate.NotFound
     | slate.KeyAlreadyPresent
-    | slate.AlreadyOpen
     | slate.TableDoesNotExist
     | slate.TableNamePoolExhausted
     | slate.DecodeErrors(_)

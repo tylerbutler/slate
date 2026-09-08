@@ -1,9 +1,10 @@
 # File error context migration (breaking)
 
-Six existing `slate.DetsError` constructors now carry one `FileErrorContext`:
+Seven existing `slate.DetsError` constructors now carry one `FileErrorContext`:
 
 ```gleam
 FileNotFound(FileErrorContext)
+AlreadyOpen(FileErrorContext)
 AccessDenied(FileErrorContext)
 TypeMismatch(FileErrorContext)
 NeedsRepair(FileErrorContext)
@@ -39,7 +40,8 @@ let assert Error(slate.NeedsRepair(_)) =
     key_decoder: decode.string, value_decoder: decode.string)
 ```
 
-Use the same `(context)` or `(_)` pattern for all six constructors. For counters,
+Use the same `(context)` or `(_)` pattern for all seven constructors. For example,
+change `Error(slate.AlreadyOpen)` to `Error(slate.AlreadyOpen(context))`. For counters,
 change `Error(set.TableError(slate.AccessDenied))` to
 `Error(set.TableError(slate.AccessDenied(context)))`.
 
@@ -85,6 +87,8 @@ the record, or propagate the original error unchanged.
 
 - `path` is the filename in the OTP error, not an internal table-name atom.
   Opens normally report the absolute, normalized path that slate passes to OTP.
+  For a pathless `incompatible_arguments` error during open, slate retains that
+  known path in `AlreadyOpen(context)` instead of discarding it.
   `is_dets_file` can report the relative path given by the caller. Do not assume
   every operation reports the same spelling or that symlinks are resolved.
 - `None` is used for pathless OTP errors, including bare `needs_repair` and
@@ -97,7 +101,7 @@ the record, or propagate the original error unchanged.
 - `reason` is diagnostic text, not a stable classifier. File-system errors keep
   their lower-level reason, for example `"enoent"` or `"{error,eacces}"`.
   Other errors retain their OTP tag, such as `"access_mode"`,
-  `"type_mismatch"`, `"keypos_mismatch"`, or `"needs_repair"`.
+  `"type_mismatch"`, `"keypos_mismatch"`, `"incompatible_arguments"`, or `"needs_repair"`.
   No expected/actual table type is invented when OTP supplies neither.
 - The DETS allocator's `no_more_space_on_file` reason maps to
   `FileSizeLimitExceeded`, as does the existing `efbig` file error.

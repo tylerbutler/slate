@@ -20,6 +20,9 @@ file_errors(Path) ->
         {{file_error, Path, {error, einval}}, <<"access_denied">>, <<"{error,einval}">>},
         {{access_mode, Path}, <<"access_denied">>, <<"access_mode">>},
         {{type_mismatch, Path}, <<"type_mismatch">>, <<"type_mismatch">>},
+        {{incompatible_arguments, Path}, <<"already_open">>, <<"incompatible_arguments">>},
+        {{error, {incompatible_arguments, binary_to_list(Path)}},
+            <<"already_open">>, <<"incompatible_arguments">>},
         {{error, {keypos_mismatch, Path}}, <<"type_mismatch">>, <<"keypos_mismatch">>},
         {{error, {needs_repair, Path}}, <<"needs_repair">>, <<"needs_repair">>},
         {{not_a_dets_file, Path}, <<"not_a_dets_file">>, <<"not_a_dets_file">>},
@@ -34,6 +37,8 @@ file_errors(Path) ->
 pathless_errors() ->
     [slate_dets_ffi:translate_error(Reason) || Reason <- [
         not_a_dets_file, {error, needs_repair}, {file_error, undefined, eacces},
+        {error, incompatible_arguments},
+        {incompatible_arguments, slate_context_table},
         badarg, {no_such_table, slate_context_missing_table}
     ]].
 

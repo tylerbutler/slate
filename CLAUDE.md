@@ -90,7 +90,7 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 - `{file_error, path, enoent}` → `FileNotFound(context)`
 - `{file_error, path, eacces}` / `{file_error, path, {error, eacces}}` / `{file_error, path, {error, einval}}` / `{access_mode, path}` → `AccessDenied(context)`
 - `{type_mismatch, path}` / `{keypos_mismatch, path}` → `TypeMismatch(context)`
-- `{incompatible_arguments, _}` / `incompatible_arguments` → `AlreadyOpen`
+- `{incompatible_arguments, path}` / `incompatible_arguments` → `AlreadyOpen(context)` (open supplies its known path when OTP omits it)
 - `{file_error, path, efbig}` / `{no_more_space_on_file, path}` → `FileSizeLimitExceeded(context)`
 - `badarg` / `{no_such_table, _}` → `TableDoesNotExist`
 - `{not_a_dets_file, path}` → `NotADetsFile(context)`

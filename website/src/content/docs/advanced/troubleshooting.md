@@ -215,7 +215,7 @@ slate provides two helper functions for working with errors programmatically:
 File-error context does not change either output. Paths and lower-level reasons
 are diagnostic data, not safe user-facing messages. See
 [File context and migration](/advanced/error-handling/#file-context-and-migration-breaking)
-for the six constructors that now carry `FileErrorContext`.
+for the seven constructors that now carry `FileErrorContext`.
 
 ### Error code reference
 
@@ -223,7 +223,7 @@ for the six constructors that now carry `FileErrorContext`.
 |-------|------|---------|
 | `NotFound` | `"not_found"` | No value was found for the requested key. |
 | `FileNotFound(_)` | `"file_not_found"` | The DETS file could not be found. |
-| `AlreadyOpen` | `"already_open"` | The table is already open with incompatible options. |
+| `AlreadyOpen(_)` | `"already_open"` | The table is already open with incompatible options. |
 | `TableDoesNotExist` | `"table_does_not_exist"` | The table is not currently open. |
 | `FileSizeLimitExceeded(_)` | `"file_size_limit_exceeded"` | The DETS file exceeded the 2 GB size limit. |
 | `KeyAlreadyPresent` | `"key_already_present"` | The key or key-value pair is already present. |

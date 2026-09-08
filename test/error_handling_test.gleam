@@ -135,7 +135,15 @@ pub fn already_open_with_conflicting_access_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result |> expect.to_equal(Error(slate.AlreadyOpen))
+  result
+  |> expect.to_equal(
+    Error(
+      slate.AlreadyOpen(file_error_test_helper.context(
+        path,
+        "incompatible_arguments",
+      )),
+    ),
+  )
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
