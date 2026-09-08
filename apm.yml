@@ -1,0 +1,17 @@
+name: slate
+version: 1.0.0
+description: APM project for slate
+author: Tyler Butler
+# Which agent platforms to deploy to.
+# Resolution order: --target flag > this field > auto-detect from filesystem.
+# Accepted values: agent-skills, antigravity, claude, codex, copilot, cursor, gemini, grok-build, hermes, kiro, opencode, vscode, windsurf
+targets:
+  - claude
+  - copilot
+devDependencies:
+  apm:
+    - tylerbutler/apm-base
+    - tylerbutler/agent-marketplace/plugins/gleam
+  mcp: []
+includes: auto
+scripts: {}

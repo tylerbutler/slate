@@ -24,26 +24,33 @@ just format       # Format code
 just format-check # Check formatting
 just check        # Type check
 just docs         # Build documentation
-just ci           # Run all CI checks (format, check, test, build)
+just ci           # Run all CI checks (doctor, format, check, test, build)
 just pr           # Alias for ci (use before PR)
 just main         # Extended checks for main branch
 just clean        # Remove build artifacts
+just doctor       # Check Trellis workspace and changelog invariants
+just changelog-preview # Preview the next version
+just release-pr   # Create or update the release PR (clean checkout required)
 ```
+
+Keep `just` for top-level coordination; its package recipes call Trellis.
+Configure Trellis in `[tools.trellis]` in the root `gleam.toml`. The root
+`slate` package is the only member; examples keep their separate build scope.
 
 ## Project Structure
 
 ```
 src/
 ├── slate.gleam                # Shared types (DetsError, AccessMode, RepairPolicy, TableInfo)
-├── dets_ffi.erl              # Erlang FFI for DETS operations
-├── with_table_ffi.erl        # Close-on-exit helper used by with_table
+├── slate_dets_ffi.erl        # Erlang FFI for DETS operations
+├── slate_with_table_ffi.erl  # Close-on-exit helper used by with_table
 └── slate/
     ├── set.gleam             # Set tables (unique keys)
     ├── bag.gleam             # Bag tables (multiple distinct values per key)
     └── duplicate_bag.gleam   # Duplicate bag tables (duplicates allowed)
 test/
 ├── slate_test.gleam            # Test entry point (startest.run)
-├── test_helpers.gleam          # Shared test utilities (cleanup, unique paths)
+├── test_helper.gleam           # Shared test utilities (cleanup, unique paths)
 ├── set_test.gleam              # Set table tests
 ├── bag_test.gleam              # Bag table tests
 ├── duplicate_bag_test.gleam    # Duplicate bag table tests
@@ -56,7 +63,7 @@ test/
 ├── update_counter_test.gleam   # Atomic counter tests
 ├── corruption_test.gleam       # Corruption detection and repair tests
 ├── is_dets_file_test.gleam     # File validation tests
-└── test_helpers_test.gleam     # Tests for test helpers
+└── test_helper_test.gleam      # Tests for test helpers
 ```
 
 ## Architecture
@@ -67,8 +74,8 @@ test/
 - **`slate/set`**: Set tables — one value per key, `insert` overwrites
 - **`slate/bag`**: Bag tables — multiple distinct values per key
 - **`slate/duplicate_bag`**: Duplicate bag tables — allows duplicate key-value pairs
-- **`dets_ffi.erl`**: Erlang FFI wrapping `dets:*` calls with try-catch error translation
-- **`with_table_ffi.erl`**: Erlang helper that closes tables when `with_table` callbacks return or raise
+- **`slate_dets_ffi.erl`**: Erlang FFI wrapping `dets:*` calls with try-catch error translation
+- **`slate_with_table_ffi.erl`**: Erlang helper that closes tables when `with_table` callbacks return or raise
 
 ### FFI Pattern
 
@@ -95,7 +102,7 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 
 - **Module name**: `slate` (not `dets`) to avoid Erlang module name collision
 - **Opaque table handles**: `Set(k, v)`, `Bag(k, v)`, `DuplicateBag(k, v)` enforce type safety
-- **Bounded table-name pool**: `dets_ffi.erl` reuses a fixed internal pool of DETS table names instead of creating one atom per path
+- **Bounded table-name pool**: `slate_dets_ffi.erl` reuses a fixed internal pool of DETS table names instead of creating one atom per path
 - **`with_table` helper**: Closes when the callback returns and also attempts cleanup if the callback raises; it always uses the default `AutoRepair` + `ReadWrite` open path and is still not crash-proof if the owning process is killed outright
 
 ## Dependencies
@@ -121,18 +128,29 @@ Tests create temporary `.dets` files and clean them up after each test.
 
 Managed via `.tool-versions` (source of truth for CI):
 - Erlang 27.2.1
-- Gleam 1.14.0
+- Gleam 1.18.1
 - just 1.38.0
+- Trellis: `github:tylerbutler/trellis` in `.tool-versions`, also pinned in `.mise.toml`
 
 ## CI/CD
 
 ### Workflows
-- **ci.yml**: Format check, type check, build, test
-- **pr.yml**: PR title validation (commitlint), changelog entry check (changie)
-- **release.yml**: Automated versioning via changie-release
-  - Release PR titles must pass commitlint (pr.yml) — configured via `pr-title-template` in release.yml
-- **auto-tag.yml**: Auto-tag on release PR merge
-- **publish.yml**: Publish to Hex.pm on tag push
+- **ci.yml**: Trellis doctor, format check, type check, build, test, docs
+- **pr.yml**: PR title validation (commitlint), Trellis changelog check and preview
+- **release.yml**: Trellis versioning and release PR on `release/next`
+  - Trellis titles use `release: slate v<version>`; commitlint accepts `release`.
+- **auto-tag.yml**: Trellis tags the release PR's merge commit as `v<version>`
+- **publish.yml**: Run CI, then use Trellis for the GitHub Release and Hex publish
+
+### Changelog
+
+Run `just change <kind> "<body>"` to create a Trellis TOML fragment in
+`.changes/unreleased/` for user-facing changes. Omit entries for contributor-only
+tooling, CI, and internal documentation changes. Missing-entry reminders are
+advisory; invalid fragments fail CI. Keep the existing kind-to-version rules in
+`gleam.toml`: Breaking is major, Added is minor, and the other kinds are patch.
+Trellis generates `CHANGELOG.md` from `.changes/slate/v<version>.md`; do not
+edit the generated file to add entries.
 
 ## Conventions
 
