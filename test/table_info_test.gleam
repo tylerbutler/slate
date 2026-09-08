@@ -4,7 +4,7 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 pub fn set_info_before_and_after_close_test() -> Nil {
   let path = "test_set_info_before_and_after_close.dets"
@@ -18,7 +18,7 @@ pub fn set_info_before_and_after_close_test() -> Nil {
 
   let assert Ok(Nil) = set.close(table)
   set.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_info_before_and_after_close_test() -> Nil {
@@ -33,7 +33,7 @@ pub fn bag_info_before_and_after_close_test() -> Nil {
 
   let assert Ok(Nil) = bag.close(table)
   bag.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn duplicate_bag_info_before_and_after_close_test() -> Nil {
@@ -53,5 +53,5 @@ pub fn duplicate_bag_info_before_and_after_close_test() -> Nil {
 
   let assert Ok(Nil) = duplicate_bag.close(table)
   duplicate_bag.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }

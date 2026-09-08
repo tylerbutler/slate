@@ -43,7 +43,7 @@ Tests use the [startest](https://hexdocs.pm/startest/) framework (not `gleeunit`
 
 - Name test functions `{module}_{operation}_test` (e.g., `set_insert_lookup_test`).
 - Each test creates a temporary `.dets` file with a unique name.
-- Call `cleanup(path)` from `test/test_helpers.gleam` at the end of each test to delete the file.
+- Call `cleanup(path)` from `test/test_helper.gleam` at the end of each test to delete the file.
 - Use `let assert Ok(...)` for expected-success paths.
 - Use `|> expect.to_equal(...)` for specific value checks.
 

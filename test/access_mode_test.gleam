@@ -9,7 +9,7 @@ import slate/bag
 import slate/duplicate_bag
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── Set: read-only prevents writes ──────────────────────────────────────
 
@@ -21,7 +21,7 @@ pub fn set_readonly_lookup_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "key", "value")
   let assert Ok(Nil) = set.close(table)
   // Reopen as read-only
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -30,11 +30,11 @@ pub fn set_readonly_lookup_test() -> Nil {
       value_decoder: decode.string,
     )
   // Reads should work
-  let assert Ok("value") = set.lookup(ro, key: "key")
-  set.member(ro, key: "key") |> expect.to_equal(Ok(True))
-  set.size(ro) |> expect.to_equal(Ok(1))
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok("value") = set.lookup(read_only_table, key: "key")
+  set.member(read_only_table, key: "key") |> expect.to_equal(Ok(True))
+  set.size(read_only_table) |> expect.to_equal(Ok(1))
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_insert_fails_test() -> Nil {
@@ -42,7 +42,7 @@ pub fn set_readonly_insert_fails_test() -> Nil {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -50,10 +50,10 @@ pub fn set_readonly_insert_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = set.insert(ro, "new_key", "val")
+  let result = set.insert(read_only_table, "new_key", "val")
   result |> expect.to_equal(Error(slate.AccessDenied))
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_delete_fails_test() -> Nil {
@@ -62,7 +62,7 @@ pub fn set_readonly_delete_fails_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -70,12 +70,12 @@ pub fn set_readonly_delete_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = set.delete_key(ro, key: "key")
+  let result = set.delete_key(read_only_table, key: "key")
   result |> expect.to_equal(Error(slate.AccessDenied))
   // Key should still exist
-  let assert Ok("val") = set.lookup(ro, key: "key")
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok("val") = set.lookup(read_only_table, key: "key")
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_delete_all_fails_test() -> Nil {
@@ -84,7 +84,7 @@ pub fn set_readonly_delete_all_fails_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -92,13 +92,13 @@ pub fn set_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  set.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
-  let _ = set.close(ro)
-  let assert Ok(rw) =
+  set.delete_all(read_only_table) |> expect.to_equal(Error(slate.AccessDenied))
+  let _ = set.close(read_only_table)
+  let assert Ok(read_write_table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert Ok("val") = set.lookup(rw, key: "key")
-  let assert Ok(Nil) = set.close(rw)
-  test_helpers.cleanup(path)
+  let assert Ok("val") = set.lookup(read_write_table, key: "key")
+  let assert Ok(Nil) = set.close(read_write_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_insert_new_fails_test() -> Nil {
@@ -106,7 +106,7 @@ pub fn set_readonly_insert_new_fails_test() -> Nil {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -114,10 +114,10 @@ pub fn set_readonly_insert_new_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = set.insert_new(ro, "key", "val")
+  let result = set.insert_new(read_only_table, "key", "val")
   result |> expect.to_equal(Error(slate.AccessDenied))
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_fold_works_test() -> Nil {
@@ -127,7 +127,7 @@ pub fn set_readonly_fold_works_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.insert(table, "b", 2)
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -135,10 +135,11 @@ pub fn set_readonly_fold_works_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
-  let assert Ok(sum) = set.fold(ro, 0, fn(acc, _k, v) { acc + v })
+  let assert Ok(sum) =
+    set.fold(read_only_table, 0, fn(acc, _key, value) { acc + value })
   sum |> expect.to_equal(3)
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_to_list_works_test() -> Nil {
@@ -147,7 +148,7 @@ pub fn set_readonly_to_list_works_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -155,10 +156,10 @@ pub fn set_readonly_to_list_works_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
-  let assert Ok(entries) = set.to_list(ro)
+  let assert Ok(entries) = set.to_list(read_only_table)
   entries |> expect.to_equal([#("a", 1)])
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_info_works_test() -> Nil {
@@ -167,7 +168,7 @@ pub fn set_readonly_info_works_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.insert(table, "a", 1)
   let assert Ok(Nil) = set.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     set.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -175,10 +176,10 @@ pub fn set_readonly_info_works_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.int,
     )
-  let assert Ok(info) = set.info(ro)
+  let assert Ok(info) = set.info(read_only_table)
   info.object_count |> expect.to_equal(1)
-  let assert Ok(Nil) = set.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = set.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn set_readonly_nonexistent_file_fails_test() -> Nil {
@@ -196,7 +197,7 @@ pub fn set_readonly_nonexistent_file_fails_test() -> Nil {
     Error(_) -> Nil
     Ok(table) -> {
       let assert Ok(Nil) = set.close(table)
-      test_helpers.cleanup(path)
+      test_helper.cleanup(path)
       panic as "should have failed to open non-existent file as read-only"
     }
   }
@@ -211,7 +212,7 @@ pub fn bag_readonly_lookup_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "k", "a")
   let assert Ok(Nil) = bag.insert(table, "k", "b")
   let assert Ok(Nil) = bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -219,12 +220,12 @@ pub fn bag_readonly_lookup_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let assert Ok(values) = bag.lookup(ro, key: "k")
+  let assert Ok(values) = bag.lookup(read_only_table, key: "k")
   values
   |> list.sort(string.compare)
   |> expect.to_equal(["a", "b"])
-  let assert Ok(Nil) = bag.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_readonly_insert_fails_test() -> Nil {
@@ -232,7 +233,7 @@ pub fn bag_readonly_insert_fails_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -240,10 +241,10 @@ pub fn bag_readonly_insert_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = bag.insert(ro, "k", "v")
+  let result = bag.insert(read_only_table, "k", "v")
   result |> expect.to_equal(Error(slate.AccessDenied))
-  let assert Ok(Nil) = bag.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_readonly_delete_fails_test() -> Nil {
@@ -252,7 +253,7 @@ pub fn bag_readonly_delete_fails_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "v")
   let assert Ok(Nil) = bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -260,10 +261,10 @@ pub fn bag_readonly_delete_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = bag.delete_key(ro, key: "k")
+  let result = bag.delete_key(read_only_table, key: "k")
   result |> expect.to_equal(Error(slate.AccessDenied))
-  let assert Ok(Nil) = bag.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 pub fn bag_readonly_delete_all_fails_test() -> Nil {
@@ -272,7 +273,7 @@ pub fn bag_readonly_delete_all_fails_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "k", "v")
   let assert Ok(Nil) = bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -280,18 +281,18 @@ pub fn bag_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  bag.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
-  let _ = bag.close(ro)
-  let assert Ok(rw) =
+  bag.delete_all(read_only_table) |> expect.to_equal(Error(slate.AccessDenied))
+  let _ = bag.close(read_only_table)
+  let assert Ok(read_write_table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert Ok(["v"]) = bag.lookup(rw, key: "k")
-  let assert Ok(Nil) = bag.close(rw)
-  test_helpers.cleanup(path)
+  let assert Ok(["v"]) = bag.lookup(read_write_table, key: "k")
+  let assert Ok(Nil) = bag.close(read_write_table)
+  test_helper.cleanup(path)
 }
 
 // ── DuplicateBag: read-only ─────────────────────────────────────────────
 
-pub fn dupbag_readonly_lookup_test() -> Nil {
+pub fn duplicate_bag_readonly_lookup_test() -> Nil {
   let path = "test_dupbag_ro_lookup.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -302,7 +303,7 @@ pub fn dupbag_readonly_lookup_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     duplicate_bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -310,13 +311,13 @@ pub fn dupbag_readonly_lookup_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let assert Ok(values) = duplicate_bag.lookup(ro, key: "k")
+  let assert Ok(values) = duplicate_bag.lookup(read_only_table, key: "k")
   values |> expect.to_equal(["v", "v"])
-  let assert Ok(Nil) = duplicate_bag.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = duplicate_bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
-pub fn dupbag_readonly_insert_fails_test() -> Nil {
+pub fn duplicate_bag_readonly_insert_fails_test() -> Nil {
   let path = "test_dupbag_ro_insert.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -325,7 +326,7 @@ pub fn dupbag_readonly_insert_fails_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     duplicate_bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -333,13 +334,13 @@ pub fn dupbag_readonly_insert_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  let result = duplicate_bag.insert(ro, "k", "v")
+  let result = duplicate_bag.insert(read_only_table, "k", "v")
   result |> expect.to_equal(Error(slate.AccessDenied))
-  let assert Ok(Nil) = duplicate_bag.close(ro)
-  test_helpers.cleanup(path)
+  let assert Ok(Nil) = duplicate_bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
-pub fn dupbag_readonly_delete_all_fails_test() -> Nil {
+pub fn duplicate_bag_readonly_delete_all_fails_test() -> Nil {
   let path = "test_dupbag_ro_del_all.dets"
   let assert Ok(table) =
     duplicate_bag.open(
@@ -349,7 +350,7 @@ pub fn dupbag_readonly_delete_all_fails_test() -> Nil {
     )
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "v")
   let assert Ok(Nil) = duplicate_bag.close(table)
-  let assert Ok(ro) =
+  let assert Ok(read_only_table) =
     duplicate_bag.open_with_access(
       path:,
       repair: slate.AutoRepair,
@@ -357,9 +358,10 @@ pub fn dupbag_readonly_delete_all_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  duplicate_bag.delete_all(ro) |> expect.to_equal(Error(slate.AccessDenied))
-  let _ = duplicate_bag.close(ro)
-  test_helpers.cleanup(path)
+  duplicate_bag.delete_all(read_only_table)
+  |> expect.to_equal(Error(slate.AccessDenied))
+  let _ = duplicate_bag.close(read_only_table)
+  test_helper.cleanup(path)
 }
 
 // ── ReadWrite mode works normally ───────────────────────────────────────
@@ -377,5 +379,5 @@ pub fn set_readwrite_mode_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok("val") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }

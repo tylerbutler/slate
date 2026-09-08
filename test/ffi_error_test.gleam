@@ -2,7 +2,7 @@ import gleam/dynamic/decode
 import slate
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 @external(erlang, "corruption_test_helpers_ffi", "write_garbage")
 fn write_garbage(path: String) -> Result(Nil, Nil)
@@ -43,7 +43,7 @@ pub fn not_a_dets_file_error_test() -> Nil {
       value_decoder: decode.string,
     )
   result |> expect.to_equal(Error(slate.NotADetsFile))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn needs_repair_error_test() -> Nil {
@@ -64,7 +64,7 @@ pub fn needs_repair_error_test() -> Nil {
       value_decoder: decode.string,
     )
   result |> expect.to_equal(Error(slate.NeedsRepair))
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
 
 pub fn set_info_closed_table_returns_table_does_not_exist_test() -> Nil {
@@ -76,5 +76,5 @@ pub fn set_info_closed_table_returns_table_does_not_exist_test() -> Nil {
 
   set.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
 
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }

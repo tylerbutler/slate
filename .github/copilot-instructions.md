@@ -42,7 +42,7 @@ DETS table names are the file path converted to an Erlang atom via `binary_to_at
 ## Testing patterns
 
 - Tests use `startest` (not `gleeunit`). The entry point is `test/slate_test.gleam` calling `startest.run()`.
-- Each test creates a temporary `.dets` file with a unique name and calls `cleanup(path)` at the end (from `test/test_helpers.gleam`) to delete it.
+- Each test creates a temporary `.dets` file with a unique name and calls `cleanup(path)` at the end (from `test/test_helper.gleam`) to delete it.
 - Test functions are named `{module}_{operation}_test` (e.g., `set_insert_lookup_test`).
 - Assertions use `let assert Ok(...)` for expected-success paths and `|> expect.to_equal(...)` for specific value checks.
 

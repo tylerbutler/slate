@@ -22,7 +22,7 @@ import gleam/int
 import gleam/list
 import slate/set
 import startest/expect
-import test_helpers
+import test_helper
 
 // ── Pool: multiple concurrent opens ─────────────────────────────────────
 
@@ -30,8 +30,10 @@ import test_helpers
 pub fn pool_concurrent_opens_test() -> Nil {
   let count = 20
   let paths =
-    test_helpers.range(1, count)
-    |> list.map(fn(i) { "test_pool_concurrent_" <> int.to_string(i) <> ".dets" })
+    test_helper.range(1, count)
+    |> list.map(fn(index) {
+      "test_pool_concurrent_" <> int.to_string(index) <> ".dets"
+    })
 
   // Open all tables
   let tables =
@@ -42,17 +44,18 @@ pub fn pool_concurrent_opens_test() -> Nil {
     })
 
   // Verify each table is independently usable
-  list.index_map(tables, fn(table, i) {
-    let assert Ok(Nil) = set.insert(table, i, "value_" <> int.to_string(i))
-    let assert Ok(val) = set.lookup(table, key: i)
-    val |> expect.to_equal("value_" <> int.to_string(i))
+  list.index_map(tables, fn(table, index) {
+    let assert Ok(Nil) =
+      set.insert(table, index, "value_" <> int.to_string(index))
+    let assert Ok(value) = set.lookup(table, key: index)
+    value |> expect.to_equal("value_" <> int.to_string(index))
   })
 
   // Clean up
   list.each(tables, fn(table) {
     let assert Ok(Nil) = set.close(table)
   })
-  list.each(paths, test_helpers.cleanup)
+  list.each(paths, test_helper.cleanup)
 }
 
 // ── Pool: slot reuse after close ────────────────────────────────────────
@@ -63,8 +66,10 @@ pub fn pool_slot_reuse_after_close_test() -> Nil {
 
   // Phase 1: open tables with one set of paths
   let paths_a =
-    test_helpers.range(1, count)
-    |> list.map(fn(i) { "test_pool_reuse_a_" <> int.to_string(i) <> ".dets" })
+    test_helper.range(1, count)
+    |> list.map(fn(index) {
+      "test_pool_reuse_a_" <> int.to_string(index) <> ".dets"
+    })
   let tables_a =
     list.map(paths_a, fn(path) {
       let assert Ok(table) =
@@ -79,8 +84,10 @@ pub fn pool_slot_reuse_after_close_test() -> Nil {
 
   // Phase 2: open tables with different paths — these should reuse freed slots
   let paths_b =
-    test_helpers.range(1, count)
-    |> list.map(fn(i) { "test_pool_reuse_b_" <> int.to_string(i) <> ".dets" })
+    test_helper.range(1, count)
+    |> list.map(fn(index) {
+      "test_pool_reuse_b_" <> int.to_string(index) <> ".dets"
+    })
   let tables_b =
     list.map(paths_b, fn(path) {
       let assert Ok(table) =
@@ -89,18 +96,18 @@ pub fn pool_slot_reuse_after_close_test() -> Nil {
     })
 
   // Verify phase-2 tables work
-  list.index_map(tables_b, fn(table, i) {
-    let assert Ok(Nil) = set.insert(table, i, i * 100)
-    let assert Ok(val) = set.lookup(table, key: i)
-    val |> expect.to_equal(i * 100)
+  list.index_map(tables_b, fn(table, index) {
+    let assert Ok(Nil) = set.insert(table, index, index * 100)
+    let assert Ok(value) = set.lookup(table, key: index)
+    value |> expect.to_equal(index * 100)
   })
 
   // Clean up
   list.each(tables_b, fn(table) {
     let assert Ok(Nil) = set.close(table)
   })
-  list.each(paths_a, test_helpers.cleanup)
-  list.each(paths_b, test_helpers.cleanup)
+  list.each(paths_a, test_helper.cleanup)
+  list.each(paths_b, test_helper.cleanup)
 }
 
 // ── Pool: reopening same path reuses handle ─────────────────────────────
@@ -117,9 +124,9 @@ pub fn pool_reopen_same_path_test() -> Nil {
   // Open the same path again — should get the same underlying table
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert Ok(val) = set.lookup(table2, key: "key")
-  val |> expect.to_equal("from_first_open")
+  let assert Ok(value) = set.lookup(table2, key: "key")
+  value |> expect.to_equal("from_first_open")
 
   let assert Ok(Nil) = set.close(table1)
-  test_helpers.cleanup(path)
+  test_helper.cleanup(path)
 }
