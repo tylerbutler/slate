@@ -244,7 +244,7 @@ slate follows [Semantic Versioning](https://semver.org/). The **public API** cov
 - `slate/bag` — bag tables
 - `slate/duplicate_bag` — duplicate bag tables
 
-The Erlang FFI files (`dets_ffi.erl`, `with_table_ffi.erl`) are internal implementation details and are **not** part of the public API. They may change in any release without notice.
+The Erlang FFI files (`slate_dets_ffi.erl`, `slate_with_table_ffi.erl`) are internal implementation details and are **not** part of the public API. They may change in any release without notice.
 
 **Versioning policy:** patch releases contain bug fixes only, minor releases add backward-compatible features, and major releases may include breaking changes. The `error_code()` strings returned by `slate.error_code` are stable across minor and patch releases and are safe for programmatic matching (e.g., in error-handling logic or logging). The `error_message()` strings are human-readable and may change in any release.
 

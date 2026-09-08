@@ -156,5 +156,5 @@ pub fn is_dets_file(path: String) -> Result(Bool, DetsError) {
   ffi_is_dets_file(path)
 }
 
-@external(erlang, "dets_ffi", "is_dets_file")
+@external(erlang, "slate_dets_ffi", "is_dets_file")
 fn ffi_is_dets_file(path: String) -> Result(Bool, DetsError)
