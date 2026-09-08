@@ -128,40 +128,9 @@ pub fn sync(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_sync(table.reference)
 }
 
-/// Use a table within a callback, ensuring it is closed afterward.
-///
-/// This is the recommended way to use DETS tables for short-lived operations.
-/// Opens with `AutoRepair` and `ReadWrite` access; use `with_table_with`
-/// if you need different settings.
-///
-/// If both the callback and close fail, the callback error is returned.
-/// If the callback raises an exception, close is attempted before re-raising.
-///
-/// ```gleam
-/// import gleam/dynamic/decode
-/// use table <- duplicate_bag.with_table("data/events.dets",
-///   key_decoder: decode.string, value_decoder: decode.string)
-/// duplicate_bag.insert(table, "click", "button_a")
-/// ```
-///
-pub fn with_table(
-  path: String,
-  key_decoder key_decoder: Decoder(k),
-  value_decoder value_decoder: Decoder(v),
-  fun callback: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
-) -> Result(a, DetsError) {
-  with_table_with(
-    path,
-    AutoRepair,
-    slate.ReadWrite,
-    key_decoder:,
-    value_decoder:,
-    fun: callback,
-  )
-}
-
 /// Use a table within a callback with repair and access mode options.
 ///
+/// Pass `AutoRepair` and `ReadWrite` to keep the behavior of slate 1.x.
 /// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
 /// file, and writes return `Error(AccessDenied)`. `NoRepair` returns
 /// `Error(NeedsRepair)` if the file was not closed cleanly.
@@ -173,20 +142,20 @@ pub fn with_table(
 /// re-raising the original exception.
 ///
 /// Keep the table handle within the callback; do not use it after cleanup.
-/// Like `with_table`, this cannot guarantee cleanup if the process is killed.
+/// This cannot guarantee cleanup if the process is killed.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
 /// import slate.{NoRepair, ReadOnly}
 /// import slate/duplicate_bag
 ///
-/// use table <- duplicate_bag.with_table_with(path: "data/events.dets",
+/// use table <- duplicate_bag.with_table(path: "data/events.dets",
 ///   repair: NoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// duplicate_bag.lookup(table, key: "click")
 /// ```
 ///
-pub fn with_table_with(
+pub fn with_table(
   path path: String,
   repair repair: RepairPolicy,
   access access: AccessMode,

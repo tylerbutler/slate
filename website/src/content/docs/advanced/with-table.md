@@ -8,7 +8,8 @@ DETS tables must be properly closed to ensure data is flushed to disk. If a tabl
 `with_table` helps with short-lived operations by opening a table, running your callback, and closing the table before it returns. If the callback raises, `with_table` still attempts to close the table before re-raising the exception.
 
 :::caution
-`with_table` is a convenience helper, not a crash-proof lifecycle primitive. It always uses the default `AutoRepair` + `ReadWrite` open path, and it cannot close the table if the owning process is terminated before cleanup runs.
+`with_table` cannot close the table if the owning process is terminated before
+cleanup runs. Select the repair policy and access mode for each call.
 :::
 
 ## Basic usage
@@ -30,10 +31,12 @@ Use `with_table`:
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 // The table is closed when the callback completes
 let assert Ok(Nil) = set.with_table("data/config.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) {
     set.insert(table, "theme", "dark")
@@ -46,10 +49,12 @@ Gleam's `use` syntax makes `with_table` even cleaner:
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 let result = {
   use table <- set.with_table("data/config.dets",
+    repair: slate.AutoRepair, access: slate.ReadWrite,
     key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "theme", "dark")
   set.lookup(table, key: "theme")
@@ -63,9 +68,11 @@ let result = {
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 let assert Ok(age) = set.with_table("data/users.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
   fun: fn(table) {
     let assert Ok(Nil) = set.insert(table, "alice", 42)
@@ -80,9 +87,11 @@ If the callback returns an `Error`, `with_table` still attempts to close the tab
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 let result = set.with_table("data/users.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
   fun: fn(table) {
     set.lookup(table, key: "nonexistent")
@@ -94,9 +103,11 @@ If the callback raises, `with_table` still attempts to close the table before re
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 let _ = set.with_table("data/users.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
   fun: fn(table) {
     let assert Ok(Nil) = set.insert(table, "alice", 42)
@@ -108,9 +119,11 @@ If the table itself fails to open, the error is returned immediately:
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 let result = set.with_table("corrupted.dets",
+  repair: slate.NoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) {
     set.lookup(table, key: "key")
@@ -124,32 +137,36 @@ let result = set.with_table("corrupted.dets",
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 import slate/bag
 import slate/duplicate_bag
 
 let assert Ok(_) = set.with_table("data/set.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) { ... })
 let assert Ok(_) = bag.with_table("data/bag.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) { ... })
 let assert Ok(_) = duplicate_bag.with_table("data/dup.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
   fun: fn(table) { ... })
 ```
 
 ## Repair and access options
 
-`with_table` opens the table with `AutoRepair` and `ReadWrite` access. Use
-`with_table_with` to select other options without managing cleanup yourself:
+Pass `repair` and `access` to `with_table`. For example, use `NoRepair` and
+`ReadOnly` to read an existing table without automatic repair:
 
 ```gleam
 import gleam/dynamic/decode
 import slate
 import slate/set
 
-use table <- set.with_table_with(
+use table <- set.with_table(
   path: "data/config.dets",
   repair: slate.NoRepair,
   access: slate.ReadOnly,
@@ -160,22 +177,26 @@ set.lookup(table, key: "theme")
 ```
 
 `ReadOnly` requires an existing file. `NoRepair` returns `NeedsRepair` if the
-file needs repair. The callback does not run if opening fails. All three table
-modules provide `with_table_with`, with the same cleanup and error precedence
-as `with_table`.
+file needs repair. The callback does not run if opening fails.
+
+## Migrating from 1.x
+
+`with_table` now requires repair and access options in all three table modules.
+Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to existing calls
+to keep their previous behavior. Cleanup and error precedence are unchanged.
 
 ## When to use `with_table`
 
 :::tip
-Use `with_table` for short-lived lookups, inserts, or computations. Use
-`with_table_with` when you need other repair or access options. For long-lived
-tables, use `open`/`close` and manage the lifecycle yourself.
+Use `with_table` for short-lived lookups, inserts, or computations with the
+repair and access options you need. For long-lived tables, use `open`/`close`
+and manage the lifecycle yourself.
 :::
 
 | Scenario | Recommended |
 |----------|-------------|
 | Quick lookup or insert | `with_table` |
 | Script that reads/writes once | `with_table` |
-| Short-lived read-only access or a specific repair policy | `with_table_with` |
+| Short-lived read-only access or a specific repair policy | `with_table` |
 | Long-running server with a persistent cache | `open` / `close` |
 | Multiple operations across time | `open` / `close` |

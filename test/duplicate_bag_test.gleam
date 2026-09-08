@@ -263,6 +263,8 @@ pub fn duplicate_bag_with_table_test() -> Nil {
   let assert Ok(Nil) =
     duplicate_bag.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(table) { duplicate_bag.insert(table, "key", "val") },
@@ -283,6 +285,8 @@ pub fn duplicate_bag_with_table_close_error_propagates_test() -> Nil {
   let result =
     duplicate_bag.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(table) {
@@ -304,6 +308,8 @@ pub fn duplicate_bag_with_table_panic_still_closes_test() -> Nil {
     let _ =
       duplicate_bag.with_table(
         path,
+        repair: slate.AutoRepair,
+        access: slate.ReadWrite,
         key_decoder: decode.string,
         value_decoder: decode.string,
         fun: fn(table) {
@@ -331,6 +337,8 @@ pub fn duplicate_bag_with_table_open_error_test() -> Nil {
     "missing_dupbag_with_table_dir/test_dupbag_with_table_open_error.dets"
   duplicate_bag.with_table(
     path,
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.string,
     fun: fn(_table) { Ok(Nil) },

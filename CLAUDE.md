@@ -96,7 +96,7 @@ DETS error atoms map back to Gleam `DetsError` constructors:
 - **Module name**: `slate` (not `dets`) to avoid Erlang module name collision
 - **Opaque table handles**: `Set(k, v)`, `Bag(k, v)`, `DuplicateBag(k, v)` enforce type safety
 - **Bounded table-name pool**: `slate_dets_ffi.erl` reuses a fixed internal pool of DETS table names instead of creating one atom per path
-- **`with_table` helper**: Closes when the callback returns and also attempts cleanup if the callback raises; it always uses the default `AutoRepair` + `ReadWrite` open path and is still not crash-proof if the owning process is killed outright
+- **`with_table` helper**: Requires explicit repair and access options. Closes when the callback returns and attempts cleanup if the callback raises, but cannot close the table if the owning process is killed outright
 
 ## Dependencies
 

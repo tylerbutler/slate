@@ -11,7 +11,7 @@ pub fn set_with_table_options_test() -> Nil {
   check_options(
     "test_set_scoped_options.dets",
     fn(path, repair, access, fun) {
-      set.with_table_with(
+      set.with_table(
         path:,
         repair:,
         access:,
@@ -30,7 +30,7 @@ pub fn bag_with_table_options_test() -> Nil {
   check_options(
     "test_bag_scoped_options.dets",
     fn(path, repair, access, fun) {
-      bag.with_table_with(
+      bag.with_table(
         path:,
         repair:,
         access:,
@@ -49,7 +49,7 @@ pub fn duplicate_bag_with_table_options_test() -> Nil {
   check_options(
     "test_duplicate_bag_scoped_options.dets",
     fn(path, repair, access, fun) {
-      duplicate_bag.with_table_with(
+      duplicate_bag.with_table(
         path:,
         repair:,
         access:,
