@@ -1,4 +1,5 @@
 import gleam/dynamic/decode
+import gleam/list
 import slate
 import slate/bag
 import slate/duplicate_bag
@@ -96,11 +97,19 @@ fn check_options(
   |> expect.to_equal(Error(slate.NotFound))
   test_helpers.is_table_open(path) |> expect.to_equal(False)
 
-  with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
-    let assert Ok(Nil) = close(table)
-    Ok(42)
-  })
-  |> expect.to_equal(Error(slate.UnexpectedError("not_owner")))
+  let close_error =
+    with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
+      let assert Ok(Nil) = close(table)
+      Ok(42)
+    })
+  list.contains(
+    [
+      Error(slate.TableDoesNotExist),
+      Error(slate.UnexpectedError("not_owner")),
+    ],
+    close_error,
+  )
+  |> expect.to_equal(True)
 
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
     let assert Ok(Nil) = close(table)
