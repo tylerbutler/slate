@@ -7,6 +7,52 @@ All slate functions return `Result` types — they never raise exceptions. Most 
 
 For a stable machine-readable code or a user-facing message, use [`slate.error_code`](/advanced/troubleshooting/#using-error_code-and-error_message) and `slate.error_message`.
 
+## File context and migration (breaking)
+
+`FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`, `NotADetsFile`,
+and `FileSizeLimitExceeded` now each carry
+`FileErrorContext(path: Option(String), reason: String)`.
+
+Before:
+
+```gleam
+let assert Error(slate.AccessDenied) = set.insert(table, "key", "value")
+let error = slate.NeedsRepair
+```
+
+After:
+
+```gleam
+import gleam/option.{None}
+
+let assert Error(slate.AccessDenied(context)) = set.insert(table, "key", "value")
+let error = slate.NeedsRepair(
+  slate.FileErrorContext(path: None, reason: "application requires repair"),
+)
+```
+
+Use `(_)` instead of `(context)` when only the category matters. Apply this
+change to all seven constructors, including errors inside `set.TableError`.
+`NotFound`, `KeyAlreadyPresent`, and `DecodeErrors` do not change. No DETS
+file-format migration is needed, unless your application stores `DetsError`
+values themselves as data.
+
+The path is the filename reported by OTP. For a pathless `AlreadyOpen` error,
+open operations retain the known path they passed to OTP. Opens normally report
+an absolute path; `is_dets_file` can report a relative path. `None` means there is no
+single filename—never substitute an empty string or guess from a table-name atom.
+For rename failures, both filenames remain in `reason` and `path` is `None`.
+Context is kept in the error value and remains usable after the table closes.
+
+The reason retains diagnostic details such as `"enoent"`, `"{error,eacces}"`,
+`"access_mode"`, or `"keypos_mismatch"`. Do not parse this text as a stable
+classifier. Paths and reasons can be sensitive; use them only in trusted logs.
+All `error_code` and safe `error_message` outputs are unchanged and omit context.
+
+An error does not guarantee that a write was rolled back. Avoid blind retries
+of non-idempotent writes, keep backups before repair, and close each successful
+open. This change does not alter DETS ownership or cleanup behavior.
+
 ## Error variants
 
 ### `NotFound`
@@ -34,7 +80,8 @@ let assert Error(slate.KeyAlreadyPresent) = set.insert_new(table, "alice", 99)
 
 ### `AccessDenied`
 
-Returned when a write is attempted on a table opened with `ReadOnly` access.
+Returned when file access is denied, or when a write is attempted on a table
+opened with `ReadOnly` access. Inspect the context to distinguish the cause.
 
 ```gleam
 import gleam/dynamic/decode
@@ -44,7 +91,7 @@ import slate/set
 let assert Ok(table) = set.open_with_access(path: "data/users.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
-let assert Error(slate.AccessDenied) = set.insert(table, "key", "value")
+let assert Error(slate.AccessDenied(context)) = set.insert(table, "key", "value")
 ```
 
 ### `TypeMismatch`
@@ -64,13 +111,14 @@ let assert Ok(Nil) = set.insert(table, "key", "value")
 let assert Ok(Nil) = set.close(table)
 
 // Try to open the same file as a bag — fails
-let assert Error(slate.TypeMismatch) = bag.open("data/store.dets",
+let assert Error(slate.TypeMismatch(context)) = bag.open("data/store.dets",
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 
 ### `FileNotFound`
 
-The DETS file could not be found or accessed. Returned by the `open*` functions when the path is invalid or the file system denies access.
+The file or a parent directory is missing. Returned by `open*` or
+`is_dets_file` for OTP's `enoent` reason. Permission failures use `AccessDenied`.
 
 ### `NotADetsFile`
 
@@ -83,6 +131,8 @@ The file was not closed cleanly and you opened it with `NoRepair`. Reopen with `
 ### `AlreadyOpen`
 
 The table is already open with an incompatible configuration (for example, different access mode).
+Match `AlreadyOpen(context)` to inspect the path and the
+`"incompatible_arguments"` reason.
 
 ### `TableDoesNotExist`
 
@@ -155,14 +205,14 @@ let assert Ok(Nil) = set.insert(table, "key", "value")
 |-------|-------|-------------------|
 | `NotFound` | Key missing (set tables only) | `set.lookup`, `set.update_counter` (via `TableError`) |
 | `KeyAlreadyPresent` | Key (set) or exact pair (bag) already exists | `insert_new` (set, bag) |
-| `AccessDenied` | Write on read-only table | `insert`, `insert_list`, `insert_new`, `delete_*`, `update_counter` |
-| `TypeMismatch` | Wrong table type for file | `open`, `open_with`, `open_with_access` |
-| `FileNotFound` | File missing or inaccessible | `open*`, `is_dets_file` |
-| `NotADetsFile` | Path exists but is not a DETS file | `open*`, `is_dets_file` |
-| `NeedsRepair` | File not closed cleanly, opened with `NoRepair` | `open_with`, `open_with_access` |
-| `AlreadyOpen` | Table open with different config | `open*` |
+| `AccessDenied(_)` | File access denied or write on read-only table | `open*`, `is_dets_file`, write operations |
+| `TypeMismatch(_)` | Wrong table type or key position for file | `open`, `open_with`, `open_with_access` |
+| `FileNotFound(_)` | File or parent directory missing | `open*`, `is_dets_file` |
+| `NotADetsFile(_)` | Path exists but is not a DETS file | `open*` (`is_dets_file` returns `Ok(False)`) |
+| `NeedsRepair(_)` | File not closed cleanly, opened with `NoRepair` | `open_with`, `open_with_access` |
+| `AlreadyOpen(context)` | Table open with different config | `open*` |
 | `TableDoesNotExist` | Invalid table handle (already closed) | Most operations |
-| `FileSizeLimitExceeded` | Write would exceed 2 GB | Write operations |
+| `FileSizeLimitExceeded(_)` | Write would exceed 2 GB | Write operations |
 | `TableNamePoolExhausted` | Too many tables open at once | `open*` |
 | `DecodeErrors(_)` | On-disk data did not match decoders | Read operations |
 | `UnexpectedError(_)` | Unexpected Erlang-level error | Any |

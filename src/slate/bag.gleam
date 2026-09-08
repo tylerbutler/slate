@@ -88,7 +88,7 @@ pub fn open_with(
 /// Open a DETS bag table with repair and access mode options.
 ///
 /// Use `ReadOnly` to open a table for reading only. Write operations
-/// on a read-only table will return `Error(AccessDenied)`.
+/// on a read-only table will return `Error(AccessDenied(context))`.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -97,7 +97,7 @@ pub fn open_with(
 ///   repair: AutoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
 /// let assert Ok(values) = bag.lookup(table, key: "key")
-/// // bag.insert(table, "key", "val") would return Error(AccessDenied)
+/// // bag.insert(table, "key", "val") would return Error(AccessDenied(context))
 /// ```
 ///
 pub fn open_with_access(

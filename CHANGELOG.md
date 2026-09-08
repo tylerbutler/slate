@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.2 - 2026-09-08
+
+### Changed
+
+#### Prefixed internal Erlang module names with `slate_`.
+
+The new names reduce the risk of conflicts with modules in other
+dependencies. The public Gleam API is unchanged.
 
 ## 1.0.1 - 2026-07-27
 
@@ -15,7 +23,6 @@ silently dropped from generated documentation.
 Also includes non-breaking style cleanup from a Gleam conventions review:
 qualified imports and full type annotations in the test suite, hardened
 test assertions, and clearer internal names. No public API changes.
-
 
 ## 1.0.0 - 2026-04-07
 
@@ -220,7 +227,6 @@ errors and unnecessary table-name pool consumption. Symlinks are not resolved.
 `UnexpectedError`. `{not_a_dets_file, _}` and `{needs_repair, _}` now map to
 the new dedicated `NotADetsFile` and `NeedsRepair` variants respectively.
 
-
 ## 0.1.0 - 2026-04-06
 
 
@@ -287,5 +293,3 @@ and `UnexpectedError`.
   open concurrently
 - Disk I/O on every operation — not suitable for high-frequency reads
 - Tables must be closed properly; use `with_table` to avoid leaking handles
-
-

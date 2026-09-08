@@ -34,11 +34,30 @@
 ////   distinct tables at once may fail; close unused tables promptly
 
 import gleam/dynamic/decode
+import gleam/option.{type Option}
+
+/// Diagnostic context for an expected file error.
+///
+/// `path` is the filename reported by OTP, not a table name. For a pathless
+/// `AlreadyOpen` error, open operations supply the path they passed to OTP.
+/// Opens normally report an absolute path; `is_dets_file` can report a relative path.
+/// `None` means OTP supplied no single filename (for example, a pathless error
+/// or a rename failure with two filenames). No table lookup is needed, so
+/// context remains usable after the table closes.
+///
+/// `reason` is the lower-level Erlang reason formatted for diagnostics, such as
+/// `"enoent"`, `"{error,eacces}"`, `"access_mode"`, or `"keypos_mismatch"`.
+/// Rename failures retain both filenames in this diagnostic string.
+/// Do not parse it as a stable classifier. Both fields can contain sensitive
+/// details: use `error_code` and `error_message` for safe external output.
+pub type FileErrorContext {
+  FileErrorContext(path: Option(String), reason: String)
+}
 
 /// Errors that can occur during DETS operations.
 ///
 /// Match on the explicit variants for expected cases such as `NotFound`,
-/// `AccessDenied`, or `TypeMismatch`.
+/// `AccessDenied(_)`, or `TypeMismatch(_)`.
 ///
 /// Treat `UnexpectedError(detail)` as diagnostic output for logs and debugging
 /// only. Its string detail is not part of slate's stable API contract. Use
@@ -47,26 +66,26 @@ import gleam/dynamic/decode
 pub type DetsError {
   /// No value found for the given key
   NotFound
-  /// Table file does not exist (when opening without create)
-  FileNotFound
+  /// Table file or a parent directory does not exist
+  FileNotFound(FileErrorContext)
   /// Table is already open with a different configuration
-  AlreadyOpen
+  AlreadyOpen(FileErrorContext)
   /// The table does not exist (not open)
   TableDoesNotExist
   /// File exceeds the 2 GB DETS limit
-  FileSizeLimitExceeded
+  FileSizeLimitExceeded(FileErrorContext)
   /// Key already exists (for insert_new)
   KeyAlreadyPresent
-  /// Write operation attempted on a read-only table
-  AccessDenied
-  /// Table type mismatch (e.g., opening a set file as a bag)
-  TypeMismatch
+  /// File access denied, or write operation attempted on a read-only table
+  AccessDenied(FileErrorContext)
+  /// Table type or key position mismatch (e.g., opening a set file as a bag)
+  TypeMismatch(FileErrorContext)
   /// All internal table name slots are in use; close unused tables to free slots
   TableNamePoolExhausted
   /// File exists but is not a valid DETS file
-  NotADetsFile
+  NotADetsFile(FileErrorContext)
   /// File was not closed cleanly and `NoRepair` was requested
-  NeedsRepair
+  NeedsRepair(FileErrorContext)
   /// Data read from disk did not match the expected Gleam types
   DecodeErrors(List(decode.DecodeError))
   /// Unexpected OTP or Erlang-level error for logging and diagnostics only.
@@ -106,16 +125,16 @@ pub type TableInfo {
 pub fn error_code(of error: DetsError) -> String {
   case error {
     NotFound -> "not_found"
-    FileNotFound -> "file_not_found"
-    AlreadyOpen -> "already_open"
+    FileNotFound(_) -> "file_not_found"
+    AlreadyOpen(_) -> "already_open"
     TableDoesNotExist -> "table_does_not_exist"
-    FileSizeLimitExceeded -> "file_size_limit_exceeded"
+    FileSizeLimitExceeded(_) -> "file_size_limit_exceeded"
     KeyAlreadyPresent -> "key_already_present"
-    AccessDenied -> "access_denied"
-    TypeMismatch -> "type_mismatch"
+    AccessDenied(_) -> "access_denied"
+    TypeMismatch(_) -> "type_mismatch"
     TableNamePoolExhausted -> "table_name_pool_exhausted"
-    NotADetsFile -> "not_a_dets_file"
-    NeedsRepair -> "needs_repair"
+    NotADetsFile(_) -> "not_a_dets_file"
+    NeedsRepair(_) -> "needs_repair"
     DecodeErrors(_) -> "decode_error"
     UnexpectedError(_) -> "unexpected_error"
   }
@@ -123,22 +142,22 @@ pub fn error_code(of error: DetsError) -> String {
 
 /// Return a concise user-facing description for a `DetsError`.
 ///
-/// `UnexpectedError(_)` intentionally maps to a generic message so callers can
-/// safely surface it without leaking raw Erlang/OTP diagnostic details.
+/// File context and `UnexpectedError(_)` details are intentionally omitted so
+/// callers can safely surface messages without leaking paths or OTP details.
 pub fn error_message(of error: DetsError) -> String {
   case error {
     NotFound -> "No value was found for the requested key."
-    FileNotFound -> "The DETS file could not be found."
-    AlreadyOpen -> "The table is already open with incompatible options."
+    FileNotFound(_) -> "The DETS file could not be found."
+    AlreadyOpen(_) -> "The table is already open with incompatible options."
     TableDoesNotExist -> "The table is not currently open."
-    FileSizeLimitExceeded -> "The DETS file exceeded the 2 GB size limit."
+    FileSizeLimitExceeded(_) -> "The DETS file exceeded the 2 GB size limit."
     KeyAlreadyPresent -> "The key or key-value pair is already present."
-    AccessDenied ->
+    AccessDenied(_) ->
       "The requested operation is not allowed with the current access mode."
-    TypeMismatch -> "The file was opened with the wrong DETS table type."
+    TypeMismatch(_) -> "The file was opened with the wrong DETS table type."
     TableNamePoolExhausted -> "Too many different DETS tables are open at once."
-    NotADetsFile -> "The file exists but is not a valid DETS file."
-    NeedsRepair ->
+    NotADetsFile(_) -> "The file exists but is not a valid DETS file."
+    NeedsRepair(_) ->
       "The table file was not closed cleanly and needs repair. Open with AutoRepair or ForceRepair."
     DecodeErrors(_) -> "Data on disk did not match the expected Gleam types."
     UnexpectedError(_) -> "An unexpected DETS error occurred."
