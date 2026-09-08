@@ -1,0 +1,8 @@
+kind: Added
+body: |-
+    Added scoped table access with repair and access options.
+
+    Use `with_table_with` in `slate/set`, `slate/bag`, or
+    `slate/duplicate_bag` to select a repair policy and access mode while
+    retaining `with_table` cleanup and error handling.
+time: 2026-09-08T04:32:58.000000+00:00

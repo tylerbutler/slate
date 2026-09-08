@@ -141,17 +141,41 @@ let assert Ok(_) = duplicate_bag.with_table("data/dup.dets",
 
 ## Repair and access options
 
-`with_table` always opens the table with `AutoRepair` and `ReadWrite` access. If you need a different repair policy or read-only access, use `open_with` or `open_with_access` directly and manage the lifecycle yourself.
+`with_table` opens the table with `AutoRepair` and `ReadWrite` access. Use
+`with_table_with` to select other options without managing cleanup yourself:
+
+```gleam
+import gleam/dynamic/decode
+import slate
+import slate/set
+
+use table <- set.with_table_with(
+  path: "data/config.dets",
+  repair: slate.NoRepair,
+  access: slate.ReadOnly,
+  key_decoder: decode.string,
+  value_decoder: decode.string,
+)
+set.lookup(table, key: "theme")
+```
+
+`ReadOnly` requires an existing file. `NoRepair` returns `NeedsRepair` if the
+file needs repair. The callback does not run if opening fails. All three table
+modules provide `with_table_with`, with the same cleanup and error precedence
+as `with_table`.
 
 ## When to use `with_table`
 
 :::tip
-Use `with_table` for short-lived operations — lookups, inserts, or quick computations where automatic cleanup around the callback is enough. For long-lived tables that stay open for the lifetime of your application, or when you need non-default repair/access options, use `open`/`close` directly and manage the lifecycle yourself.
+Use `with_table` for short-lived lookups, inserts, or computations. Use
+`with_table_with` when you need other repair or access options. For long-lived
+tables, use `open`/`close` and manage the lifecycle yourself.
 :::
 
 | Scenario | Recommended |
 |----------|-------------|
 | Quick lookup or insert | `with_table` |
 | Script that reads/writes once | `with_table` |
+| Short-lived read-only access or a specific repair policy | `with_table_with` |
 | Long-running server with a persistent cache | `open` / `close` |
 | Multiple operations across time | `open` / `close` |

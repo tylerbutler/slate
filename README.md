@@ -81,6 +81,22 @@ attempts cleanup if the callback raises. It still does not make DETS
 crash-proof — if the owning process is terminated before cleanup runs, DETS may
 still need repair on the next open.
 
+Use `with_table_with` to select repair and access options with the same cleanup:
+
+```gleam
+import gleam/dynamic/decode
+import slate
+import slate/set
+
+use table <- set.with_table_with(
+  path: "data/config.dets", repair: slate.NoRepair, access: slate.ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+`ReadOnly` requires an existing file. These helpers are available in all three
+table modules.
+
 ### Bag tables (multiple values per key)
 
 ```gleam
@@ -192,6 +208,7 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
 | `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
+| `with_table_with(path, repair, access, key_decoder, value_decoder, fn)` | Auto-closing callback with repair and access options |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
 | `lookup(table, key)` | Get value(s) for key |

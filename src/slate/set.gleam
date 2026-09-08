@@ -136,8 +136,8 @@ pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
 /// Use a table within a callback, ensuring it is closed afterward.
 ///
 /// This is the recommended way to use DETS tables for short-lived operations.
-/// Opens with `AutoRepair` and `ReadWrite` access; use `open_with_access`
-/// and manual `close` if you need different settings.
+/// Opens with `AutoRepair` and `ReadWrite` access; use `with_table_with`
+/// if you need different settings.
 ///
 /// If both the callback and close fail, the callback error is returned.
 /// If the callback raises an exception, close is attempted before re-raising.
@@ -155,7 +155,51 @@ pub fn with_table(
   value_decoder value_decoder: Decoder(v),
   fun fun: fn(Set(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
-  case open(path, key_decoder:, value_decoder:) {
+  with_table_with(
+    path,
+    AutoRepair,
+    slate.ReadWrite,
+    key_decoder:,
+    value_decoder:,
+    fun:,
+  )
+}
+
+/// Use a table within a callback with repair and access mode options.
+///
+/// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
+/// file, and writes return `Error(AccessDenied)`. `NoRepair` returns
+/// `Error(NeedsRepair)` if the file was not closed cleanly.
+///
+/// If opening fails, returns the open error without calling the callback.
+/// Otherwise, closes the table before returning the callback result. If close
+/// fails after a successful callback, returns the close error. If both fail,
+/// returns the callback error. If the callback raises, attempts close before
+/// re-raising the original exception.
+///
+/// Keep the table handle within the callback; do not use it after cleanup.
+/// Like `with_table`, this cannot guarantee cleanup if the process is killed.
+///
+/// ```gleam
+/// import gleam/dynamic/decode
+/// import slate.{NoRepair, ReadOnly}
+/// import slate/set
+///
+/// use table <- set.with_table_with(path: "data/cache.dets",
+///   repair: NoRepair, access: ReadOnly,
+///   key_decoder: decode.string, value_decoder: decode.string)
+/// set.lookup(table, key: "key")
+/// ```
+///
+pub fn with_table_with(
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  fun fun: fn(Set(k, v)) -> Result(a, DetsError),
+) -> Result(a, DetsError) {
+  case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
     Ok(table) -> ffi_with_close(table, fun, close)
     Error(err) -> Error(err)
   }
