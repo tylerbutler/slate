@@ -1,4 +1,4 @@
-import file_error_test_helpers
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/option.{None}
 import slate
@@ -50,10 +50,7 @@ pub fn not_a_dets_file_error_test() -> Nil {
   result
   |> expect.to_equal(
     Error(
-      slate.NotADetsFile(file_error_test_helpers.context(
-        path,
-        "not_a_dets_file",
-      )),
+      slate.NotADetsFile(file_error_test_helper.context(path, "not_a_dets_file")),
     ),
   )
   test_helper.cleanup(path)
@@ -79,7 +76,7 @@ pub fn needs_repair_error_test() -> Nil {
   result
   |> expect.to_equal(
     Error(
-      slate.NeedsRepair(file_error_test_helpers.context(path, "needs_repair")),
+      slate.NeedsRepair(file_error_test_helper.context(path, "needs_repair")),
     ),
   )
   test_helper.cleanup(path)

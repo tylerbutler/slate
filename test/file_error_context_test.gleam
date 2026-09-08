@@ -1,4 +1,4 @@
-import file_error_test_helpers
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{None, Some}
@@ -50,7 +50,7 @@ pub fn file_error_context_missing_parent_test() -> Nil {
   let path = "missing_context_é_資料/absent.dets"
   let assert Error(slate.FileNotFound(context)) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
-  context |> expect.to_equal(file_error_test_helpers.context(path, "enoent"))
+  context |> expect.to_equal(file_error_test_helper.context(path, "enoent"))
   test_helper.is_table_open(path) |> expect.to_equal(False)
 }
 
@@ -74,7 +74,7 @@ pub fn file_error_context_readonly_counter_test() -> Nil {
   let assert Ok(Nil) = set.close(table)
   // Context does not depend on a live table or table-name pool slot.
   context
-  |> expect.to_equal(file_error_test_helpers.context(path, "access_mode"))
+  |> expect.to_equal(file_error_test_helper.context(path, "access_mode"))
   test_helper.is_table_open(path) |> expect.to_equal(False)
   test_helper.cleanup(path)
 }

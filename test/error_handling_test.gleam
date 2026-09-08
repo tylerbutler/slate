@@ -1,7 +1,7 @@
 //// Tests for error handling edge cases.
 //// Adapted from OTP dets_SUITE badarg, repair, and access tests.
 
-import file_error_test_helpers
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/int
 import gleam/list
@@ -19,7 +19,7 @@ fn expect_type_mismatch_open(
   result
   |> expect.to_equal(
     Error(
-      slate.TypeMismatch(file_error_test_helpers.context(path, "type_mismatch")),
+      slate.TypeMismatch(file_error_test_helper.context(path, "type_mismatch")),
     ),
   )
 }

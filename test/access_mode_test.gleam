@@ -1,7 +1,7 @@
 //// Tests for read-only access mode.
 //// Adapted from OTP dets_SUITE access/1 test.
 
-import file_error_test_helpers
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/list
 import gleam/string
@@ -19,7 +19,7 @@ fn expect_access_denied(
   result
   |> expect.to_equal(
     Error(
-      slate.AccessDenied(file_error_test_helpers.context(path, "access_mode")),
+      slate.AccessDenied(file_error_test_helper.context(path, "access_mode")),
     ),
   )
 }
@@ -32,7 +32,7 @@ fn expect_delete_all_denied(
 ) -> Nil {
   let assert Error(slate.AccessDenied(context)) = result
   context.path
-  |> expect.to_equal(file_error_test_helpers.context(path, "access_mode").path)
+  |> expect.to_equal(file_error_test_helper.context(path, "access_mode").path)
   list.contains(
     ["access_mode", "{error,einval}", "{error,eacces}"],
     context.reason,
@@ -224,7 +224,7 @@ pub fn set_readonly_nonexistent_file_fails_test() -> Nil {
     )
   result
   |> expect.to_equal(
-    Error(slate.FileNotFound(file_error_test_helpers.context(path, "enoent"))),
+    Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),
   )
   test_helper.is_table_open(path) |> expect.to_equal(False)
 }
