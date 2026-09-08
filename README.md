@@ -191,7 +191,6 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `open_with_access(path, repair, access, key_decoder, value_decoder)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
-| `path(table)` | Get the open table's absolute file path |
 | `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
@@ -203,7 +202,19 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `to_list(table)` | Get all entries |
 | `fold(table, acc, fn)` | Fold over entries |
 | `size(table)` | Count entries |
-| `info(table)` | Get table metadata |
+| `info(table)` | Get the file size, object count, and absolute file path |
+
+Use `info(table)` to retrieve the file path from an open handle:
+
+```gleam
+let assert Ok(info) = set.info(table)
+info.file_path
+```
+
+**Migrating from 1.x:** `TableInfo` now has a `file_path: String` field.
+Supply it when constructing the record. Include the third field, or use `..`,
+when matching the constructor. Existing `info.file_size` and
+`info.object_count` access remains valid.
 
 `slate/set` also provides:
 

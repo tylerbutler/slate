@@ -350,21 +350,14 @@ pub fn delete_all(from table: Bag(k, v)) -> Result(Nil, DetsError) {
 
 // ── Info ────────────────────────────────────────────────────────────────
 
-/// Get information about an open table.
+/// Get the file size, object count, and absolute file path of an open table.
+///
+/// Returns `Error(TableDoesNotExist)` if the table is no longer open.
 pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
   use file_size <- result.try(ffi_info_file_size(table.reference))
   use object_count <- result.try(ffi_info_size(table.reference))
-  Ok(slate.TableInfo(file_size:, object_count:))
-}
-
-/// Return the file path of an open table.
-///
-/// Returns the absolute path used by DETS, with `.` and `..` segments
-/// normalized by `open`. Symlinks are not resolved.
-/// Returns `Error(TableDoesNotExist)` if the table is no longer open.
-/// As with other operations, do not use the handle after closing it.
-pub fn path(table: Bag(k, v)) -> Result(String, DetsError) {
-  ffi_info_path(table.reference)
+  use file_path <- result.try(ffi_info_path(table.reference))
+  Ok(slate.TableInfo(file_size:, object_count:, file_path:))
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────

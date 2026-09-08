@@ -1,0 +1,30 @@
+kind: Breaking
+body: |-
+    `TableInfo` now includes the table's file path.
+
+    `info(table)` in `slate/set`, `slate/bag`, and `slate/duplicate_bag`
+    returns `TableInfo(file_size: Int, object_count: Int, file_path: String)`.
+    Read `info.file_path` for the normalized absolute path used by `open`.
+    Symlinks are not resolved.
+
+    Update constructor calls and full constructor patterns:
+
+    Before:
+
+    ```gleam
+    let slate.TableInfo(file_size, object_count) = info
+    let copy = slate.TableInfo(file_size:, object_count:)
+    ```
+
+    After:
+
+    ```gleam
+    let slate.TableInfo(file_size, object_count, file_path) = info
+    let copy = slate.TableInfo(file_size:, object_count:, file_path:)
+    ```
+
+    Existing field access and partial patterns with `..` remain valid.
+    `info()` still returns `TableDoesNotExist` if the table is no longer open.
+    Ordinary DETS records need no migration, but applications that persist
+    `TableInfo` records must migrate those records to the new shape.
+time: 2026-09-08T04:35:36.000000+00:00

@@ -103,7 +103,11 @@ let assert Ok(Nil) = bag.sync(table)
 let assert Ok(info) = bag.info(table)
 // info.file_size — size of the file on disk in bytes
 // info.object_count — number of entries
+// info.file_path - absolute path of the table file
 ```
+
+`file_path` uses the normalized path from `open`; it does not resolve symlinks.
+For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
 ## Opening with options
 

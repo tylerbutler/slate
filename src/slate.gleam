@@ -92,8 +92,11 @@ pub type RepairPolicy {
 }
 
 /// Information about an open DETS table.
+///
+/// `file_path` is the absolute path used by `open`, with `.` and `..`
+/// segments normalized. Symlinks are not resolved.
 pub type TableInfo {
-  TableInfo(file_size: Int, object_count: Int)
+  TableInfo(file_size: Int, object_count: Int, file_path: String)
 }
 
 /// Return a stable machine-readable code for a `DetsError`.
