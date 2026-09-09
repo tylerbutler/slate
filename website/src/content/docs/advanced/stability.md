@@ -53,3 +53,31 @@ The `UnexpectedError(detail)` variant of `DetsError` wraps unexpected Erlang err
 - **[GitHub Releases](https://github.com/tylerbutler/slate/releases)** — tagged releases with download links.
 
 When upgrading across major versions, check the changelog for migration notes and breaking changes. Minor and patch upgrades should be drop-in replacements.
+
+### TableInfo in 2.0
+
+`TableInfo` now includes `file_path: String`. The `info()` functions in all three
+table modules return the normalized absolute path, file size, and object count.
+Existing field access remains valid. Update constructor calls and full
+constructor patterns:
+
+Before:
+
+```gleam
+let slate.TableInfo(file_size, object_count) = info
+let copy = slate.TableInfo(file_size:, object_count:)
+```
+
+After:
+
+```gleam
+let slate.TableInfo(file_size, object_count, file_path) = info
+let copy = slate.TableInfo(file_size:, object_count:, file_path:)
+```
+
+If you only need selected fields, use a partial pattern such as
+`let slate.TableInfo(object_count:, ..) = info`.
+
+`info()` remains fallible and returns `TableDoesNotExist` when the table is no
+longer open. Ordinary DETS records need no migration. If your application stores
+`TableInfo` records as data, migrate those records to the new shape.
