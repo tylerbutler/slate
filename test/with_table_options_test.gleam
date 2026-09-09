@@ -1,3 +1,4 @@
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/list
 import slate
@@ -85,7 +86,12 @@ fn check_options(
   test_helper.is_table_open(path) |> expect.to_equal(False)
 
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(table) {
-    insert(table, "other", 99) |> expect.to_equal(Error(slate.AccessDenied))
+    insert(table, "other", 99)
+    |> expect.to_equal(
+      Error(
+        slate.AccessDenied(file_error_test_helper.context(path, "access_mode")),
+      ),
+    )
     size(table)
   })
   |> expect.to_equal(Ok(1))
@@ -129,7 +135,11 @@ fn check_options(
   with_table(path, slate.NoRepair, slate.ReadWrite, fn(_table) {
     panic as "callback must not run when repair is required"
   })
-  |> expect.to_equal(Error(slate.NeedsRepair))
+  |> expect.to_equal(
+    Error(
+      slate.NeedsRepair(file_error_test_helper.context(path, "needs_repair")),
+    ),
+  )
   test_helper.is_table_open(path) |> expect.to_equal(False)
 
   with_table(path, slate.ForceRepair, slate.ReadWrite, size)
@@ -140,7 +150,9 @@ fn check_options(
   with_table(path, slate.NoRepair, slate.ReadOnly, fn(_table) {
     panic as "callback must not run when the file is missing"
   })
-  |> expect.to_equal(Error(slate.FileNotFound))
+  |> expect.to_equal(
+    Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),
+  )
   test_helper.is_table_open(path) |> expect.to_equal(False)
 }
 
