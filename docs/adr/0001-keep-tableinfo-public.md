@@ -13,7 +13,7 @@ Accepted
 Before the 1.0 release, we needed to decide whether `TableInfo` should remain a
 public (matchable) record or become an opaque type with accessor functions.
 
-`TableInfo` is currently defined as:
+At the time of the 1.0 decision, `TableInfo` was defined as:
 
 ```gleam
 pub type TableInfo {
@@ -113,3 +113,14 @@ does not expose a table info type, but its handle-vs-data split matches slate's.
 2. **Add likely future fields now (access mode, path, repair state)** —
    Rejected. These are either already available through other means or are
    implementation details not useful to consumers.
+
+## 2.0 extension
+
+Issue [#64](https://github.com/tylerbutler/slate/issues/64) identified a need to
+retrieve a table's path from a handle, without retaining the original open path.
+In 2.0, `TableInfo` gains a `file_path: String` field through the existing `info()`
+functions. This is a major-version change to the public record, as allowed by
+this decision. It does not introduce separate path accessor functions.
+
+Callers must update constructor calls and full constructor patterns. Existing
+field access and partial patterns with `..` remain valid.

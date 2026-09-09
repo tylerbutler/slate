@@ -236,7 +236,19 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `to_list(table)` | Get all entries |
 | `fold(table, acc, fn)` | Fold over entries |
 | `size(table)` | Count entries |
-| `info(table)` | Get table metadata |
+| `info(table)` | Get the file size, object count, and absolute file path |
+
+Use `info(table)` to retrieve the file path from an open handle:
+
+```gleam
+let assert Ok(info) = set.info(table)
+info.file_path
+```
+
+**Migrating from 1.x:** `TableInfo` now has a `file_path: String` field.
+Supply it when constructing the record. Include the third field, or use `..`,
+when matching the constructor. Existing `info.file_size` and
+`info.object_count` access remains valid.
 
 `slate/set` also provides:
 

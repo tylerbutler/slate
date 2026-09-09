@@ -363,11 +363,14 @@ pub fn delete_all(from table: Bag(k, v)) -> Result(Nil, DetsError) {
 
 // ── Info ────────────────────────────────────────────────────────────────
 
-/// Get information about an open table.
+/// Get the file size, object count, and absolute file path of an open table.
+///
+/// Returns `Error(TableDoesNotExist)` if the table is no longer open.
 pub fn info(table: Bag(k, v)) -> Result(slate.TableInfo, DetsError) {
   use file_size <- result.try(ffi_info_file_size(table.reference))
   use object_count <- result.try(ffi_info_size(table.reference))
-  Ok(slate.TableInfo(file_size:, object_count:))
+  use file_path <- result.try(ffi_info_path(table.reference))
+  Ok(slate.TableInfo(file_size:, object_count:, file_path:))
 }
 
 // ── FFI bindings ────────────────────────────────────────────────────────
@@ -440,6 +443,9 @@ fn ffi_info_size(reference: TableReference) -> Result(Int, DetsError)
 
 @external(erlang, "slate_dets_ffi", "info_file_size")
 fn ffi_info_file_size(reference: TableReference) -> Result(Int, DetsError)
+
+@external(erlang, "slate_dets_ffi", "info_path")
+fn ffi_info_path(reference: TableReference) -> Result(String, DetsError)
 
 @external(erlang, "slate_dets_ffi", "delete_key")
 fn ffi_delete_key(reference: TableReference, key: k) -> Result(Nil, DetsError)

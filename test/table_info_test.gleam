@@ -6,6 +6,20 @@ import slate/set
 import startest/expect
 import test_helper
 
+pub fn table_info_constructor_and_pattern_test() -> Nil {
+  let info =
+    slate.TableInfo(
+      file_size: 1024,
+      object_count: 3,
+      file_path: "/data/store.dets",
+    )
+  let slate.TableInfo(file_size, object_count, file_path) = info
+  slate.TableInfo(file_size:, object_count:, file_path:)
+  |> expect.to_equal(info)
+  let slate.TableInfo(file_size: retained_size, ..) = info
+  retained_size |> expect.to_equal(1024)
+}
+
 pub fn set_info_before_and_after_close_test() -> Nil {
   let path = "test_set_info_before_and_after_close.dets"
   let assert Ok(table) =
