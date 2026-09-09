@@ -476,6 +476,8 @@ pub fn set_with_table_propagates_error_test() -> Nil {
   let result =
     set.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(_table) { Error(slate.UnexpectedError("custom error")) },
@@ -491,6 +493,8 @@ pub fn set_with_table_returns_value_test() -> Nil {
   let result =
     set.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.int,
       fun: fn(table) {

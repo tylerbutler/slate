@@ -210,6 +210,8 @@ pub fn file_error_context_with_table_cleanup_test() -> Nil {
   let result =
     set.with_table(
       path,
+      slate.NoRepair,
+      slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.int,
       fun: fn(table) {

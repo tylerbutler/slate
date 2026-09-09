@@ -63,11 +63,13 @@ pub fn main() {
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 pub fn main() {
   // Table is closed after the callback returns
   let assert Ok(Nil) = set.with_table("data/config.dets",
+    repair: slate.AutoRepair, access: slate.ReadWrite,
     key_decoder: decode.string, value_decoder: decode.string,
     fun: fn(table) {
       set.insert(table, "theme", "dark")
@@ -75,11 +77,30 @@ pub fn main() {
 }
 ```
 
-Use `with_table` for short-lived operations. It opens with the default
-`AutoRepair` + `ReadWrite` settings, closes when the callback returns, and also
-attempts cleanup if the callback raises. It still does not make DETS
-crash-proof — if the owning process is terminated before cleanup runs, DETS may
-still need repair on the next open.
+Use `with_table` for short-lived operations. Select the repair policy and access
+mode for each call. The helper closes the table when the callback returns and
+attempts cleanup if the callback raises. If the owning process is terminated
+before cleanup runs, DETS may still need repair on the next open.
+
+For read-only access without automatic repair:
+
+```gleam
+import gleam/dynamic/decode
+import slate
+import slate/set
+
+use table <- set.with_table(
+  path: "data/config.dets", repair: slate.NoRepair, access: slate.ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+`ReadOnly` requires an existing file. This helper is available in all three
+table modules.
+
+**Migrating from 1.x:** `with_table` now requires `repair` and `access`.
+Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to keep the previous
+behavior. Cleanup and error handling are unchanged.
 
 ### Bag tables (multiple values per key)
 
@@ -204,7 +225,7 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `open_with_access(path, repair, access, key_decoder, value_decoder)` | Open with repair and access mode |
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
-| `with_table(path, key_decoder, value_decoder, fn)` | Auto-closing callback for short-lived operations |
+| `with_table(path, repair, access, key_decoder, value_decoder, fn)` | Auto-closing callback with repair and access options |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
 | `lookup(table, key)` | Get value(s) for key |

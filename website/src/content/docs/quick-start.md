@@ -16,11 +16,14 @@ gleam add slate
 ```gleam
 import gleam/dynamic/decode
 import gleam/result
+import slate
 import slate/set
 
 pub fn main() {
   use users <- set.with_table(
     "data/users.dets",
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.int,
   )
@@ -37,11 +40,14 @@ pub fn main() {
 
 ```gleam
 import gleam/dynamic/decode
+import slate
 import slate/set
 
 pub fn write() {
   use table <- set.with_table(
     "data/state.dets",
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.int,
   )
@@ -51,6 +57,8 @@ pub fn write() {
 pub fn read() {
   use table <- set.with_table(
     "data/state.dets",
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.int,
   )

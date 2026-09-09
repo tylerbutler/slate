@@ -211,6 +211,8 @@ pub fn set_with_table_test() -> Nil {
   let assert Ok(Nil) =
     set.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(table) { set.insert(table, "key", "val") },
@@ -228,6 +230,8 @@ pub fn set_with_table_close_error_propagates_test() -> Nil {
   let result =
     set.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(table) {
@@ -249,6 +253,8 @@ pub fn set_with_table_panic_still_closes_test() -> Nil {
     let _ =
       set.with_table(
         path,
+        repair: slate.AutoRepair,
+        access: slate.ReadWrite,
         key_decoder: decode.string,
         value_decoder: decode.string,
         fun: fn(table) {
@@ -271,6 +277,8 @@ pub fn set_with_table_open_error_test() -> Nil {
   let path = "missing_set_with_table_dir/test_set_with_table_open_error.dets"
   set.with_table(
     path,
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.string,
     fun: fn(_table) { Ok(Nil) },
@@ -656,6 +664,8 @@ pub fn set_with_table_error_still_closes_test() -> Nil {
   let result =
     set.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(_table) { Error(slate.NotFound) },

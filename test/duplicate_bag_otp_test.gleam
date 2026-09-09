@@ -387,6 +387,8 @@ pub fn duplicate_bag_with_table_error_propagation_test() -> Nil {
   let result =
     duplicate_bag.with_table(
       path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
       fun: fn(_table) { Error(slate.UnexpectedError("test error")) },

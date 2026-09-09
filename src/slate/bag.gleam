@@ -124,29 +124,42 @@ pub fn sync(table: Bag(k, v)) -> Result(Nil, DetsError) {
   ffi_sync(table.reference)
 }
 
-/// Use a table within a callback, ensuring it is closed afterward.
+/// Use a table within a callback with repair and access mode options.
 ///
-/// This is the recommended way to use DETS tables for short-lived operations.
-/// Opens with `AutoRepair` and `ReadWrite` access; use `open_with_access`
-/// and manual `close` if you need different settings.
+/// Pass `AutoRepair` and `ReadWrite` to keep the behavior of slate 1.x.
+/// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
+/// file, and writes return `Error(AccessDenied)`. `NoRepair` returns
+/// `Error(NeedsRepair)` if the file was not closed cleanly.
 ///
-/// If both the callback and close fail, the callback error is returned.
-/// If the callback raises an exception, close is attempted before re-raising.
+/// If opening fails, returns the open error without calling the callback.
+/// Otherwise, closes the table before returning the callback result. If close
+/// fails after a successful callback, returns the close error. If both fail,
+/// returns the callback error. If the callback raises, attempts close before
+/// re-raising the original exception.
+///
+/// Keep the table handle within the callback; do not use it after cleanup.
+/// This cannot guarantee cleanup if the process is killed.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
-/// use table <- bag.with_table("data/tags.dets",
+/// import slate.{NoRepair, ReadOnly}
+/// import slate/bag
+///
+/// use table <- bag.with_table(path: "data/tags.dets",
+///   repair: NoRepair, access: ReadOnly,
 ///   key_decoder: decode.string, value_decoder: decode.string)
-/// bag.insert(table, "color", "red")
+/// bag.lookup(table, key: "color")
 /// ```
 ///
 pub fn with_table(
-  path: String,
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
   fun callback: fn(Bag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
-  case open(path, key_decoder:, value_decoder:) {
+  case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
     Ok(table) -> ffi_with_close(table, callback, close)
     Error(error) -> Error(error)
   }

@@ -1,0 +1,30 @@
+package = "slate"
+kind = "Breaking"
+body = """
+`with_table` now requires repair and access options.
+
+In `slate/set`, `slate/bag`, and `slate/duplicate_bag`, pass `repair`
+and `access` to `with_table`. Use `AutoRepair` and `ReadWrite` to
+preserve the behavior of existing calls.
+
+Before:
+
+```gleam
+use table <- set.with_table("data/config.dets",
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+After:
+
+```gleam
+import slate
+
+use table <- set.with_table("data/config.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+The callback result, cleanup on return or exception, and error
+precedence are unchanged. Ordinary DETS records need no migration."""
