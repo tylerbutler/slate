@@ -11,14 +11,14 @@ import test_helper
 pub fn set_with_table_options_test() -> Nil {
   check_options(
     "test_set_scoped_options.dets",
-    fn(path, repair, access, fun) {
+    fn(path, repair, access, callback) {
       set.with_table(
         path:,
         repair:,
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun:,
+        fun: callback,
       )
     },
     set.insert,
@@ -30,14 +30,14 @@ pub fn set_with_table_options_test() -> Nil {
 pub fn bag_with_table_options_test() -> Nil {
   check_options(
     "test_bag_scoped_options.dets",
-    fn(path, repair, access, fun) {
+    fn(path, repair, access, callback) {
       bag.with_table(
         path:,
         repair:,
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun:,
+        fun: callback,
       )
     },
     bag.insert,
@@ -49,14 +49,14 @@ pub fn bag_with_table_options_test() -> Nil {
 pub fn duplicate_bag_with_table_options_test() -> Nil {
   check_options(
     "test_duplicate_bag_scoped_options.dets",
-    fn(path, repair, access, fun) {
+    fn(path, repair, access, callback) {
       duplicate_bag.with_table(
         path:,
         repair:,
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun:,
+        fun: callback,
       )
     },
     duplicate_bag.insert,

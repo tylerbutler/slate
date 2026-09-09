@@ -128,8 +128,8 @@ pub fn sync(table: Bag(k, v)) -> Result(Nil, DetsError) {
 ///
 /// Pass `AutoRepair` and `ReadWrite` to keep the behavior of slate 1.x.
 /// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
-/// file, and writes return `Error(AccessDenied)`. `NoRepair` returns
-/// `Error(NeedsRepair)` if the file was not closed cleanly.
+/// file, and writes return `Error(AccessDenied(context))`. `NoRepair` returns
+/// `Error(NeedsRepair(context))` if the file was not closed cleanly.
 ///
 /// If opening fails, returns the open error without calling the callback.
 /// Otherwise, closes the table before returning the callback result. If close

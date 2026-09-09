@@ -109,5 +109,7 @@ fn check_path(
   Nil
 }
 
+type FileDeleteError
+
 @external(erlang, "path_test_ffi", "delete_file")
-fn delete_file(path: String) -> Result(Nil, decode.Dynamic)
+fn delete_file(path: String) -> Result(Nil, FileDeleteError)
