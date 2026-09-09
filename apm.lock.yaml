@@ -1,5 +1,5 @@
 lockfile_version: '1'
-apm_version: 0.29.1
+apm_version: 0.30.0
 dependencies:
 - repo_url: tylerbutler/agent-marketplace
   name: gleam
@@ -40,7 +40,7 @@ dependencies:
 - repo_url: tylerbutler/apm-base
   name: apm-base
   host: github.com
-  resolved_commit: b559669a88d5700e0233a60ebe4d5c19d5b4de5a
+  resolved_commit: 743b113df676ccfc19ce346a39d991902fb17754
   version: 0.2.2
   package_type: apm_package
   deployed_files:
@@ -49,6 +49,8 @@ dependencies:
   - .agents/skills/humanizer/SKILL.md
   - .agents/skills/prose-banlist
   - .agents/skills/prose-banlist/SKILL.md
+  - .claude/commands/create-pr.md
+  - .claude/commands/merge-upstream.md
   - .claude/rules/use-ste.md
   - .claude/skills/humanizer
   - .claude/skills/humanizer/LICENSE
@@ -56,16 +58,22 @@ dependencies:
   - .claude/skills/prose-banlist
   - .claude/skills/prose-banlist/SKILL.md
   - .github/instructions/use-ste.instructions.md
+  - .github/prompts/create-pr.prompt.md
+  - .github/prompts/merge-upstream.prompt.md
   deployed_file_hashes:
     .agents/skills/humanizer/LICENSE: sha256:4ac4810254ab36d45419141aeb8e69bf50652cfafe5b2dab947d06d44e5cbf96
     .agents/skills/humanizer/SKILL.md: sha256:14fc8a965b6e0a8dc100ba4dffeab55cb94bbac112abbde7e014d5c15a35c202
     .agents/skills/prose-banlist/SKILL.md: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
+    .claude/commands/create-pr.md: sha256:f60319bef36ed8d7159543f774f196f2ab90df55d3538c1723da6b81295d02ff
+    .claude/commands/merge-upstream.md: sha256:f8c97a3085cc2b603cd34428aa28d17c55b5411ba526871ae599cede372d3f89
     .claude/rules/use-ste.md: sha256:6bfec65cbeaf6e78cf7885d6119fb868ad789db4a34a7dd28c2e71abfe69f803
     .claude/skills/humanizer/LICENSE: sha256:4ac4810254ab36d45419141aeb8e69bf50652cfafe5b2dab947d06d44e5cbf96
     .claude/skills/humanizer/SKILL.md: sha256:14fc8a965b6e0a8dc100ba4dffeab55cb94bbac112abbde7e014d5c15a35c202
     .claude/skills/prose-banlist/SKILL.md: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
     .github/instructions/use-ste.instructions.md: sha256:c4512aac8ae85c13578effb80b704cc72a14a6a13a3c5f3db036ca2e899513de
-  content_hash: sha256:36fc61f3c15147d997bca1fa5fbdecba24463e1fa103a1aab8379e23de36e20e
+    .github/prompts/create-pr.prompt.md: sha256:5fcb1b64247130aec3a0ebd114ae6d127de44f7e824087033c468d8debb593a2
+    .github/prompts/merge-upstream.prompt.md: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
+  content_hash: sha256:a2dedce4ff236e1fd7eedab6877f0faf5264cdc33021615e719452770bba68c3
   is_dev: true
 - repo_url: dietrichgebert/ponytail
   materialization_repo_url: DietrichGebert/ponytail
@@ -220,6 +228,24 @@ dependencies:
   content_hash: sha256:b416cf134b0f33ddadeca7977aebdbb2d3db79a166d0fce2e1aabeec98132766
   is_dev: true
 deployments:
+- kind: project-relative
+  target: claude
+  value: .claude/commands/create-pr.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:f60319bef36ed8d7159543f774f196f2ab90df55d3538c1723da6b81295d02ff
+- kind: project-relative
+  target: claude
+  value: .claude/commands/merge-upstream.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:f8c97a3085cc2b603cd34428aa28d17c55b5411ba526871ae599cede372d3f89
 - kind: project-relative
   target: claude
   value: .claude/hooks/ponytail/hooks/package.json
@@ -1030,3 +1056,21 @@ deployments:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
   content_hash: sha256:c4512aac8ae85c13578effb80b704cc72a14a6a13a3c5f3db036ca2e899513de
+- kind: project-relative
+  target: copilot
+  value: .github/prompts/create-pr.prompt.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:5fcb1b64247130aec3a0ebd114ae6d127de44f7e824087033c468d8debb593a2
+- kind: project-relative
+  target: copilot
+  value: .github/prompts/merge-upstream.prompt.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
