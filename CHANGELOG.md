@@ -1,5 +1,126 @@
 # Changelog
 
+## 2.0.0 - 2026-09-10
+
+### Breaking
+
+#### Added structured context to expected file errors.
+
+`FileNotFound`, `AlreadyOpen`, `AccessDenied`, `TypeMismatch`, `NeedsRepair`,
+`NotADetsFile`, and `FileSizeLimitExceeded` now each carry
+`FileErrorContext(path: Option(String), reason: String)`. The FFI retains
+OTP filenames and lower-level reasons, including nested file errors.
+Open operations retain the known path when OTP omits it from an
+`AlreadyOpen` error. Other pathless errors use `None`, not an empty
+string or a guessed filename.
+`no_more_space_on_file` now maps to `FileSizeLimitExceeded`.
+
+Before:
+
+```gleam
+let assert Error(slate.AccessDenied) = set.insert(table, "key", "value")
+let error = slate.NeedsRepair
+```
+
+After:
+
+```gleam
+import gleam/option.{None}
+
+let assert Error(slate.AccessDenied(_)) = set.insert(table, "key", "value")
+let error = slate.NeedsRepair(
+  slate.FileErrorContext(path: None, reason: "application requires repair"),
+)
+```
+
+Bind `(context)` instead of `(_)` to inspect `context.path` and
+`context.reason`. Update all seven constructor patterns and values,
+including those inside `set.TableError`.
+
+This breaks source and in-memory error representation compatibility.
+Table handles, operation signatures, and ordinary DETS file contents do
+not change; applications that persist `DetsError` values must migrate
+those records. `NotFound`, `KeyAlreadyPresent`, and `DecodeErrors` keep
+their existing semantics. Every `error_code` and safe `error_message`
+output is unchanged. Context is diagnostic data and can be sensitive.
+See `docs/file-error-context-migration.md` for the full migration guide.
+#### `TableInfo` now includes the table's file path.
+
+`info(table)` in `slate/set`, `slate/bag`, and `slate/duplicate_bag`
+returns `TableInfo(file_size: Int, object_count: Int, file_path: String)`.
+Read `info.file_path` for the normalized absolute path used by `open`.
+Symlinks are not resolved.
+
+Update constructor calls and full constructor patterns:
+
+Before:
+
+```gleam
+let slate.TableInfo(file_size, object_count) = info
+let copy = slate.TableInfo(file_size:, object_count:)
+```
+
+After:
+
+```gleam
+let slate.TableInfo(file_size, object_count, file_path) = info
+let copy = slate.TableInfo(file_size:, object_count:, file_path:)
+```
+
+Existing field access and partial patterns with `..` remain valid.
+`info()` still returns `TableDoesNotExist` if the table is no longer open.
+Ordinary DETS records need no migration, but applications that persist
+`TableInfo` records must migrate those records to the new shape.
+#### `with_table` now requires repair and access options and uses `callback:`.
+
+In `slate/set`, `slate/bag`, and `slate/duplicate_bag`, pass `repair`
+and `access` to `with_table`. Use `AutoRepair` and `ReadWrite` to
+preserve the behavior of existing calls.
+
+Before:
+
+```gleam
+use table <- set.with_table("data/config.dets",
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+After:
+
+```gleam
+import slate
+
+use table <- set.with_table("data/config.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
+  key_decoder: decode.string, value_decoder: decode.string)
+set.lookup(table, key: "theme")
+```
+
+The callback result, cleanup on return or exception, and error
+precedence are unchanged. Ordinary DETS records need no migration.
+
+The callback argument label changed from `fun:` to `callback:`.
+Update explicitly labelled callback arguments:
+
+Before:
+
+```gleam
+set.with_table("data/config.dets",
+  key_decoder: decode.string, value_decoder: decode.string,
+  fun: fn(table) { set.lookup(table, key: "theme") })
+```
+
+After:
+
+```gleam
+set.with_table("data/config.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
+  key_decoder: decode.string, value_decoder: decode.string,
+  callback: fn(table) { set.lookup(table, key: "theme") })
+```
+
+The label rename does not affect positional callback arguments or `use` syntax.
+
 ## 1.0.2 - 2026-09-08
 
 ### Changed
