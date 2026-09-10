@@ -71,7 +71,7 @@ pub fn main() {
   let assert Ok(Nil) = set.with_table("data/config.dets",
     repair: slate.AutoRepair, access: slate.ReadWrite,
     key_decoder: decode.string, value_decoder: decode.string,
-    fun: fn(table) {
+    callback: fn(table) {
       set.insert(table, "theme", "dark")
     })
 }

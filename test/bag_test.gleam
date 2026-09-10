@@ -264,15 +264,16 @@ pub fn bag_insert_list_test() -> Nil {
 
 pub fn bag_with_table_test() -> Nil {
   let path = "test_bag_with_table.dets"
-  let assert Ok(Nil) =
-    bag.with_table(
+  let assert Ok(Nil) = {
+    use table <- bag.with_table(
       path,
       repair: slate.AutoRepair,
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) { bag.insert(table, "key", "val") },
     )
+    bag.insert(table, "key", "val")
+  }
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(["val"]) = bag.lookup(table, key: "key")
@@ -289,7 +290,7 @@ pub fn bag_with_table_close_error_propagates_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) {
+      callback: fn(table) {
         let assert Ok(Nil) = bag.close(table)
         Ok(Nil)
       },
@@ -312,7 +313,7 @@ pub fn bag_with_table_panic_still_closes_test() -> Nil {
         access: slate.ReadWrite,
         key_decoder: decode.string,
         value_decoder: decode.string,
-        fun: fn(table) {
+        callback: fn(table) {
           let assert Ok(Nil) = bag.insert(table, "key", "val")
           panic as "boom"
         },
@@ -336,7 +337,7 @@ pub fn bag_with_table_open_error_test() -> Nil {
     access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.string,
-    fun: fn(_table) { Ok(Nil) },
+    callback: fn(_table) { Ok(Nil) },
   )
   |> expect.to_equal(
     Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),

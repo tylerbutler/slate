@@ -161,7 +161,7 @@ pub fn with_table(
   access access: AccessMode,
   key_decoder key_decoder: Decoder(k),
   value_decoder value_decoder: Decoder(v),
-  fun callback: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
+  callback callback: fn(DuplicateBag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
     Ok(table) -> ffi_with_close(table, callback, close)
@@ -229,9 +229,9 @@ pub fn fold(
   let wrapper = fn(entry: Dynamic, accumulator_result: Result(acc, DetsError)) {
     case accumulator_result {
       Error(error) -> Error(error)
-      Ok(acc) ->
+      Ok(accumulator) ->
         case decode.run(entry, entry_decoder) {
-          Ok(#(key, value)) -> Ok(callback(acc, key, value))
+          Ok(#(key, value)) -> Ok(callback(accumulator, key, value))
           Error(errors) -> Error(slate.DecodeErrors(errors))
         }
     }
@@ -281,9 +281,9 @@ pub fn fold_results(
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
-  let wrapper = fn(entry: Dynamic, acc: acc) {
+  let wrapper = fn(entry: Dynamic, accumulator: acc) {
     let decoded = decode.run(entry, entry_decoder)
-    callback(acc, decoded)
+    callback(accumulator, decoded)
   }
   ffi_fold(table.reference, wrapper, initial)
 }
@@ -425,7 +425,7 @@ fn ffi_to_list(reference: TableReference) -> Result(List(Dynamic), DetsError)
 fn ffi_fold(
   reference: TableReference,
   callback: fn(Dynamic, acc) -> acc,
-  acc: acc,
+  accumulator: acc,
 ) -> Result(acc, DetsError)
 
 @external(erlang, "slate_dets_ffi", "info_size")

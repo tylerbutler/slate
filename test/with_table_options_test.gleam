@@ -18,7 +18,7 @@ pub fn set_with_table_options_test() -> Nil {
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun: callback,
+        callback:,
       )
     },
     set.insert,
@@ -37,7 +37,7 @@ pub fn bag_with_table_options_test() -> Nil {
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun: callback,
+        callback:,
       )
     },
     bag.insert,
@@ -56,7 +56,7 @@ pub fn duplicate_bag_with_table_options_test() -> Nil {
         access:,
         key_decoder: decode.string,
         value_decoder: decode.int,
-        fun: callback,
+        callback:,
       )
     },
     duplicate_bag.insert,

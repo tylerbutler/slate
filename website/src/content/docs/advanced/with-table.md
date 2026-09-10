@@ -38,7 +38,7 @@ import slate/set
 let assert Ok(Nil) = set.with_table("data/config.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  fun: fn(table) {
+  callback: fn(table) {
     set.insert(table, "theme", "dark")
   })
 ```
@@ -74,7 +74,7 @@ import slate/set
 let assert Ok(age) = set.with_table("data/users.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
-  fun: fn(table) {
+  callback: fn(table) {
     let assert Ok(Nil) = set.insert(table, "alice", 42)
     set.lookup(table, key: "alice")
   })
@@ -93,7 +93,7 @@ import slate/set
 let result = set.with_table("data/users.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
-  fun: fn(table) {
+  callback: fn(table) {
     set.lookup(table, key: "nonexistent")
   })
 // result == Error(NotFound), and the table has been closed
@@ -109,7 +109,7 @@ import slate/set
 let _ = set.with_table("data/users.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
-  fun: fn(table) {
+  callback: fn(table) {
     let assert Ok(Nil) = set.insert(table, "alice", 42)
     panic as "boom"
   })
@@ -125,7 +125,7 @@ import slate/set
 let result = set.with_table("corrupted.dets",
   repair: slate.NoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  fun: fn(table) {
+  callback: fn(table) {
     set.lookup(table, key: "key")
   })
 // result == Error(...) from the open failure
@@ -145,15 +145,15 @@ import slate/duplicate_bag
 let assert Ok(_) = set.with_table("data/set.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  fun: fn(table) { ... })
+  callback: fn(table) { ... })
 let assert Ok(_) = bag.with_table("data/bag.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  fun: fn(table) { ... })
+  callback: fn(table) { ... })
 let assert Ok(_) = duplicate_bag.with_table("data/dup.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  fun: fn(table) { ... })
+  callback: fn(table) { ... })
 ```
 
 ## Repair and access options
@@ -184,6 +184,10 @@ file needs repair. The callback does not run if opening fails.
 `with_table` now requires repair and access options in all three table modules.
 Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to existing calls
 to keep their previous behavior. Cleanup and error precedence are unchanged.
+
+The callback argument label is `callback:` instead of `fun:`. Change explicit
+`fun: fn(table) { ... }` arguments to `callback: fn(table) { ... }`.
+This label rename does not affect positional callback arguments or `use` syntax.
 
 ## When to use `with_table`
 

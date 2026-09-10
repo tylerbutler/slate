@@ -214,7 +214,7 @@ pub fn file_error_context_with_table_cleanup_test() -> Nil {
       slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.int,
-      fun: fn(table) {
+      callback: fn(table) {
         let assert Ok(Nil) = set.insert(table, "key", 1)
         slate.is_dets_file(missing)
       },
