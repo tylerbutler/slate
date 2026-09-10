@@ -1,4 +1,4 @@
-//// DETS duplicate bag tables — multiple values per key, duplicates allowed.
+//// DETS duplicate bag tables: multiple values per key, including duplicates.
 ////
 //// Duplicate bag tables are like bag tables but allow storing identical
 //// key-value pairs multiple times.
@@ -41,8 +41,11 @@ type TableReference
 
 /// Open or create a DETS duplicate bag table at the given file path.
 ///
-/// Decoders are used to validate data read from disk, ensuring type safety
-/// even when opening files created by other code or previous runs.
+/// The parent directory must exist. This function uses `AutoRepair` and
+/// `ReadWrite`.
+///
+/// Reads use your decoders to check stored data. Opening a table does not
+/// check all its entries.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -61,11 +64,14 @@ pub fn open(
 /// Open or create a DETS duplicate bag table with a specific repair policy.
 ///
 /// The repair policy controls what happens when the table file was not
-/// closed cleanly (e.g., after a crash):
+/// closed cleanly, for example after an abnormal node shutdown:
 ///
-/// - `AutoRepair` — silently repair the file if needed (default for `open`)
-/// - `ForceRepair` — repair even if the file appears clean
-/// - `NoRepair` — return an error instead of repairing
+/// - `AutoRepair`: Attempt repair if needed. This is the default for `open`.
+/// - `ForceRepair`: Repair even if the file was closed properly.
+/// - `NoRepair`: Return `NeedsRepair` if the file requires repair.
+///
+/// Make a backup before you repair a file with data you need to keep.
+/// Repair does not guarantee recovery of all data.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -116,27 +122,30 @@ pub fn open_with_access(
 }
 
 /// Close the table, flushing all pending writes to disk.
+///
+/// The table handle must not be used after closing.
 pub fn close(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_close(table.reference)
 }
 
 /// Flush pending writes to disk without closing the table.
 ///
-/// DETS auto-syncs periodically, so this is only needed when you require
-/// a durability guarantee at a specific point (e.g., after a critical write).
+/// By default, DETS saves the table after three minutes without table access.
+/// Call `sync` and handle its result when you need to write pending updates
+/// to disk before continuing.
 pub fn sync(table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_sync(table.reference)
 }
 
 /// Use a table within a callback with repair and access mode options.
 ///
-/// Pass `AutoRepair` and `ReadWrite` to keep the behavior of slate 1.x.
-/// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
+/// Select the repair policy and access mode as for `open_with_access`.
+/// The callback must return a `Result`. `ReadOnly` requires an existing
 /// file, and writes return `Error(AccessDenied(context))`. `NoRepair` returns
 /// `Error(NeedsRepair(context))` if the file was not closed cleanly.
 ///
 /// If opening fails, returns the open error without calling the callback.
-/// Otherwise, closes the table before returning the callback result. If close
+/// Otherwise, runs the callback and attempts to close the table. If close
 /// fails after a successful callback, returns the close error. If both fail,
 /// returns the callback error. If the callback raises, attempts close before
 /// re-raising the original exception.
@@ -171,11 +180,11 @@ pub fn with_table(
 
 // ── Read ────────────────────────────────────────────────────────────────
 
-/// Look up all values for a key.
+/// Look up all values for a key, including duplicates, in an unspecified order.
 ///
 /// Returns `Ok([])` if the key does not exist. This differs from
 /// `set.lookup`, which returns `Error(NotFound)` for missing keys.
-/// Returns `Error(DecodeErrors(_))` if any stored value doesn't match the
+/// Returns `Error(DecodeErrors(_))` if any stored value does not match the
 /// expected type.
 pub fn lookup(
   from table: DuplicateBag(k, v),
@@ -199,10 +208,10 @@ pub fn member(
   ffi_member(table.reference, key)
 }
 
-/// Return all key-value pairs as a list.
+/// Return all entries as a list in an unspecified order, including duplicates.
 ///
-/// **Warning**: loads entire table into memory.
-/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// This loads the entire table into memory.
+/// Returns `Error(DecodeErrors(_))` if any entry does not match the
 /// expected types.
 pub fn to_list(
   from table: DuplicateBag(k, v),
@@ -216,7 +225,7 @@ pub fn to_list(
 
 /// Fold over all entries. Order is unspecified.
 ///
-/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// Returns `Error(DecodeErrors(_))` if any entry does not match the
 /// expected types. The fold stops at the first decode error. If the callback
 /// raises, the exception is re-raised.
 pub fn fold(
@@ -240,16 +249,16 @@ pub fn fold(
   |> result.flatten
 }
 
-/// Fold over all entries, passing decode results to the callback.
+/// Call your callback once for each entry, in an unspecified order.
 ///
-/// Unlike `fold`, decode failures do not abort the traversal. Each entry
-/// is presented to the callback as `Ok(#(key, value))` on success or
-/// `Error(decode_errors)` on failure, letting the caller decide how to
-/// handle bad records.
+/// Pass the decoded entry as `Ok(#(key, value))`, or its decode errors as
+/// `Error(decode_errors)`. Each duplicate copy counts as an entry.
+/// The callback returns the next accumulator value.
+/// Unlike `fold`, this function continues after a decode error.
 ///
-/// DETS-level errors (e.g., the table does not exist) still fail the
-/// entire operation via the outer `Result`. If the callback raises, the
-/// exception is re-raised.
+/// The function returns `Ok(accumulator)` when it finishes. A table error,
+/// such as `TableDoesNotExist`, makes the function return `Error(error)`.
+/// If the callback raises an exception, that exception propagates to the caller.
 ///
 /// ## Examples
 ///
@@ -264,7 +273,7 @@ pub fn fold(
 /// })
 /// ```
 ///
-/// Partition into successes and failures:
+/// Collect decoded entries and decode errors separately:
 ///
 /// ```gleam
 /// duplicate_bag.fold_results(table, #([], []), fn(acc, entry) {
@@ -288,7 +297,9 @@ pub fn fold_results(
   ffi_fold(table.reference, wrapper, initial)
 }
 
-/// Return the number of objects stored.
+/// Return the number of stored entries, not the number of distinct keys.
+///
+/// Each copy of a key-value pair counts as an entry.
 pub fn size(of table: DuplicateBag(k, v)) -> Result(Int, DetsError) {
   ffi_info_size(table.reference)
 }
@@ -319,8 +330,7 @@ pub fn insert_list(
 
 /// Delete all values for the given key.
 ///
-/// This operation is idempotent — deleting a key that does not exist
-/// succeeds with `Ok(Nil)`.
+/// Returns `Ok(Nil)` even if the key does not exist.
 pub fn delete_key(
   from table: DuplicateBag(k, v),
   key key: k,
@@ -352,14 +362,14 @@ pub fn delete_object(
   ffi_delete_object(table.reference, #(key, value))
 }
 
-/// Delete all objects in the table (keeps the table open).
+/// Delete all entries and keep the table open.
 pub fn delete_all(from table: DuplicateBag(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.reference)
 }
 
 // ── Info ────────────────────────────────────────────────────────────────
 
-/// Get the file size, object count, and absolute file path of an open table.
+/// Get the file size in bytes, entry count, and absolute path of an open table.
 ///
 /// Returns `Error(TableDoesNotExist)` if the table is no longer open.
 pub fn info(table: DuplicateBag(k, v)) -> Result(slate.TableInfo, DetsError) {

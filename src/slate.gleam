@@ -1,22 +1,27 @@
 //// Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
 ////
 //// DETS provides persistent key-value storage backed by files on disk.
-//// Tables survive process crashes and node restarts. DETS is built into
-//// OTP — no external database or dependency is needed.
+//// Stored data persists across node restarts. An abnormal node shutdown can lose
+//// pending writes and leave the file needing repair. DETS is built into OTP.
+//// No separate database service is required.
 ////
-//// ## Table Types
+//// ## Table types
 ////
-//// - `slate/set` — Unique keys, one value per key
-//// - `slate/bag` — Multiple distinct values per key
-//// - `slate/duplicate_bag` — Multiple values per key (duplicates allowed)
+//// - `slate/set`: One value per key
+//// - `slate/bag`: Multiple distinct values per key
+//// - `slate/duplicate_bag`: Multiple values per key, including duplicates
 ////
-//// ## Quick Start
+//// An entry is one key-value pair. The table modules share a core API.
+//// Set and bag tables also provide `insert_new`, with different duplicate
+//// rules. Only set tables provide `update_counter`.
+////
+//// ## Quick start
 ////
 //// ```gleam
 //// import gleam/dynamic/decode
 //// import slate/set
 ////
-//// let assert Ok(table) = set.open("data/cache.dets",
+//// let assert Ok(table) = set.open("cache.dets",
 ////   key_decoder: decode.string, value_decoder: decode.string)
 //// let assert Ok(Nil) = set.insert(table, "key", "value")
 //// let assert Ok(value) = set.lookup(table, key: "key")
@@ -27,9 +32,9 @@
 ////
 //// - 2 GB maximum file size
 //// - No `ordered_set` table type (unlike ETS)
-//// - Disk I/O on every operation (use ETS for high-frequency reads)
+//// - Disk-backed access is slower than ETS for frequent reads
 //// - Tables must be closed properly or data may be lost
-//// - **Bounded table name pool**: slate uses a bounded set of internal
+//// - Bounded table name pool: slate uses a bounded set of internal
 ////   DETS table names to avoid unbounded atom growth. Opening too many
 ////   distinct tables at once may fail; close unused tables promptly
 
@@ -40,7 +45,8 @@ import gleam/option.{type Option}
 ///
 /// `path` is the filename reported by OTP, not a table name. For a pathless
 /// `AlreadyOpen` error, open operations supply the path they passed to OTP.
-/// Opens normally report an absolute path; `is_dets_file` can report a relative path.
+/// Open operations normally report an absolute path.
+/// `is_dets_file` can report a relative path.
 /// `None` means OTP supplied no single filename (for example, a pathless error
 /// or a rename failure with two filenames). No table lookup is needed, so
 /// context remains usable after the table closes.
@@ -48,8 +54,9 @@ import gleam/option.{type Option}
 /// `reason` is the lower-level Erlang reason formatted for diagnostics, such as
 /// `"enoent"`, `"{error,eacces}"`, `"access_mode"`, or `"keypos_mismatch"`.
 /// Rename failures retain both filenames in this diagnostic string.
-/// Do not parse it as a stable classifier. Both fields can contain sensitive
-/// details: use `error_code` and `error_message` for safe external output.
+/// Do not parse it to identify the error category.
+/// Both fields can contain sensitive details. Use `error_code` and
+/// `error_message` for safe external output.
 pub type FileErrorContext {
   FileErrorContext(path: Option(String), reason: String)
 }
@@ -96,22 +103,25 @@ pub type DetsError {
 pub type AccessMode {
   /// Read and write access (default)
   ReadWrite
-  /// Read-only access — writes will return `AccessDenied`
+  /// Read-only access; writes return `AccessDenied`
   ReadOnly
 }
 
 /// Auto-repair policy for improperly closed tables.
 pub type RepairPolicy {
-  /// Repair automatically if needed (default)
+  /// Attempt repair if needed (default)
   AutoRepair
-  /// Force repair even if file appears clean
+  /// Repair even if the file was closed properly
   ForceRepair
-  /// Don't repair, return error instead
+  /// Return an error if the file needs repair
   NoRepair
 }
 
 /// Information about an open DETS table.
 ///
+/// `file_size` is the size of the table file in bytes.
+/// `object_count` is the number of stored entries, not the number of distinct
+/// keys. In a duplicate bag, each copy of a key-value pair counts as an entry.
 /// `file_path` is the absolute path used by `open`, with `.` and `..`
 /// segments normalized. Symlinks are not resolved.
 pub type TableInfo {
@@ -168,6 +178,10 @@ pub fn error_message(of error: DetsError) -> String {
 ///
 /// Returns `Ok(True)` if the file is a valid DETS file, `Ok(False)` if
 /// it exists but is not a DETS file, or an error if the file cannot be read.
+///
+/// This identifies the file type. It does not check every entry or guarantee
+/// that opening or decoding will succeed. Apply your own path and access rules
+/// before using a path from an untrusted source.
 ///
 /// ```gleam
 /// let assert Ok(True) = slate.is_dets_file("data/cache.dets")

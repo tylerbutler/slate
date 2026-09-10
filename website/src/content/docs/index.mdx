@@ -5,7 +5,7 @@ template: splash
 editUrl: false
 lastUpdated: false
 hero:
-  tagline: Type-safe, persistent key-value storage for Gleam — the gap between "serialize to a file" and "add a database." Built on OTP's DETS, no external dependencies.
+  tagline: Persistent key-value storage for Gleam, built on Erlang DETS. No separate database service is required.
   image:
     file: ../../assets/slate.webp
     alt: Chalk drawing on a slate chalkboard of a database cylinder under a magnifying glass, with the slate logo above it.
@@ -27,20 +27,29 @@ import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 gleam add slate
 ```
 
-slate targets Erlang, where DETS ships with OTP. There is no database service or JavaScript-target dependency to add.
+slate supports Gleam's Erlang target. DETS is part of OTP; slate does not support the JavaScript target.
 
 ## What it looks like
 
-Open a table, insert, look up. Every value passes through the decoders you choose, so what comes off disk is typed — not dynamic data you have to trust.
+Open a table, insert a value, and look it up. Reads use your decoders to check the stored data.
+
+Create the parent directory before you run the example:
+
+```sh
+mkdir -p data
+```
 
 ```gleam
 import gleam/dynamic/decode
 import gleam/result
+import slate
 import slate/set
 
 pub fn main() {
   use users <- set.with_table(
     "data/users.dets",
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.int,
   )
@@ -52,9 +61,9 @@ pub fn main() {
 // Ok(42), and the table is closed
 ```
 
-Gleam's `use value <- function(...)` syntax passes the rest of the block as a callback. Here, `with_table` supplies `users` and closes the table when that callback returns. The decoders define the key and value types expected from disk; `result.try` stops early if the insert fails.
+Gleam's `use value <- function(...)` syntax passes the rest of the block as a callback. Here, `with_table` supplies `users` and attempts to close the table when the callback returns. The decoders define the key and value types expected from disk; `result.try` stops early if the insert fails.
 
-Values persist across node restarts. After an abrupt process termination, DETS may repair the file when it next opens. The [Quick Start](/quick-start/) walks through this pattern step by step, and [Safe Resource Management](/advanced/with-table/) covers long-lived tables and repair behavior.
+Stored data persists across node restarts. An abnormal node shutdown can lose pending writes and leave the file needing repair. The [quick start](/quick-start/) explains this example. See the [table cleanup guide](/advanced/with-table/) for cleanup and repair options.
 
 ## When to use DETS
 
@@ -63,7 +72,7 @@ Values persist across node restarts. After an abrupt process termination, DETS m
 	<thead>
 		<tr>
 			<th scope="col">Approach</th>
-			<th scope="col">Complexity</th>
+			<th scope="col">Setup</th>
 			<th scope="col">Persistence</th>
 			<th scope="col">Query capability</th>
 		</tr>
@@ -71,42 +80,48 @@ Values persist across node restarts. After an abrupt process termination, DETS m
 	<tbody>
 		<tr>
 			<td>JSON file</td>
-			<td data-label="Complexity">Low</td>
+			<td data-label="Setup">File I/O and serialization</td>
 			<td data-label="Persistence">Yes</td>
 			<td data-label="Queries">None</td>
 		</tr>
 		<tr>
 			<td><strong>DETS (slate)</strong></td>
-			<td data-label="Complexity"><strong>Low</strong></td>
+			<td data-label="Setup"><strong>Included in OTP; add slate for Gleam</strong></td>
 			<td data-label="Persistence"><strong>Yes</strong></td>
 			<td data-label="Queries"><strong>Key lookup, fold</strong></td>
 		</tr>
 		<tr>
-			<td>SQLite/Postgres</td>
-			<td data-label="Complexity">High</td>
+			<td>SQLite</td>
+			<td data-label="Setup">Embedded database library</td>
+			<td data-label="Persistence">Yes</td>
+			<td data-label="Queries">Full SQL</td>
+		</tr>
+		<tr>
+			<td>Postgres</td>
+			<td data-label="Setup">Database server</td>
 			<td data-label="Persistence">Yes</td>
 			<td data-label="Queries">Full SQL</td>
 		</tr>
 		<tr>
 			<td>Mnesia</td>
-			<td data-label="Complexity">High</td>
+			<td data-label="Setup">Included in OTP; configure a schema</td>
 			<td data-label="Persistence">Yes</td>
-			<td data-label="Queries">Transactions, distribution</td>
+			<td data-label="Queries">Key lookup, query expressions</td>
 		</tr>
 	</tbody>
 </table>
 
-If a config file is too little and a database is too much, DETS is the middle layer you already have. It has real limits — 2 GB per table, disk I/O on every operation — and they are documented plainly in [Limitations](/advanced/limitations/).
+Use DETS when you need persistent key lookup without a separate database service. Each table has a 2 GB file size limit. Disk-backed access is slower than ETS for frequent reads. See [Limitations](/advanced/limitations/).
 
 ## Pick a table type
 
-Every table type gets the same typed API; they differ in what happens when a key repeats.
+The table modules share a core API. Set and bag tables also provide `insert_new`, with different duplicate rules. Only set tables provide `update_counter`.
 
 <CardGrid>
 	<LinkCard
 		title="Set tables"
 		href="/guides/set-tables/"
-		description="One value per key — inserting again overwrites. For caches, configuration, and general lookups."
+		description="One value per key. Inserting with an existing key replaces its value. Use for caches, configuration, and key lookup."
 	/>
 	<LinkCard
 		title="Bag tables"
@@ -116,10 +131,12 @@ Every table type gets the same typed API; they differ in what happens when a key
 	<LinkCard
 		title="Duplicate bag tables"
 		href="/guides/duplicate-bag-tables/"
-		description="Duplicate key-value pairs allowed. For event logs, audit trails, and append-only patterns."
+		description="Store repeated key-value pairs. Useful for repeated events or measurements. Results are not ordered."
 	/>
 </CardGrid>
 
-## Ready to try it?
+<a id="ready-to-try-it"></a>
 
-slate is 1.0, with a public API covered by [semver guarantees](/advanced/stability/). Continue with the [Quick Start](/quick-start/) to read and write a table in about two minutes.
+## Next steps
+
+slate follows [Semantic Versioning](/advanced/stability/). Continue with the [quick start](/quick-start/) to create a table, write values, and read them back.

@@ -1,15 +1,21 @@
 ---
-title: Safe Resource Management
-description: Using with_table for short-lived table lifecycle management.
+title: Open and close tables with with_table
+description: Use with_table to close tables after short-lived operations.
 ---
 
-DETS tables must be properly closed to ensure data is flushed to disk. If a table is not closed — for example, because an error occurs — pending writes may be lost and the file may need repair on next open.
+Close DETS tables to flush pending writes to disk. If the VM stops before a
+table closes, pending writes may be lost. The file may need repair on the next
+open.
 
-`with_table` helps with short-lived operations by opening a table, running your callback, and closing the table before it returns. If the callback raises, `with_table` still attempts to close the table before re-raising the exception.
+`with_table` opens a table, runs your callback, and attempts to close the table.
+The callback must return `Result(a, DetsError)`. If it raises an exception,
+`with_table` attempts cleanup and then re-raises the exception.
 
 :::caution
-`with_table` cannot close the table if the owning process is terminated before
-cleanup runs. Select the repair policy and access mode for each call.
+`with_table` cannot run cleanup after a forced kill of the owning process.
+DETS tracks processes that open a table and normally closes it when its last
+user exits. This is separate from helper cleanup. Select the repair policy
+and access mode for each call.
 :::
 
 ## Basic usage
@@ -34,7 +40,7 @@ import gleam/dynamic/decode
 import slate
 import slate/set
 
-// The table is closed when the callback completes
+// Ok(Nil) means the insert and close both succeeded
 let assert Ok(Nil) = set.with_table("data/config.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
@@ -45,10 +51,12 @@ let assert Ok(Nil) = set.with_table("data/config.dets",
 
 ## Using `use` syntax
 
-Gleam's `use` syntax makes `with_table` even cleaner:
+Gleam's `use` syntax passes the rest of the block as the callback. The callback
+receives the table and returns the block's final result:
 
 ```gleam
 import gleam/dynamic/decode
+import gleam/result
 import slate
 import slate/set
 
@@ -56,18 +64,21 @@ let result = {
   use table <- set.with_table("data/config.dets",
     repair: slate.AutoRepair, access: slate.ReadWrite,
     key_decoder: decode.string, value_decoder: decode.string)
-  let assert Ok(Nil) = set.insert(table, "theme", "dark")
+  use Nil <- result.try(set.insert(table, "theme", "dark"))
   set.lookup(table, key: "theme")
 }
-// table is closed here once the block returns
+// with_table has attempted to close the table before returning result
 ```
 
 ## Return values
 
-`with_table` returns whatever your callback returns:
+`with_table` returns `Result(a, DetsError)`. It returns the callback's `Ok(value)`
+only if closing also succeeds. If the callback succeeds but closing fails,
+it returns the close error.
 
 ```gleam
 import gleam/dynamic/decode
+import gleam/result
 import slate
 import slate/set
 
@@ -75,7 +86,7 @@ let assert Ok(age) = set.with_table("data/users.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.int,
   callback: fn(table) {
-    let assert Ok(Nil) = set.insert(table, "alice", 42)
+    use Nil <- result.try(set.insert(table, "alice", 42))
     set.lookup(table, key: "alice")
   })
 // age == 42
@@ -83,7 +94,9 @@ let assert Ok(age) = set.with_table("data/users.dets",
 
 ## Error handling
 
-If the callback returns an `Error`, `with_table` still attempts to close the table before returning the callback error:
+If the callback returns an `Error`, `with_table` attempts to close the table.
+It returns the callback error even if closing also fails. This result does
+not confirm that closing succeeded:
 
 ```gleam
 import gleam/dynamic/decode
@@ -96,10 +109,12 @@ let result = set.with_table("data/users.dets",
   callback: fn(table) {
     set.lookup(table, key: "nonexistent")
   })
-// result == Error(NotFound), and the table has been closed
+// If the key is absent, result is Error(NotFound) after attempted cleanup
 ```
 
-If the callback raises, `with_table` still attempts to close the table before re-raising:
+If the callback raises, `with_table` attempts to close the table before it
+re-raises the original exception. A `let assert` also raises if its pattern
+does not match:
 
 ```gleam
 import gleam/dynamic/decode
@@ -115,7 +130,8 @@ let _ = set.with_table("data/users.dets",
   })
 ```
 
-If the table itself fails to open, the error is returned immediately:
+If opening fails, `with_table` returns the open error without calling the
+callback:
 
 ```gleam
 import gleam/dynamic/decode
@@ -128,12 +144,13 @@ let result = set.with_table("corrupted.dets",
   callback: fn(table) {
     set.lookup(table, key: "key")
   })
-// result == Error(...) from the open failure
+// If opening fails, result contains that error and the callback does not run
 ```
 
 ## Available on all table types
 
-`with_table` is available on all three table types:
+`with_table` is available on all three table types. These examples return
+the entry count after closing each table:
 
 ```gleam
 import gleam/dynamic/decode
@@ -145,15 +162,15 @@ import slate/duplicate_bag
 let assert Ok(_) = set.with_table("data/set.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  callback: fn(table) { ... })
+  callback: fn(table) { set.size(table) })
 let assert Ok(_) = bag.with_table("data/bag.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  callback: fn(table) { ... })
+  callback: fn(table) { bag.size(table) })
 let assert Ok(_) = duplicate_bag.with_table("data/dup.dets",
   repair: slate.AutoRepair, access: slate.ReadWrite,
   key_decoder: decode.string, value_decoder: decode.string,
-  callback: fn(table) { ... })
+  callback: fn(table) { duplicate_bag.size(table) })
 ```
 
 ## Repair and access options
@@ -181,7 +198,7 @@ file needs repair. The callback does not run if opening fails.
 
 ## Migrating from 1.x
 
-`with_table` now requires repair and access options in all three table modules.
+In 2.0, `with_table` requires repair and access options in all three table modules.
 Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to existing calls
 to keep their previous behavior. Cleanup and error precedence are unchanged.
 
@@ -200,7 +217,7 @@ and manage the lifecycle yourself.
 | Scenario | Recommended |
 |----------|-------------|
 | Quick lookup or insert | `with_table` |
-| Script that reads/writes once | `with_table` |
+| Script that reads or writes once | `with_table` |
 | Short-lived read-only access or a specific repair policy | `with_table` |
 | Long-running server with a persistent cache | `open` / `close` |
 | Multiple operations across time | `open` / `close` |
