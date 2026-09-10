@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1 - 2026-09-10
+
+### Fixed
+
+#### Corrected website and API documentation for saving, repair, error handling, and table operations. Clarified examples and terminology.
+
 ## 2.0.0 - 2026-09-10
 
 ### Breaking
