@@ -208,15 +208,16 @@ pub fn set_persistence_test() -> Nil {
 
 pub fn set_with_table_test() -> Nil {
   let path = "test_set_with_table.dets"
-  let assert Ok(Nil) =
-    set.with_table(
+  let assert Ok(Nil) = {
+    use table <- set.with_table(
       path,
       repair: slate.AutoRepair,
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) { set.insert(table, "key", "val") },
     )
+    set.insert(table, "key", "val")
+  }
   // Table is closed, reopen to verify
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
@@ -234,7 +235,7 @@ pub fn set_with_table_close_error_propagates_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) {
+      callback: fn(table) {
         let assert Ok(Nil) = set.close(table)
         Ok(Nil)
       },
@@ -257,7 +258,7 @@ pub fn set_with_table_panic_still_closes_test() -> Nil {
         access: slate.ReadWrite,
         key_decoder: decode.string,
         value_decoder: decode.string,
-        fun: fn(table) {
+        callback: fn(table) {
           let assert Ok(Nil) = set.insert(table, "key", "val")
           panic as "boom"
         },
@@ -281,7 +282,7 @@ pub fn set_with_table_open_error_test() -> Nil {
     access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.string,
-    fun: fn(_table) { Ok(Nil) },
+    callback: fn(_table) { Ok(Nil) },
   )
   |> expect.to_equal(
     Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),
@@ -668,7 +669,7 @@ pub fn set_with_table_error_still_closes_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(_table) { Error(slate.NotFound) },
+      callback: fn(_table) { Error(slate.NotFound) },
     )
   result |> expect.to_equal(Error(slate.NotFound))
   // Table should be closed — reopening should work

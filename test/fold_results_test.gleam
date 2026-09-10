@@ -195,10 +195,11 @@ pub fn set_fold_results_partition_test() -> Nil {
     set.open(path, key_decoder: decode.int, value_decoder: decode.string)
 
   let assert Ok(#(good, bad)) =
-    set.fold_results(table2, #([], []), fn(acc, entry) {
+    set.fold_results(table2, #([], []), fn(accumulator, entry) {
+      let #(entries, decode_errors) = accumulator
       case entry {
-        Ok(#(key, value)) -> #([#(key, value), ..acc.0], acc.1)
-        Error(errors) -> #(acc.0, [errors, ..acc.1])
+        Ok(#(key, value)) -> #([#(key, value), ..entries], decode_errors)
+        Error(errors) -> #(entries, [errors, ..decode_errors])
       }
     })
   good |> expect.to_equal([])

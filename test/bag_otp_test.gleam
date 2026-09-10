@@ -260,7 +260,7 @@ pub fn bag_with_table_error_propagation_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(_table) { Error(slate.UnexpectedError("test error")) },
+      callback: fn(_table) { Error(slate.UnexpectedError("test error")) },
     )
   result |> expect.to_equal(Error(slate.UnexpectedError("test error")))
   test_helper.cleanup(path)

@@ -5,9 +5,9 @@
 %% to bypass type checking in tests with complex value types.
 identity(X) -> X.
 
-did_panic(Fun) ->
+did_panic(Callback) ->
     try
-        _ = Fun(),
+        _ = Callback(),
         false
     catch
         _:_ -> true

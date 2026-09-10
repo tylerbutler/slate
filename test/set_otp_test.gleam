@@ -480,7 +480,7 @@ pub fn set_with_table_propagates_error_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(_table) { Error(slate.UnexpectedError("custom error")) },
+      callback: fn(_table) { Error(slate.UnexpectedError("custom error")) },
     )
   result |> expect.to_equal(Error(slate.UnexpectedError("custom error")))
   test_helper.cleanup(path)
@@ -497,7 +497,7 @@ pub fn set_with_table_returns_value_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.int,
-      fun: fn(table) {
+      callback: fn(table) {
         let assert Ok(Nil) = set.insert(table, "key", 42)
         let assert Ok(value) = set.lookup(table, key: "key")
         Ok(value)

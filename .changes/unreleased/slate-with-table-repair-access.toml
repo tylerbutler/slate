@@ -1,7 +1,7 @@
 package = "slate"
 kind = "Breaking"
 body = """
-`with_table` now requires repair and access options.
+`with_table` now requires repair and access options and uses `callback:`.
 
 In `slate/set`, `slate/bag`, and `slate/duplicate_bag`, pass `repair`
 and `access` to `with_table`. Use `AutoRepair` and `ReadWrite` to
@@ -27,4 +27,26 @@ set.lookup(table, key: "theme")
 ```
 
 The callback result, cleanup on return or exception, and error
-precedence are unchanged. Ordinary DETS records need no migration."""
+precedence are unchanged. Ordinary DETS records need no migration.
+
+The callback argument label changed from `fun:` to `callback:`.
+Update explicitly labelled callback arguments:
+
+Before:
+
+```gleam
+set.with_table("data/config.dets",
+  key_decoder: decode.string, value_decoder: decode.string,
+  fun: fn(table) { set.lookup(table, key: "theme") })
+```
+
+After:
+
+```gleam
+set.with_table("data/config.dets",
+  repair: slate.AutoRepair, access: slate.ReadWrite,
+  key_decoder: decode.string, value_decoder: decode.string,
+  callback: fn(table) { set.lookup(table, key: "theme") })
+```
+
+The label rename does not affect positional callback arguments or `use` syntax."""

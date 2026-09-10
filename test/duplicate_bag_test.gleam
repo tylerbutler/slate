@@ -262,15 +262,16 @@ pub fn duplicate_bag_delete_all_test() -> Nil {
 
 pub fn duplicate_bag_with_table_test() -> Nil {
   let path = "test_dupbag_with_table.dets"
-  let assert Ok(Nil) =
-    duplicate_bag.with_table(
+  let assert Ok(Nil) = {
+    use table <- duplicate_bag.with_table(
       path,
       repair: slate.AutoRepair,
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) { duplicate_bag.insert(table, "key", "val") },
     )
+    duplicate_bag.insert(table, "key", "val")
+  }
   let assert Ok(table) =
     duplicate_bag.open(
       path,
@@ -291,7 +292,7 @@ pub fn duplicate_bag_with_table_close_error_propagates_test() -> Nil {
       access: slate.ReadWrite,
       key_decoder: decode.string,
       value_decoder: decode.string,
-      fun: fn(table) {
+      callback: fn(table) {
         let assert Ok(Nil) = duplicate_bag.close(table)
         Ok(Nil)
       },
@@ -314,7 +315,7 @@ pub fn duplicate_bag_with_table_panic_still_closes_test() -> Nil {
         access: slate.ReadWrite,
         key_decoder: decode.string,
         value_decoder: decode.string,
-        fun: fn(table) {
+        callback: fn(table) {
           let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
           panic as "boom"
         },
@@ -343,7 +344,7 @@ pub fn duplicate_bag_with_table_open_error_test() -> Nil {
     access: slate.ReadWrite,
     key_decoder: decode.string,
     value_decoder: decode.string,
-    fun: fn(_table) { Ok(Nil) },
+    callback: fn(_table) { Ok(Nil) },
   )
   |> expect.to_equal(
     Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),

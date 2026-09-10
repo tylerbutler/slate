@@ -3,12 +3,12 @@
 
 %% Truncate a file at the given byte position.
 truncate_file(Path, Where) ->
-    PathStr = binary_to_list(Path),
-    case file:open(PathStr, [read, write, binary]) of
-        {ok, Fd} ->
-            file:position(Fd, Where),
-            ok = file:truncate(Fd),
-            ok = file:close(Fd),
+    PathString = binary_to_list(Path),
+    case file:open(PathString, [read, write, binary]) of
+        {ok, FileDescriptor} ->
+            file:position(FileDescriptor, Where),
+            ok = file:truncate(FileDescriptor),
+            ok = file:close(FileDescriptor),
             {ok, nil};
         {error, _Reason} ->
             {error, nil}
@@ -16,16 +16,16 @@ truncate_file(Path, Where) ->
 
 %% Corrupt a single byte at the given position.
 corrupt_byte(Path, Where) ->
-    PathStr = binary_to_list(Path),
-    case file:open(PathStr, [read, write, binary]) of
-        {ok, Fd} ->
-            case file:pread(Fd, Where, 1) of
+    PathString = binary_to_list(Path),
+    case file:open(PathString, [read, write, binary]) of
+        {ok, FileDescriptor} ->
+            case file:pread(FileDescriptor, Where, 1) of
                 {ok, <<Byte>>} ->
-                    ok = file:pwrite(Fd, Where, <<(Byte bxor 1)>>),
-                    ok = file:close(Fd),
+                    ok = file:pwrite(FileDescriptor, Where, <<(Byte bxor 1)>>),
+                    ok = file:close(FileDescriptor),
                     {ok, nil};
                 _ ->
-                    ok = file:close(Fd),
+                    ok = file:close(FileDescriptor),
                     {error, nil}
             end;
         {error, _Reason} ->
@@ -34,8 +34,8 @@ corrupt_byte(Path, Where) ->
 
 %% Get the size of a file in bytes.
 get_file_size(Path) ->
-    PathStr = binary_to_list(Path),
-    case file:read_file_info(PathStr) of
+    PathString = binary_to_list(Path),
+    case file:read_file_info(PathString) of
         {ok, Info} ->
             {ok, element(2, Info)};
         {error, _Reason} ->
