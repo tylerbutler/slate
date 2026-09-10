@@ -1,13 +1,15 @@
 ---
-title: Duplicate Bag Tables
+title: Duplicate bag tables
 description: Tables that allow duplicate key-value pairs.
 ---
 
-Duplicate bag tables work like [bag tables](/guides/bag-tables/) but allow storing identical key-value pairs multiple times. Each insert adds a new copy, even if the exact same pair already exists.
+Duplicate bag tables work like [bag tables](/guides/bag-tables/) but store repeated copies of the same key-value pair. Each insert adds an entry, even if the pair exists.
 
 Duplicate bag tables are provided by the `slate/duplicate_bag` module and correspond to the `duplicate_bag` table type in Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html).
 
 ## Opening and closing
+
+Create the parent directory before opening the table. `open` uses `AutoRepair` and `ReadWrite`.
 
 ```gleam
 import gleam/dynamic/decode
@@ -41,13 +43,13 @@ let assert Ok(Nil) = duplicate_bag.insert_list(table, [
 
 ## Looking up data
 
-Like bag tables, `lookup` returns a `List` of all values — including duplicates:
+On success, `lookup` returns `Ok(values)`, where `values` is a list of all values for the key, including duplicates. The order is unspecified; do not assume insertion order.
 
 ```gleam
 let assert Ok(clicks) = duplicate_bag.lookup(table, key: "click")
-// clicks == ["button_a", "button_a", "button_b"]
+// Contains two "button_a" values and one "button_b", in an unspecified order
 
-// Returns an empty list if the key doesn't exist
+// Returns an empty list if the key does not exist
 let assert Ok([]) = duplicate_bag.lookup(table, key: "nonexistent")
 
 // Check if a key exists
@@ -65,7 +67,7 @@ let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
 let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_a")
 let assert Ok(Nil) = duplicate_bag.insert(table, "click", "btn_b")
 let assert Ok(Nil) = duplicate_bag.delete_object(table, key: "click", value: "btn_a")
-// Only "btn_b" remains — both copies of "btn_a" were removed
+// Only "btn_b" remains; both copies of "btn_a" were removed
 
 // Clear all entries
 let assert Ok(Nil) = duplicate_bag.delete_all(table)
@@ -74,15 +76,15 @@ let assert Ok(Nil) = duplicate_bag.delete_all(table)
 ## Iterating over entries
 
 ```gleam
-// Get all entries as a list
+// Get all entries in an unspecified order (loads the entire table into memory)
 let assert Ok(entries) = duplicate_bag.to_list(table)
 
-// Fold over entries (includes duplicates)
+// Fold over entries in an unspecified order, including duplicate copies
 let assert Ok(count) = duplicate_bag.fold(table, from: 0, with: fn(acc, _key, _value) {
   acc + 1
 })
 
-// Get the number of stored objects (includes duplicates)
+// Count entries, not distinct keys; each duplicate copy counts as an entry
 let assert Ok(n) = duplicate_bag.size(table)
 ```
 
@@ -92,15 +94,15 @@ Use `sync` to flush pending writes to disk without closing the table:
 
 ```gleam
 let assert Ok(Nil) = duplicate_bag.sync(table)
-// Data is guaranteed to be on disk, table stays open
+// Pending updates are written to disk; the table remains open
 ```
 
 ## Table info
 
 ```gleam
 let assert Ok(info) = duplicate_bag.info(table)
-// info.file_size — size of the file on disk in bytes
-// info.object_count — number of entries (including duplicates)
+// info.file_size - size of the file on disk in bytes
+// info.object_count - number of entries, including duplicate copies
 // info.file_path - absolute path of the table file
 ```
 
@@ -110,6 +112,8 @@ For the 2.0 record change, see [migration guidance](/advanced/stability/).
 ## Opening with options
 
 ### Repair policy
+
+Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data. See [Repair policies](/advanced/troubleshooting/#repair-policies) to choose an option.
 
 ```gleam
 import slate.{AutoRepair}
@@ -122,6 +126,8 @@ let assert Ok(table) = duplicate_bag.open_with(path: "data/events.dets",
 
 ### Access mode
 
+Use `ReadOnly` to prevent writes through the table handle. The file must exist.
+
 ```gleam
 import slate.{AutoRepair, ReadOnly}
 import gleam/dynamic/decode
@@ -131,19 +137,22 @@ let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
   key_decoder: decode.string, value_decoder: decode.string)
 ```
 
-## Bag vs. Duplicate Bag
+<a id="bag-vs-duplicate-bag"></a>
 
-| Behavior | Bag | Duplicate Bag |
+## Compare bag and duplicate bag tables
+
+| Behavior | Bag | Duplicate bag |
 |----------|-----|---------------|
 | Same key, different values | Stored | Stored |
-| Same key, same value (duplicate pair) | Ignored | Stored |
+| Insert an existing pair | Keep one copy | Add another copy |
 | `delete_object` removes | One pair | All copies of the pair |
 
 ## When to use duplicate bag tables
 
-Duplicate bag tables are ideal for append-only or event-style data:
+Use duplicate bag tables when repeated key-value pairs must remain separate:
 
-- **Event logs**: Record every occurrence, even repeats
-- **Audit trails**: Track all actions including duplicates
-- **Time-series data**: Store repeated measurements
-- **Counters by event**: Count occurrences by folding over entries
+- Record each occurrence of an event, including repeats.
+- Store repeated measurements.
+- Count occurrences by folding over entries.
+
+Store a timestamp or sequence number with each value if you need to reconstruct event order. A duplicate bag does not enforce append-only access or provide an immutable audit log.

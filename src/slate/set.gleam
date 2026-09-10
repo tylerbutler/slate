@@ -1,4 +1,4 @@
-//// DETS set tables — one value per key.
+//// DETS set tables: one value per key.
 ////
 //// Set tables store key-value pairs where each key maps to exactly one value.
 //// Inserting with an existing key overwrites the previous value.
@@ -52,8 +52,11 @@ type UpdateCounterFfiError {
 
 /// Open or create a DETS set table at the given file path.
 ///
-/// Decoders are used to validate data read from disk, ensuring type safety
-/// even when opening files created by other code or previous runs.
+/// The parent directory must exist. This function uses `AutoRepair` and
+/// `ReadWrite`.
+///
+/// Reads use your decoders to check stored data. Opening a table does not
+/// check all its entries.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -72,11 +75,14 @@ pub fn open(
 /// Open or create a DETS set table with a specific repair policy.
 ///
 /// The repair policy controls what happens when the table file was not
-/// closed cleanly (e.g., after a crash):
+/// closed cleanly, for example after an abnormal node shutdown:
 ///
-/// - `AutoRepair` — silently repair the file if needed (default for `open`)
-/// - `ForceRepair` — repair even if the file appears clean
-/// - `NoRepair` — return an error instead of repairing
+/// - `AutoRepair`: Attempt repair if needed. This is the default for `open`.
+/// - `ForceRepair`: Repair even if the file was closed properly.
+/// - `NoRepair`: Return `NeedsRepair` if the file requires repair.
+///
+/// Make a backup before you repair a file with data you need to keep.
+/// Repair does not guarantee recovery of all data.
 ///
 /// ```gleam
 /// import gleam/dynamic/decode
@@ -131,21 +137,22 @@ pub fn close(table: Set(k, v)) -> Result(Nil, DetsError) {
 
 /// Flush pending writes to disk without closing the table.
 ///
-/// DETS auto-syncs periodically, so this is only needed when you require
-/// a durability guarantee at a specific point (e.g., after a critical write).
+/// By default, DETS saves the table after three minutes without table access.
+/// Call `sync` and handle its result when you need to write pending updates
+/// to disk before continuing.
 pub fn sync(table: Set(k, v)) -> Result(Nil, DetsError) {
   ffi_sync(table.reference)
 }
 
 /// Use a table within a callback with repair and access mode options.
 ///
-/// Pass `AutoRepair` and `ReadWrite` to keep the behavior of slate 1.x.
-/// Uses the same options as `open_with_access`. `ReadOnly` requires an existing
+/// Select the repair policy and access mode as for `open_with_access`.
+/// The callback must return a `Result`. `ReadOnly` requires an existing
 /// file, and writes return `Error(AccessDenied(context))`. `NoRepair` returns
 /// `Error(NeedsRepair(context))` if the file was not closed cleanly.
 ///
 /// If opening fails, returns the open error without calling the callback.
-/// Otherwise, closes the table before returning the callback result. If close
+/// Otherwise, runs the callback and attempts to close the table. If close
 /// fails after a successful callback, returns the close error. If both fail,
 /// returns the callback error. If the callback raises, attempts close before
 /// re-raising the original exception.
@@ -183,12 +190,11 @@ pub fn with_table(
 /// Look up the value for a key.
 ///
 /// Returns `Error(NotFound)` if the key does not exist.
-/// Returns `Error(DecodeErrors(_))` if the stored value doesn't match the
+/// Returns `Error(DecodeErrors(_))` if the stored value does not match the
 /// expected type.
 ///
-/// **Note:** For bag and duplicate bag tables, `lookup` returns `Ok([])`
-/// for missing keys instead of `Error(NotFound)`, since those table types
-/// naturally return a list of values.
+/// For bag and duplicate bag tables, `lookup` returns `Ok([])` for missing
+/// keys instead of `Error(NotFound)`.
 pub fn lookup(from table: Set(k, v), key key: k) -> Result(v, DetsError) {
   case ffi_lookup(table.reference, key) {
     Ok(dynamic_value) ->
@@ -203,10 +209,10 @@ pub fn member(of table: Set(k, v), key key: k) -> Result(Bool, DetsError) {
   ffi_member(table.reference, key)
 }
 
-/// Return all key-value pairs as a list.
+/// Return all entries as a list in an unspecified order.
 ///
-/// **Warning**: loads entire table into memory.
-/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// This loads the entire table into memory.
+/// Returns `Error(DecodeErrors(_))` if any entry does not match the
 /// expected types.
 pub fn to_list(from table: Set(k, v)) -> Result(List(#(k, v)), DetsError) {
   case ffi_to_list(table.reference) {
@@ -218,7 +224,7 @@ pub fn to_list(from table: Set(k, v)) -> Result(List(#(k, v)), DetsError) {
 
 /// Fold over all entries. Order is unspecified.
 ///
-/// Returns `Error(DecodeErrors(_))` if any entry doesn't match the
+/// Returns `Error(DecodeErrors(_))` if any entry does not match the
 /// expected types. The fold stops at the first decode error. If the callback
 /// raises, the exception is re-raised.
 pub fn fold(
@@ -242,16 +248,15 @@ pub fn fold(
   |> result.flatten
 }
 
-/// Fold over all entries, passing decode results to the callback.
+/// Call your callback once for each entry, in an unspecified order.
 ///
-/// Unlike `fold`, decode failures do not abort the traversal. Each entry
-/// is presented to the callback as `Ok(#(key, value))` on success or
-/// `Error(decode_errors)` on failure, letting the caller decide how to
-/// handle bad records.
+/// Pass the decoded entry as `Ok(#(key, value))`, or its decode errors as
+/// `Error(decode_errors)`. The callback returns the next accumulator value.
+/// Unlike `fold`, this function continues after a decode error.
 ///
-/// DETS-level errors (e.g., the table does not exist) still fail the
-/// entire operation via the outer `Result`. If the callback raises, the
-/// exception is re-raised.
+/// The function returns `Ok(accumulator)` when it finishes. A table error,
+/// such as `TableDoesNotExist`, makes the function return `Error(error)`.
+/// If the callback raises an exception, that exception propagates to the caller.
 ///
 /// ## Examples
 ///
@@ -266,7 +271,7 @@ pub fn fold(
 /// })
 /// ```
 ///
-/// Partition into successes and failures:
+/// Collect decoded entries and decode errors separately:
 ///
 /// ```gleam
 /// set.fold_results(table, #([], []), fn(acc, entry) {
@@ -290,14 +295,14 @@ pub fn fold_results(
   ffi_fold(table.reference, wrapper, initial)
 }
 
-/// Return the number of objects stored.
+/// Return the number of stored entries. Each entry is one key-value pair.
 pub fn size(of table: Set(k, v)) -> Result(Int, DetsError) {
   ffi_info_size(table.reference)
 }
 
 // ── Write ───────────────────────────────────────────────────────────────
 
-/// Insert a key-value pair. Overwrites if key exists.
+/// Insert a key-value pair. If the key exists, replace its value.
 pub fn insert(
   into table: Set(k, v),
   key key: k,
@@ -329,8 +334,7 @@ pub fn insert_new(
 
 /// Delete the entry with the given key.
 ///
-/// This operation is idempotent — deleting a key that does not exist
-/// succeeds with `Ok(Nil)`.
+/// Returns `Ok(Nil)` even if the key does not exist.
 pub fn delete_key(from table: Set(k, v), key key: k) -> Result(Nil, DetsError) {
   ffi_delete_key(table.reference, key)
 }
@@ -348,7 +352,7 @@ pub fn delete_object(
   ffi_delete_object(table.reference, #(key, value))
 }
 
-/// Delete all objects in the table (keeps the table open).
+/// Delete all entries and keep the table open.
 pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
   ffi_delete_all(table.reference)
 }
@@ -360,7 +364,7 @@ pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
 /// The value associated with the key must be an integer. Returns the
 /// new value after incrementing. The increment can be negative.
 ///
-/// Returns `Error(TableError(slate.NotFound))` if the key doesn't exist,
+/// Returns `Error(TableError(slate.NotFound))` if the key does not exist,
 /// `Error(CounterValueNotInteger)` if the stored value is not an integer,
 /// or `Error(TableError(error))` for other DETS table failures.
 ///
@@ -384,7 +388,7 @@ pub fn update_counter(
 
 // ── Info ────────────────────────────────────────────────────────────────
 
-/// Get the file size, object count, and absolute file path of an open table.
+/// Get the file size in bytes, entry count, and absolute path of an open table.
 ///
 /// Returns `Error(TableDoesNotExist)` if the table is no longer open.
 pub fn info(table: Set(k, v)) -> Result(slate.TableInfo, DetsError) {

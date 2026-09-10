@@ -9,7 +9,7 @@ Add slate to your Gleam project:
 gleam add slate
 ```
 
-This adds slate to your `gleam.toml` dependencies. slate targets the **Erlang (BEAM)** runtime — it does not support the JavaScript target.
+This adds slate to your `gleam.toml` dependencies. slate supports Gleam's Erlang target, which runs on the BEAM. It does not support the JavaScript target.
 
 ## Requirements
 
@@ -19,13 +19,13 @@ This adds slate to your `gleam.toml` dependencies. slate targets the **Erlang (B
 
 ## Dependencies
 
-slate brings in these Gleam packages automatically:
+Gleam also installs these packages:
 
 | Package | Purpose |
 |---------|---------|
 | `gleam_stdlib` | Standard library |
-| `gleam_erlang` | Erlang interop |
+| `gleam_erlang` | Erlang interoperability |
 
 ## Upgrading
 
-See the [CHANGELOG](https://github.com/tylerbutler/slate/blob/main/CHANGELOG.md) for release history and breaking changes, and the [Stability & Versioning](/advanced/stability/) page for semver guarantees.
+See the [changelog](https://github.com/tylerbutler/slate/blob/main/CHANGELOG.md) for release history and breaking changes. See [Stability and versioning](/advanced/stability/) for the versioning policy.

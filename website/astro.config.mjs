@@ -54,7 +54,7 @@ export default defineConfig({
 			],
 			sidebar: [
 				{
-					label: "Start Here",
+					label: "Start here",
 					items: [
 						{
 							label: "What is slate?",
@@ -65,7 +65,7 @@ export default defineConfig({
 							slug: "installation",
 						},
 						{
-							label: "Quick Start",
+							label: "Quick start",
 							slug: "quick-start",
 						},
 					],
@@ -74,15 +74,15 @@ export default defineConfig({
 					label: "Guides",
 					items: [
 						{
-							label: "Set Tables",
+							label: "Set tables",
 							slug: "guides/set-tables",
 						},
 						{
-							label: "Bag Tables",
+							label: "Bag tables",
 							slug: "guides/bag-tables",
 						},
 						{
-							label: "Duplicate Bag Tables",
+							label: "Duplicate bag tables",
 							slug: "guides/duplicate-bag-tables",
 						},
 					],
@@ -91,11 +91,11 @@ export default defineConfig({
 					label: "Operations",
 					items: [
 						{
-							label: "Safe Resource Management",
+							label: "Open and close tables",
 							slug: "advanced/with-table",
 						},
 						{
-							label: "Error Handling",
+							label: "Error handling",
 							slug: "advanced/error-handling",
 						},
 						{
@@ -112,7 +112,7 @@ export default defineConfig({
 							slug: "advanced/limitations",
 						},
 						{
-							label: "Stability & Versioning",
+							label: "Stability and versioning",
 							slug: "advanced/stability",
 						},
 					],
