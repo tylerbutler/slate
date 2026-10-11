@@ -85,7 +85,6 @@ jobs:
       - name: Independent-VM and lifecycle tests
         run: gleam test -- exclusive
       - name: Package and relocation proofs
-        if: runner.os != 'Windows'
         run: just native-package-check
       - name: Upload qualified native artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7
@@ -138,7 +137,6 @@ jobs:
         with:
           name: slate-hex-package
           path: build/release-package
-      # Gleam 1.18.1 cannot export Hex on Windows (gleam-lang/gleam#6184).
       - name: Package and relocation proofs from release archive
         shell: bash
         run: |

@@ -120,8 +120,7 @@ CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
 macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
 from the same workflow run and checks the complete set before Hex packaging.
 CI also builds a complete Hex archive on Linux and runs its consumer, shipment,
-and relocated-escript proofs on Windows. Gleam 1.18.1 cannot export Hex archives
-on Windows due to [gleam-lang/gleam#6184](https://github.com/gleam-lang/gleam/issues/6184).
+and relocated-escript proofs on Windows.
 Use `just native-package-check path/to/slate-version.tar` to check an existing
 archive without exporting one.
 Linux builds use Ubuntu 22.04 (glibc 2.35); macOS builds use a 15.0 deployment
