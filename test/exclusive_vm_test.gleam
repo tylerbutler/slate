@@ -1,3 +1,10 @@
+pub fn exclusive_vm_poisoned_path_test() -> Nil {
+  poisoned_path()
+}
+
+@external(erlang, "exclusive_vm_test_ffi", "poisoned_path")
+fn poisoned_path() -> Nil
+
 pub fn set_exclusive_vm_contention_test() -> Nil {
   contention(Set)
 }

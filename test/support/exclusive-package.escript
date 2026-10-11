@@ -14,8 +14,27 @@ check_package(Source) ->
     {ok, Cwd} = file:get_cwd(),
     Root = filename:join([Cwd, "build", "exclusive-package-" ++
                          integer_to_list(erlang:system_time(nanosecond))]),
+    SavedPath = os:getenv("PATH"),
     ok = filelib:ensure_dir(filename:join(Root, "placeholder")),
     try
+        %% Prove every launch ignores broken Erlang tools on inherited PATH,
+        %% including gleam run, which starts Erlang indirectly.
+        BrokenBin = filename:join(Root, "broken-bin"),
+        ok = file:make_dir(BrokenBin),
+        {Extension, Separator} = case os:type() of
+            {win32, _} -> {".exe", ";"};
+            {unix, _} -> {"", ":"}
+        end,
+        lists:foreach(fun(Name) ->
+            Broken = filename:join(BrokenBin, Name ++ Extension),
+            ok = file:write_file(Broken, <<"not an Erlang launcher\n">>),
+            ok = file:change_mode(Broken, 8#755)
+        end, ["erl", "escript"]),
+        true = os:putenv("PATH", BrokenBin ++ Separator ++ os:getenv("PATH", "")),
+        lists:foreach(fun(Name) ->
+            Broken = filename:join(BrokenBin, Name ++ Extension),
+            Broken = os:find_executable(Name)
+        end, ["erl", "escript"]),
         Archive = case Source of
             export -> export_archive(Cwd);
             {archive, Path} -> Path
@@ -56,7 +75,9 @@ check_package(Source) ->
         run("gleam", ["export", "erlang-shipment"], Consumer),
         Shipment = filename:join([Consumer, "build", "erlang-shipment"]),
         check_notices(Notices, filename:join([Shipment, "slate", "priv", "slate_lock", "licenses"])),
-        Erl = os:find_executable("erl"),
+        RuntimeBin = filename:join(code:root_dir(), "bin"),
+        Erl = os:find_executable("erl", RuntimeBin),
+        Escript = os:find_executable("escript", RuntimeBin),
         Paths = lists:append([["-pa", Ebin] || Ebin <- filelib:wildcard(
             filename:join([Shipment, "*", "ebin"]))]),
         run_executable(Erl, ["+S", "2:2", "+A", "1", "-noshell"] ++ Paths ++
@@ -68,7 +89,7 @@ check_package(Source) ->
         ok = file:make_dir(Elsewhere),
         Script = filename:join(Relocated, "exclusive_package_probe"),
         {ok, _} = file:copy(filename:join(Consumer, "exclusive_package_probe"), Script),
-        run_executable(os:find_executable("escript"), [Script, "missing"], Elsewhere),
+        run_executable(Escript, [Script, "missing"], Elsewhere),
         Native = filename:join([Relocated, "slate_native", Target]),
         ok = filelib:ensure_dir(filename:join(Native, "placeholder")),
         {ok, _} = file:copy(filename:join([Package, "priv", "slate_lock", Target, library(Target)]),
@@ -80,9 +101,13 @@ check_package(Source) ->
             ok = file:write_file(Destination, Content)
         end, Notices),
         check_notices(Notices, CompanionNotices),
-        run_executable(os:find_executable("escript"), [Script], Elsewhere),
+        run_executable(Escript, [Script], Elsewhere),
         io:format("Hex consumer, shipment, and relocated escript proofs passed.~n")
     after
+        case SavedPath of
+            false -> true = os:unsetenv("PATH");
+            _ -> true = os:putenv("PATH", SavedPath)
+        end,
         cleanup(Root)
     end.
 
@@ -162,11 +187,15 @@ run(Name, Args, Directory) ->
 run_executable(Executable, Args, Directory) ->
     io:format("Running ~ts~n", [filename:basename(Executable)]),
     Missing = case lists:member("missing", Args) of true -> "true"; false -> "false" end,
+    Separator = case os:type() of {win32, _} -> ";"; {unix, _} -> ":" end,
+    %% gleam also resolves erl from PATH; prefer this runtime's root launcher.
+    Path = filename:join(code:root_dir(), "bin") ++ Separator ++ os:getenv("PATH", ""),
     Port = open_port({spawn_executable, Executable},
                      [binary, exit_status, use_stdio, stderr_to_stdout,
                       {cd, Directory}, {args, Args},
                       {env, [{"ERL_FLAGS", "+S 2:2 +A 1"},
-                             {"SLATE_PACKAGE_MISSING", Missing}]}]),
+                             {"SLATE_PACKAGE_MISSING", Missing},
+                             {"PATH", Path}]}]),
     wait(Port, erlang:monotonic_time(millisecond) + 180000).
 
 wait(Port, Deadline) ->

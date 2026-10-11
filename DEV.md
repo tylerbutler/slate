@@ -153,6 +153,12 @@ Run a file group with `gleam test -- exclusive` or filter a test name with
 `gleam test -- --test-name-filter=exclusive`. Do not edit test imports to select
 tests. Exclusive tests launch independent BEAM VMs and use a bounded message
 protocol. Delete their sidecars only after all child VMs stop.
+Resolve nested `erl` and `escript` launchers from the current runtime's
+`code:root_dir()/bin`, not inherited PATH: on Windows the root launcher prepends
+`erts/bin`, whose `erl.ini` can still contain upstream build paths. Package
+children also need root `bin` first on PATH for indirect launches by Gleam.
+The VM regression and package proof use broken launchers ahead of the runtime
+on PATH to guard this behavior.
 Linux native CI also runs mounted-file regressions inside a private mount
 namespace. These tests need mount privileges and do not run in the default
 Cargo test group.

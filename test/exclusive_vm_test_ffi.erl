@@ -5,7 +5,33 @@
          different_files/0, open_exit/1, close_exit/1, cleanup_failures/0,
          waiting_owner_exit/0, tmpfs_contention/0, unicode_paths/0,
          case_and_short_aliases/0, repair_sidecar/0, release_failures/0,
-         undelivered_cleanup/0, guardian_exit_primary/0]).
+         undelivered_cleanup/0, guardian_exit_primary/0, poisoned_path/0]).
+
+poisoned_path() ->
+    Directory = filename:absname(filename:join("build", "exclusive-vm-poison-" ++
+                                integer_to_list(erlang:unique_integer([positive])))),
+    Name = case os:type() of {win32, _} -> "erl.exe"; {unix, _} -> "erl" end,
+    BrokenErl = filename:join(Directory, Name),
+    Separator = case os:type() of {win32, _} -> ";"; {unix, _} -> ":" end,
+    SavedPath = os:getenv("PATH"),
+    ok = filelib:ensure_dir(BrokenErl),
+    try
+        ok = file:write_file(BrokenErl, <<"not an Erlang launcher\n">>),
+        ok = file:change_mode(BrokenErl, 8#755),
+        %% Locked startest 0.8 runs tests synchronously; always restore PATH.
+        true = os:putenv("PATH", Directory ++ Separator ++ os:getenv("PATH", "")),
+        BrokenErl = os:find_executable("erl"),
+        Port = start_vm(),
+        try nil
+        after stop_vm(Port) end
+    after
+        case SavedPath of
+            false -> true = os:unsetenv("PATH");
+            _ -> true = os:putenv("PATH", SavedPath)
+        end,
+        delete(BrokenErl),
+        ok = file:del_dir(Directory)
+    end.
 
 contention(Type) -> contention_at(Type, path("contention", Type)).
 
@@ -429,7 +455,8 @@ with_vms_existing(Path, Check) ->
     after stop_vm(A), cleanup(Path) end.
 
 start_vm() ->
-    Erl = os:find_executable("erl"),
+    %% Windows erl prepends erts/bin to PATH, whose erl.ini may be stale.
+    Erl = os:find_executable("erl", filename:join(code:root_dir(), "bin")),
     Ebin = filename:dirname(code:which(slate_exclusive_vm_fixture)),
     Port = open_port({spawn_executable, Erl},
         [binary, exit_status, use_stdio, stderr_to_stdout, {line, 65536},
