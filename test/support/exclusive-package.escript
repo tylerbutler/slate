@@ -5,17 +5,20 @@
 main(["--release-artifacts"]) ->
     lists:foreach(fun require_artifact/1, targets()),
     io:format("All five native artifacts are present.~n");
-main([]) ->
+main([]) -> check_package(export);
+main(["--archive", Archive]) -> check_package({archive, filename:absname(Archive)});
+main(_) -> error("Usage: exclusive-package.escript [--release-artifacts | --archive PATH]").
+
+check_package(Source) ->
     {ok, Cwd} = file:get_cwd(),
     Root = filename:join([Cwd, "build", "exclusive-package-" ++
                          integer_to_list(erlang:system_time(nanosecond))]),
     ok = filelib:ensure_dir(filename:join(Root, "placeholder")),
     try
-        run("gleam", ["export", "hex-tarball"], Cwd),
-        {ok, Toml} = file:read_file(filename:join(Cwd, "gleam.toml")),
-        {match, [Version]} = re:run(Toml, <<"(?m)^version = \"([^\"]+)\"">>,
-                                  [{capture, [1], list}]),
-        Archive = filename:join([Cwd, "build", "slate-" ++ Version ++ ".tar"]),
+        Archive = case Source of
+            export -> export_archive(Cwd);
+            {archive, Path} -> Path
+        end,
         true = filelib:file_size(Archive) < 8 * 1024 * 1024,
         {ok, Outer} = erl_tar:extract(Archive, [memory]),
         Contents = proplists:get_value("contents.tar.gz", Outer),
@@ -69,8 +72,14 @@ main([]) ->
         io:format("Hex consumer, shipment, and relocated escript proofs passed.~n")
     after
         ok = file:del_dir_r(Root)
-    end;
-main(_) -> error("Usage: exclusive-package.escript [--release-artifacts]").
+    end.
+
+export_archive(Cwd) ->
+    run("gleam", ["export", "hex-tarball"], Cwd),
+    {ok, Toml} = file:read_file(filename:join(Cwd, "gleam.toml")),
+    {match, [Version]} = re:run(Toml, <<"(?m)^version = \"([^\"]+)\"">>,
+                              [{capture, [1], list}]),
+    filename:join([Cwd, "build", "slate-" ++ Version ++ ".tar"]).
 
 targets() -> ["x86_64-linux-gnu", "aarch64-linux-gnu", "x86_64-apple-darwin",
               "aarch64-apple-darwin", "x86_64-pc-windows"].

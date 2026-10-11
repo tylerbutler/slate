@@ -32,7 +32,7 @@ CI reads the latter through `.github/actions/setup` and
 | Build strict | `just build-strict` | Build with warnings as errors |
 | Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
 | Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
-| Native package proof | `just native-package-check` | Load from an extracted Hex package, shipment, and relocated escript |
+| Native package proof | `just native-package-check [archive]` | Load from an extracted Hex package, shipment, and relocated escript |
 | Native release check | `just native-release-check` | Require all five prebuilt artifacts |
 | Test | `just test` | Run all tests |
 | Format | `just format` | Format source code |
@@ -119,6 +119,11 @@ section and publishes to Hex. The workflows use `RELEASE_APP_ID` and
 CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
 macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
 from the same workflow run and checks the complete set before Hex packaging.
+CI also builds a complete Hex archive on Linux and runs its consumer, shipment,
+and relocated-escript proofs on Windows. Gleam 1.18.1 cannot export Hex archives
+on Windows due to [gleam-lang/gleam#6184](https://github.com/gleam-lang/gleam/issues/6184).
+Use `just native-package-check path/to/slate-version.tar` to check an existing
+archive without exporting one.
 Linux builds use Ubuntu 22.04 (glibc 2.35); macOS builds use a 15.0 deployment
 target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
 from a different revision or bypass a failed target. Missing runners or failed

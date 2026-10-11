@@ -28,8 +28,9 @@ native-check:
     cd priv/slate_lock/source && cargo fmt --check && cargo clippy --locked --all-targets --target-dir ../../../build/native -- -D warnings && cargo test --locked --target-dir ../../../build/native
 
 # Prove Hex, shipment, and relocated escript native loading
-native-package-check:
-    escript test/support/exclusive-package.escript
+[positional-arguments]
+native-package-check archive="":
+    if [ -n "$1" ]; then escript test/support/exclusive-package.escript --archive "$1"; else escript test/support/exclusive-package.escript; fi
 
 # Require every release artifact before publishing
 native-release-check:
