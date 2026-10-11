@@ -1,3 +1,0 @@
-package = "slate"
-kind = "Fixed"
-body = "Prevented false AlreadyOpen errors when concurrent table opens compete for an internal table name."
