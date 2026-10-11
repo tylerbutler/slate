@@ -70,11 +70,29 @@ each path. Up to 4096 distinct normalized paths can be open at once.
 Closing a table releases its slot for reuse. If all slots are in use,
 new opens for other paths return `TableNamePoolExhausted`.
 
-## No concurrent access from multiple OS processes
+## Serialized access from multiple OS processes
 
-Open each DETS file from only one OS process at a time. Multiple Erlang
-processes within that BEAM node can share the table. Opening the same file
-from separate BEAM nodes or OS processes can corrupt it.
+Independent VMs must use [`with_exclusive_table`](/advanced/exclusive-sessions/)
+for every access to a shared DETS file, including reads. The helper opens the
+current file under an OS lock and closes DETS before releasing ownership.
+Competing commands take turns; their DETS handles do not remain open between
+sessions.
+
+Unlocked `open*` and `with_table` APIs do not coordinate with other OS
+processes. Simultaneous unlocked access can lose writes or damage the file.
+Multiple Erlang processes within one BEAM node can share an unlocked table.
+
+Exclusive sessions require supported native code and an
+[allowed local filesystem](/installation/#exclusive-session-native-component).
+Network, FUSE, and overlay mounts are unsupported. Keep the directory namespace
+trusted and stable. Slate rejects hard-linked data and unsafe sidecars.
+Do not delete or replace the persistent sidecar while clients can start
+sessions.
+
+The acquisition wait does not limit an acquired callback. Callback errors do
+not undo writes, and locks add no power-loss guarantee. Unsafe cleanup can
+retain ownership until VM exit; report `CleanupFailed` rather than deleting
+a lock file.
 
 ## Validating DETS files
 
@@ -149,7 +167,7 @@ a user-provided path. Apply your application's path and access rules separately.
     </tr>
     <tr>
       <td>Concurrent processes</td>
-      <td data-label="DETS (slate)">Single node</td>
+      <td data-label="DETS (slate)">Serialized exclusive sessions on one host</td>
       <td data-label="ETS">Single node</td>
       <td data-label="SQLite">Multiple</td>
       <td data-label="Mnesia">Distributed</td>

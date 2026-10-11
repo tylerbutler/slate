@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
@@ -31,6 +32,66 @@ jobs:
 
       - name: Run tests
         run: just test
+
+  native:
+    name: Native (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-linux-gnu
+          - os: ubuntu-22.04-arm
+            target: aarch64-linux-gnu
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows
+    defaults:
+      run:
+        shell: bash
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "15.0"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+      - name: Setup environment
+        uses: ./.github/actions/setup
+      - name: Setup pinned Rust
+        run: rustup show active-toolchain
+        working-directory: priv/slate_lock/source
+      - name: Cache native dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # ratchet:actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            build/native
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('priv/slate_lock/source/Cargo.lock', 'priv/slate_lock/source/rust-toolchain.toml') }}
+      - name: Check and build native component
+        run: just native-check && just native-build
+      - name: Check native license notices
+        run: python priv/slate_lock/source/collect_licenses.py --check
+      - name: Enable NTFS short names for alias proofs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $drive = (Get-Item .).PSDrive.Name + ":"
+          fsutil 8dot3name set $drive 0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Independent-VM and lifecycle tests
+        run: gleam test -- exclusive
+      - name: Package and relocation proofs
+        run: just native-package-check
+      - name: Upload qualified native artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # ratchet:actions/upload-artifact@v4
+        with:
+          name: slate-native-${{ matrix.target }}
+          path: priv/slate_lock/${{ matrix.target }}/slate_lock.*
+          if-no-files-found: error
 
   docs:
     runs-on: ubuntu-latest

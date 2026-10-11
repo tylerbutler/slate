@@ -15,13 +15,14 @@ The following modules make up the supported public API:
 | `slate/set` | Set tables with one value per key |
 | `slate/bag` | Bag tables with multiple distinct values per key |
 | `slate/duplicate_bag` | Duplicate bag tables that allow duplicate entries |
+| `slate/exclusive` | Acquisition waits, session errors, and safe classifiers |
 
 Semantic Versioning covers all public functions and types in these modules.
 
 ## Internal surfaces
 
-The Erlang FFI files (`slate_dets_ffi.erl` and `slate_with_table_ffi.erl`) are
-internal implementation details. They are not part of the public API and may
+The Erlang FFI files and native lock implementation are internal details.
+They are not part of the public API and may
 change in any release without notice. Use the Gleam modules instead of calling
 FFI functions directly.
 
@@ -35,7 +36,7 @@ FFI functions directly.
 
 ## Stable error codes
 
-The strings returned by `slate.error_code` are stable across minor and patch
+The strings returned by `slate.error_code` and `exclusive.error_code` are stable across minor and patch
 releases. Use them for programmatic matching, logging, or metrics.
 
 ```gleam
@@ -47,7 +48,8 @@ case slate.error_code(error) {
 ```
 
 `slate.error_message` returns human-readable descriptions for display or logging.
-These strings may change in any release. Do not use them for programmatic matching.
+`exclusive.error_message` follows the same rule. These strings may change in any
+release. Do not use them for programmatic matching.
 
 ## Diagnostics-only surfaces
 

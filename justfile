@@ -19,6 +19,22 @@ deps:
 
 # === BUILD ===
 
+# Build the native component used by exclusive table sessions
+native-build:
+    escript priv/slate_lock/source/build.escript
+
+# Check the pinned native source
+native-check:
+    cd priv/slate_lock/source && cargo fmt --check && cargo clippy --locked --all-targets --target-dir ../../../build/native -- -D warnings && cargo test --locked --target-dir ../../../build/native
+
+# Prove Hex, shipment, and relocated escript native loading
+native-package-check:
+    escript test/support/exclusive-package.escript
+
+# Require every release artifact before publishing
+native-release-check:
+    escript test/support/exclusive-package.escript --release-artifacts
+
 # Build project (Erlang target)
 build:
     trellis run build
@@ -30,7 +46,7 @@ build-strict:
 # === TESTING ===
 
 # Run all tests
-test:
+test: native-build
     trellis run test
 
 # === CODE QUALITY ===
@@ -81,7 +97,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor format-check check test build-strict
+ci: doctor format-check check native-check test build-strict
 
 # Alias for PR checks
 alias pr := ci

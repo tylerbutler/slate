@@ -5,9 +5,22 @@ runs:
   using: "composite"
   steps:
     - name: Install Trellis
+      if: runner.os != 'Windows'
       shell: bash
       run: |
         version="$(awk '$1 == "github:tylerbutler/trellis" { print $2 }' .tool-versions)"
         test -n "$version"
         curl --proto '=https' --tlsv1.2 -LsSf \
           "https://github.com/tylerbutler/trellis/releases/download/v${version}/trellis-gleam-installer.sh" | sh
+
+    - name: Install Trellis on Windows
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $line = Get-Content .tool-versions | Where-Object { $_ -match '^github:tylerbutler/trellis ' }
+        $version = ($line -split '\s+')[1]
+        if (-not $version) { throw "Missing Trellis version" }
+        $installer = Join-Path $env:RUNNER_TEMP "install-trellis.ps1"
+        Invoke-WebRequest "https://github.com/tylerbutler/trellis/releases/download/v$version/trellis-gleam-installer.ps1" -OutFile $installer
+        & $installer
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }

@@ -24,6 +24,7 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/exclusive
 import slate/internal
 
 /// An open DETS bag table with typed keys and values.
@@ -175,7 +176,51 @@ pub fn with_table(
   }
 }
 
+/// Use a table under exclusive ownership across OS processes.
+///
+/// All clients, including readers, must participate. Ownership covers open,
+/// repair, the callback, and clean close. `wait` limits acquisition only.
+/// Keep the handle within the callback; do not reopen or manually close it.
+/// Callback errors do not roll back writes. Exceptions are re-raised after
+/// cleanup; cleanup failures are logged. Unconfirmed cleanup can retain
+/// ownership until VM exit.
+///
+/// Requires the native component and a qualified local filesystem. Symlinks
+/// are resolved; hard-linked data and unsafe sidecars are rejected. Data paths
+/// and persistent sidecars must remain stable while clients can run sessions.
+pub fn with_exclusive_table(
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
+  wait wait: exclusive.Wait,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  callback callback: fn(Bag(k, v)) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError) {
+  ffi_with_exclusive(
+    path,
+    wait,
+    fn(path) { ffi_open_exclusive(path, repair, access) },
+    fn(reference) { callback(Bag(reference:, key_decoder:, value_decoder:)) },
+  )
+}
+
 // ── Read ────────────────────────────────────────────────────────────────
+
+@external(erlang, "slate_dets_ffi", "open_exclusive_bag")
+fn ffi_open_exclusive(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(TableReference, DetsError)
+
+@external(erlang, "slate_exclusive_table_ffi", "with_table")
+fn ffi_with_exclusive(
+  path: String,
+  wait: exclusive.Wait,
+  open: fn(String) -> Result(TableReference, DetsError),
+  callback: fn(TableReference) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError)
 
 /// Look up all values for a key, in an unspecified order.
 ///

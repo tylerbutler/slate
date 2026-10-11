@@ -21,6 +21,7 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/exclusive
 import slate/internal
 
 /// Errors returned by `update_counter`.
@@ -185,7 +186,54 @@ pub fn with_table(
   }
 }
 
+/// Use a table under exclusive ownership across OS processes.
+///
+/// All clients of this file, including readers, must use exclusive sessions.
+/// Ownership is acquired before open or repair, and released after clean close.
+/// `wait` limits acquisition only; it does not cancel an acquired callback.
+///
+/// Keep the handle and all table work within this callback. Do not reopen or
+/// manually close this table. A nested same-file session contends for ownership.
+/// Callback errors do not undo earlier writes. Exceptions are re-raised after
+/// cleanup; cleanup failures on this path are logged. If cleanup cannot confirm
+/// closure, ownership may remain until the VM exits.
+///
+/// Requires the native lock component and a qualified local filesystem.
+/// Symlinks are resolved; hard-linked data files and unsafe sidecars are rejected.
+/// Do not replace data paths or sidecars while clients can start sessions.
+pub fn with_exclusive_table(
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
+  wait wait: exclusive.Wait,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  callback callback: fn(Set(k, v)) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError) {
+  ffi_with_exclusive(
+    path,
+    wait,
+    fn(path) { ffi_open_exclusive(path, repair, access) },
+    fn(reference) { callback(Set(reference:, key_decoder:, value_decoder:)) },
+  )
+}
+
 // ── Read ────────────────────────────────────────────────────────────────
+
+@external(erlang, "slate_dets_ffi", "open_exclusive_set")
+fn ffi_open_exclusive(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(TableReference, DetsError)
+
+@external(erlang, "slate_exclusive_table_ffi", "with_table")
+fn ffi_with_exclusive(
+  path: String,
+  wait: exclusive.Wait,
+  open: fn(String) -> Result(TableReference, DetsError),
+  callback: fn(TableReference) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError)
 
 /// Look up the value for a key.
 ///

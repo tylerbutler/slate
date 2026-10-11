@@ -7,7 +7,13 @@ Tool versions are managed with [mise](https://mise.jdx.dev/) (see `.mise.toml`).
 ```sh
 mise install
 just deps
+just native-build
 ```
+
+Exclusive-session source builds require Rust/Cargo 1.91. The native crate pins
+its toolchain in `priv/slate_lock/source/rust-toolchain.toml`. Cargo downloads
+Rustler and OS interop dependencies from the locked manifest. You do not need
+Elixir or a shell `flock` utility.
 
 Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
@@ -24,6 +30,10 @@ CI reads the latter through `.github/actions/setup` and
 | Download dependencies | `just deps` | Download project dependencies |
 | Build | `just build` | Build project (Erlang target) |
 | Build strict | `just build-strict` | Build with warnings as errors |
+| Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
+| Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
+| Native package proof | `just native-package-check` | Load from an extracted Hex package, shipment, and relocated escript |
+| Native release check | `just native-release-check` | Require all five prebuilt artifacts |
 | Test | `just test` | Run all tests |
 | Format | `just format` | Format source code |
 | Format check | `just format-check` | Check formatting without changes |
@@ -37,8 +47,9 @@ CI reads the latter through `.github/actions/setup` and
 | CI | `just ci` | Run all CI checks (doctor, format, check, test, build) |
 | Main | `just main` | Extended checks for main branch |
 
-`just ci` runs doctor, format-check, type-check, tests, then a build with
-`--warnings-as-errors`. Run it before opening a PR.
+`just test` builds the native component before tests. `just ci` also checks
+native formatting and clippy. Run it before opening a PR. `gleam test` needs
+an existing native artifact for exclusive-session tests.
 
 ## Code style
 
@@ -56,6 +67,11 @@ Tests use the [startest](https://hexdocs.pm/startest/) framework (not `gleeunit`
 - Call `cleanup(path)` from `test/test_helper.gleam` at the end of each test to delete the file.
 - Use `let assert Ok(...)` for expected-success paths.
 - Use `|> expect.to_equal(...)` for specific value checks.
+
+Run a file group with `gleam test -- exclusive` or filter a test name with
+`gleam test -- --test-name-filter=exclusive`. Do not edit test imports to select
+tests. Exclusive tests launch independent BEAM VMs and use a bounded message
+protocol. Delete their sidecars only after all child VMs stop.
 
 ## Changelog entries
 
@@ -99,6 +115,14 @@ Merge that PR to create a `v<version>` tag at the merge commit. The tag push
 starts CI, then Trellis creates the GitHub Release from the matching changelog
 section and publishes to Hex. The workflows use `RELEASE_APP_ID` and
 `RELEASE_APP_PRIVATE_KEY` for PR and tag events, and `HEXPM_API_KEY` for Hex.
+
+CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
+macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
+from the same workflow run and checks the complete set before Hex packaging.
+Linux builds use Ubuntu 22.04 (glibc 2.35); macOS builds use a 15.0 deployment
+target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
+from a different revision or bypass a failed target. Missing runners or failed
+platform proofs block release.
 
 To update the release PR from a clean local checkout, run `just release-pr`.
 It pushes the release branch and requires GitHub authentication. The old

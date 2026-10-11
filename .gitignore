@@ -3,6 +3,11 @@
 *.ez
 /build
 erl_crash.dump
+/priv/slate_lock/*/slate_lock.so
+/priv/slate_lock/*/slate_lock.dll
+/priv/slate_lock/*/*.lib
+/priv/slate_lock/*/*.exp
+*.obj
 
 # Coverage
 /coverage

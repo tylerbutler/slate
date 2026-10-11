@@ -22,6 +22,22 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup
 
+      - name: Collect same-revision native artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # ratchet:actions/download-artifact@v4
+        with:
+          pattern: slate-native-*
+          path: build/release-native
+
+      - name: Assemble complete native package
+        shell: bash
+        run: |
+          for target in x86_64-linux-gnu aarch64-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows; do
+            mkdir -p "priv/slate_lock/$target"
+            cp "build/release-native/slate-native-$target/"slate_lock.* "priv/slate_lock/$target/"
+          done
+          just native-release-check
+          just native-package-check
+
       - name: Create GitHub Release
         run: trellis tag create --github-release
         env:

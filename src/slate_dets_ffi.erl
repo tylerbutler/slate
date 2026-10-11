@@ -2,6 +2,7 @@
 -export([
     open_set/2, open_bag/2, open_duplicate_bag/2,
     open_set_with_access/3, open_bag_with_access/3, open_duplicate_bag_with_access/3,
+    open_exclusive_set/3, open_exclusive_bag/3, open_exclusive_duplicate_bag/3,
     close/1, insert/2, insert_new/2, insert_new_object/2,
     lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
@@ -31,6 +32,22 @@ open_bag_with_access(Path, Repair, Access) ->
 
 open_duplicate_bag_with_access(Path, Repair, Access) ->
     do_open(Path, duplicate_bag, Repair, Access).
+
+open_exclusive_set(Path, Repair, Access) ->
+    exclusive_open(Path, set, Repair, Access).
+
+open_exclusive_bag(Path, Repair, Access) ->
+    exclusive_open(Path, bag, Repair, Access).
+
+open_exclusive_duplicate_bag(Path, Repair, Access) ->
+    exclusive_open(Path, duplicate_bag, Repair, Access).
+
+exclusive_open(Path, Type, Repair, Access) ->
+    Filename = case os:type() of
+        {win32, _} -> unicode:characters_to_list(Path);
+        {unix, _} -> binary_to_list(Path)
+    end,
+    do_open(Filename, Type, Repair, Access).
 
 do_open(Path, Type, Repair, Access) ->
     try
