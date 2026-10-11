@@ -122,14 +122,14 @@ action(_Table, return_ok, _Main) -> {ok, nil};
 action(_Table, block_open, _Main) -> error(blocked_open_callback_ran);
 action(Table, block_close, Main) ->
     {monitors, [{process, Guardian}]} = process_info(self(), monitors),
-    TablePid = dets:info(Table, pid),
+    TablePid = dets:info(slate_dets_ffi:table_name(Table), pid),
     Main ! {guardian, Guardian},
     Main ! {pause_table, TablePid, self()},
     emit(close_ready),
     receive table_suspended -> ok end,
     {ok, nil};
 action(Table, kill_table_then_error, _Main) ->
-    TablePid = dets:info(Table, pid),
+    TablePid = dets:info(slate_dets_ffi:table_name(Table), pid),
     Monitor = monitor(process, TablePid),
     exit(TablePid, kill),
     receive {'DOWN', Monitor, process, TablePid, killed} -> ok end,
@@ -151,12 +151,13 @@ action(Table, add_user_then_error, Main) ->
     {error, not_found}.
 
 add_user(Table, Main) ->
-    Path = dets:info(Table, filename),
+    Name = slate_dets_ffi:table_name(Table),
+    Path = dets:info(Name, filename),
     Caller = self(),
     Extra = spawn(fun() ->
-        {ok, Table} = dets:open_file(Table, [{file, Path}]),
+        {ok, Name} = dets:open_file(Name, [{file, Path}]),
         Caller ! extra_open,
-        receive stop -> ok = dets:close(Table) end
+        receive stop -> ok = dets:close(Name) end
     end),
     receive extra_open -> ok after 5000 -> error(extra_open_timeout) end,
     Main ! {extra, Extra}.

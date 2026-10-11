@@ -244,6 +244,7 @@ unicode_paths() ->
         "test_exclusive_unicode_caf" ++ [16#e9] ++ ".dets")),
     with_vms(Path, fun(A, B, _) ->
         {ok, nil} = run_session(A, Path, set, {insert, <<"unicode">>, 42}),
+        {ok, _} = file:read_file_info(unicode:characters_to_list(Path)),
         {ok, 42} = run_session(B, Path, set, {lookup, <<"unicode">>})
     end).
 
@@ -453,10 +454,7 @@ cleanup(Path) ->
     delete(<<Path/binary, ".slate.lock">>).
 
 delete(Path) ->
-    Filename = case os:type() of
-        {win32, _} -> unicode:characters_to_list(Path);
-        {unix, _} -> binary_to_list(Path)
-    end,
+    Filename = unicode:characters_to_list(Path),
     case file:delete(Filename) of
         ok -> ok;
         {error, enoent} -> ok;

@@ -111,7 +111,7 @@ owned(Caller, OwnerMonitor, Ref, Path, Token, Open) ->
                 reply(Caller, OwnerMonitor, Ref, Path,
                       finalize(Primary, {error, Error}, release(Token)));
             {ok, Table} ->
-                TablePid = dets:info(Table, pid),
+                TablePid = dets:info(slate_dets_ffi:table_name(Table), pid),
                 TableMonitor = monitor(process, TablePid),
                 receive
                     {'DOWN', OwnerMonitor, process, Caller, Reason} ->
@@ -140,10 +140,7 @@ existing_table(Path, [Table | Rest]) ->
     case dets:info(Table, filename) of
         undefined -> existing_table(Path, Rest);
         Filename ->
-            Binary = case os:type() of
-                {win32, _} -> unicode:characters_to_binary(Filename);
-                {unix, _} -> list_to_binary(Filename)
-            end,
+            Binary = unicode:characters_to_binary(Filename),
             case slate_lock_nif:resolve(Binary) of
                 {ok, Path} -> true;
                 {ok, _} -> existing_table(Path, Rest);
@@ -157,7 +154,7 @@ cleanup(Table, TablePid, TableMonitor, Token) ->
             demonitor(TableMonitor, [flush]),
             [{close_failure, Error}];
         {ok, nil} ->
-            case dets:info(Table, pid) of
+            case dets:info(slate_dets_ffi:table_name(Table), pid) of
                 TablePid ->
                     demonitor(TableMonitor, [flush]),
                     [{close_failure, {unexpected_error, <<"exclusive_table_still_open">>}}];

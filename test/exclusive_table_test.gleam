@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/option.{Some}
+import gleam/string
 import slate
 import slate/bag
 import slate/duplicate_bag
@@ -233,6 +234,37 @@ pub fn exclusive_decoder_failure_test() -> Nil {
       callback: fn(table) { set.lookup(table, "key") },
     )
   test_helper.cleanup(path)
+  cleanup_sidecar(path)
+}
+
+pub fn exclusive_unicode_info_and_error_test() -> Nil {
+  let path = "test_exclusive_caf\u{00e9}.dets"
+  let assert Ok(info) =
+    set.with_exclusive_table(
+      path:,
+      repair: slate.NoRepair,
+      access: slate.ReadWrite,
+      wait: exclusive.Immediate,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+      callback: set.info,
+    )
+  string.ends_with(info.file_path, path) |> expect.to_equal(True)
+  test_helper.cleanup(path)
+  let assert Error(exclusive.SessionFailed(exclusive.OpenFailure(slate.FileNotFound(slate.FileErrorContext(
+    Some(missing_path),
+    _,
+  ))))) =
+    set.with_exclusive_table(
+      path:,
+      repair: slate.NoRepair,
+      access: slate.ReadOnly,
+      wait: exclusive.Immediate,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+      callback: fn(_) { panic as "missing unicode callback ran" },
+    )
+  string.ends_with(missing_path, path) |> expect.to_equal(True)
   cleanup_sidecar(path)
 }
 
