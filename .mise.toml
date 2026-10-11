@@ -1,7 +1,7 @@
 [tools]
-"github:tylerbutler/trellis" = "0.13.0"
+"github:tylerbutler/trellis" = "1.0.0"
 erlang = "27"
-gleam = "1.18.1"
+gleam = "1.19.1"
 just = "latest"
 
 [env]
