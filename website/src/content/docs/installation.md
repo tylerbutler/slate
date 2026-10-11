@@ -77,8 +77,15 @@ slate_native/
   x86_64-linux-gnu/
     slate_lock.so
   licenses/
-    ...
+    THIRD_PARTY_NOTICES.txt
+    manifest.json
+    rust/
+      ...
 ```
+
+Copy the complete `licenses/` directory. The crate notice file contains full
+license texts and attribution; the `rust/` directory contains separate Rust
+runtime notices.
 
 Use `slate_lock.so` for Linux/macOS or `slate_lock.dll` for Windows. For a CLI
 that runs on more than one target, include each target directory. Slate finds

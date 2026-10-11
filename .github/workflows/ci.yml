@@ -74,7 +74,7 @@ jobs:
       - name: Check and build native component
         run: just native-check && just native-build
       - name: Check native license notices
-        run: python priv/slate_lock/source/collect_licenses.py --check
+        run: just native-license-tools && just native-licenses-check
       - name: Enable NTFS short names for alias proofs
         if: runner.os == 'Windows'
         shell: pwsh

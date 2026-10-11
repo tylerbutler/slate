@@ -17,8 +17,15 @@ publishing. Keep this directory in an Erlang shipment. Escripts need a
 Do not hot-reload or unload the native module while sessions or quarantined
 locks exist.
 
-`licenses/` contains notices for the Rust standard library and locked native
-dependencies. Slate's MIT license remains in the repository root.
-After updating native dependencies or the pinned Rust toolchain, run
-`python priv/slate_lock/source/collect_licenses.py` and commit the resulting
-notices. CI checks them with `--check`.
+`licenses/THIRD_PARTY_NOTICES.txt` contains full license texts and attribution
+for the complete locked Cargo graph. Pinned cargo-about tooling generates it
+with MIT selected where permitted. `licenses/rust/` contains the separate
+Rust standard-library and runtime notices. Slate's MIT license remains in the
+repository root. Copy the complete `licenses/` directory with native binaries.
+
+Run `just native-license-tools` to install the generator. After updating native
+dependencies, run `just native-licenses` and review and commit the output.
+`just native-licenses-check` runs regression tests and checks for drift without
+writing files. After a Rust toolchain change, review and refresh its runtime
+notices with `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
+Normal native builds do not need the notice generator.

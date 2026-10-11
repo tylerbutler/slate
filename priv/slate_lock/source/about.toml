@@ -1,0 +1,64 @@
+accepted = ["MIT", "ISC", "Unicode-3.0"]
+# Keep the complete locked graph, including dependencies outside release targets.
+private = { ignore = true }
+
+[windows-link.clarify]
+license = "MIT OR Apache-2.0"
+
+[[windows-link.clarify.files]]
+path = "license-mit"
+license = "MIT"
+checksum = "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+
+[windows-sys.clarify]
+license = "MIT OR Apache-2.0"
+
+[[windows-sys.clarify.files]]
+path = "license-mit"
+license = "MIT"
+checksum = "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+
+[rustler.clarify]
+license = "MIT OR Apache-2.0"
+
+[[rustler.clarify.git]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "a6b8cd165c855303e14fd6e7ec94d2bd53d1d7e69ac31b35fdfe31b7bd4d47db"
+
+[rustler_codegen.clarify]
+license = "MIT OR Apache-2.0"
+
+[[rustler_codegen.clarify.git]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "a6b8cd165c855303e14fd6e7ec94d2bd53d1d7e69ac31b35fdfe31b7bd4d47db"
+
+[rustix.clarify]
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+
+[[rustix.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+
+[linux-raw-sys.clarify]
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
+
+[[linux-raw-sys.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+
+[unicode-ident.clarify]
+license = "(MIT OR Apache-2.0) AND Unicode-3.0"
+
+[[unicode-ident.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3"
+
+[[unicode-ident.clarify.files]]
+path = "LICENSE-UNICODE"
+license = "Unicode-3.0"
+checksum = "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1"

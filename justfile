@@ -27,6 +27,19 @@ native-build:
 native-check:
     cd priv/slate_lock/source && cargo fmt --check && cargo clippy --locked --all-targets --target-dir ../../../build/native -- -D warnings && cargo test --locked --target-dir ../../../build/native
 
+# Install the pinned notice generator with the native crate's Rust toolchain
+native-license-tools:
+    cd priv/slate_lock/source && cargo install --locked --version 0.9.2 --features cli cargo-about
+
+# Refresh crate notices and the native notice manifest
+native-licenses:
+    python priv/slate_lock/source/collect_licenses.py
+
+# Check native notice generation without changing committed files
+native-licenses-check:
+    python test/support/collect_licenses_test.py
+    python priv/slate_lock/source/collect_licenses.py --check
+
 # Prove Hex, shipment, and relocated escript native loading
 [positional-arguments]
 native-package-check archive="":
@@ -98,7 +111,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor format-check check native-check test build-strict
+ci: doctor format-check check native-check native-licenses-check test build-strict
 
 # Alias for PR checks
 alias pr := ci

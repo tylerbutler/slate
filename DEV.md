@@ -8,6 +8,7 @@ Tool versions are managed with [mise](https://mise.jdx.dev/) (see `.mise.toml`).
 mise install
 just deps
 just native-build
+just native-license-tools
 ```
 
 Exclusive-session source builds require Rust/Cargo 1.91. The native crate pins
@@ -32,6 +33,9 @@ CI reads the latter through `.github/actions/setup` and
 | Build strict | `just build-strict` | Build with warnings as errors |
 | Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
 | Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
+| Notice tools | `just native-license-tools` | Install the pinned cargo-about generator |
+| Refresh notices | `just native-licenses` | Generate crate notices and update their manifest |
+| Check notices | `just native-licenses-check` | Run notice tests and check for drift without writing files |
 | Native package proof | `just native-package-check [archive]` | Load from an extracted Hex package, shipment, and relocated escript |
 | Native release check | `just native-release-check` | Require all five prebuilt artifacts |
 | Test | `just test` | Run all tests |
@@ -48,8 +52,22 @@ CI reads the latter through `.github/actions/setup` and
 | Main | `just main` | Extended checks for main branch |
 
 `just test` builds the native component before tests. `just ci` also checks
-native formatting and clippy. Run it before opening a PR. `gleam test` needs
-an existing native artifact for exclusive-session tests.
+native formatting, clippy, and license notices. Run it before opening a PR.
+`gleam test` needs an existing native artifact for exclusive-session tests.
+
+Crate notices are generated with cargo-about from the complete locked graph,
+including build dependencies, procedural macros, and dependencies outside
+release targets. MIT is selected where the upstream license permits it.
+The generator preserves full license texts and supplemental copyright notices
+in `priv/slate_lock/licenses/THIRD_PARTY_NOTICES.txt`. Rust runtime notices
+remain separate under `licenses/rust/`; cargo-about does not collect them.
+
+After changing native dependencies, run `just native-licenses` and review the
+output before committing it. Licensing warnings and unresolved upstream texts
+fail generation instead of falling back to generic notices.
+A Rust toolchain change requires a separate review
+and `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
+Normal builds and Hex consumers do not need cargo-about.
 
 ## Code style
 

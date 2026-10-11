@@ -27,6 +27,8 @@ check_package(Source) ->
         Package = filename:join(Root, "package"),
         ok = file:make_dir(Package),
         ok = erl_tar:extract({binary, Contents}, [compressed, {cwd, Package}]),
+        Notices = notice_files(filename:join([Cwd, "priv", "slate_lock", "licenses"])),
+        check_notices(Notices, filename:join([Package, "priv", "slate_lock", "licenses"])),
         {ok, slate_lock_nif, Beam} = compile:file(
             filename:join([Cwd, "src", "slate_lock_nif.erl"]), [binary]),
         {module, slate_lock_nif} = code:load_binary(slate_lock_nif, "loader", Beam),
@@ -36,7 +38,8 @@ check_package(Source) ->
         lists:foreach(fun(Name) ->
             true = filelib:is_regular(filename:join([Package, "priv", "slate_lock",
                                                      "source", Name]))
-        end, ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "build.escript", "src/lib.rs"]),
+        end, ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "build.escript", "src/lib.rs",
+              "about.toml", "about.hbs", "collect_licenses.py"]),
         Consumer = filename:join(Root, "consumer"),
         Src = filename:join(Consumer, "src"),
         ok = filelib:ensure_dir(filename:join(Src, "placeholder")),
@@ -52,6 +55,7 @@ check_package(Source) ->
         run("gleam", ["run"], Consumer),
         run("gleam", ["export", "erlang-shipment"], Consumer),
         Shipment = filename:join([Consumer, "build", "erlang-shipment"]),
+        check_notices(Notices, filename:join([Shipment, "slate", "priv", "slate_lock", "licenses"])),
         Erl = os:find_executable("erl"),
         Paths = lists:append([["-pa", Ebin] || Ebin <- filelib:wildcard(
             filename:join([Shipment, "*", "ebin"]))]),
@@ -69,11 +73,38 @@ check_package(Source) ->
         ok = filelib:ensure_dir(filename:join(Native, "placeholder")),
         {ok, _} = file:copy(filename:join([Package, "priv", "slate_lock", Target, library(Target)]),
                            filename:join(Native, library(Target))),
+        CompanionNotices = filename:join([Relocated, "slate_native", "licenses"]),
+        lists:foreach(fun({Name, Content}) ->
+            Destination = filename:join(CompanionNotices, Name),
+            ok = filelib:ensure_dir(Destination),
+            ok = file:write_file(Destination, Content)
+        end, Notices),
+        check_notices(Notices, CompanionNotices),
         run_executable(os:find_executable("escript"), [Script], Elsewhere),
         io:format("Hex consumer, shipment, and relocated escript proofs passed.~n")
     after
         cleanup(Root)
     end.
+
+notice_files(Directory) ->
+    lists:foreach(fun(Name) ->
+        {ok, _} = file:read_file(filename:join(Directory, Name))
+    end, ["THIRD_PARTY_NOTICES.txt", "manifest.json", "rust/COPYRIGHT-library.html"]),
+    PrefixLength = length(filename:split(Directory)),
+    filelib:fold_files(Directory, ".*", true, fun(Path, Files) ->
+        Relative = filename:join(lists:nthtail(PrefixLength, filename:split(Path))),
+        {ok, Content} = file:read_file(Path),
+        [{Relative, Content} | Files]
+    end, []).
+
+check_notices(Notices, Directory) ->
+    lists:foreach(fun({Name, Content}) ->
+        case file:read_file(filename:join(Directory, Name)) of
+            {ok, Content} -> ok;
+            {ok, _} -> error({package_notice_mismatch, Directory, Name});
+            {error, Reason} -> error({package_notice_missing, Directory, Name, Reason})
+        end
+    end, Notices).
 
 export_archive(Cwd) ->
     run("gleam", ["export", "hex-tarball"], Cwd),
