@@ -13,9 +13,10 @@ Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
 `gleam.toml` under `[tools.trellis]`. Only the root `slate` package is a
 member; `examples/dotes` keeps its separate build and release scope.
-Pin Gleam and Trellis to the same versions in `.mise.toml` and `.tool-versions`.
-CI reads the latter through `.github/actions/setup` and
-`.github/actions/setup-trellis`.
+Keep tool versions in `.mise.toml` for both local setup and CI.
+The shared `.github/actions/setup-mise` action installs and caches these tools.
+CI and publish jobs install all configured tools; PR and release jobs install
+only Node.js or Trellis as needed.
 
 ## Just tasks
 
@@ -78,6 +79,11 @@ Use these dashboard settings:
 Enable preview builds for non-production branches. Previews do not
 replace the production deployment. Cloudflare manages the build API token;
 GitHub Actions does not deploy the website.
+
+Do not add `.tool-versions` at the repository root. Cloudflare detects it even
+for a website build and can fail before it runs the build command. The
+[reported failure](https://www.codejam.info/2026/02/cloudflare-workers-choke-asdf-tool-versions.html)
+also occurs with `SKIP_DEPENDENCY_INSTALL`. Keep tool versions in `.mise.toml`.
 
 After verifying the Workers deployment, add `slate.tylerbutler.com` as a
 custom domain under the Worker's Domains & Routes settings. Remove the

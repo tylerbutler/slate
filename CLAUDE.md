@@ -132,11 +132,16 @@ Tests create temporary `.dets` files and clean them up after each test.
 
 ## Tool Versions
 
-Managed via `.tool-versions` (source of truth for CI):
+Managed via mise with `.mise.toml` as the source of truth for local setup and CI:
 - Erlang 27.2.1
 - Gleam 1.18.1
 - just 1.38.0
-- Trellis: `github:tylerbutler/trellis` in `.tool-versions`, also pinned in `.mise.toml`
+- Node.js 22
+- Trellis: `github:tylerbutler/trellis` in `.mise.toml`
+
+The shared `.github/actions/setup-mise` action installs and caches tools.
+Do not add a root `.tool-versions` file; Cloudflare Workers Builds detects it
+and can fail before the website build starts.
 
 ## CI/CD
 

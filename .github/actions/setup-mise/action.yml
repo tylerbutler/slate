@@ -1,0 +1,15 @@
+name: "Setup mise tools"
+description: "Install and cache tools from .mise.toml"
+
+inputs:
+  tools:
+    description: "Tools to install; leave empty to install all configured tools"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # ratchet:jdx/mise-action@v5.1.1
+      with:
+        install_args: ${{ inputs.tools }}

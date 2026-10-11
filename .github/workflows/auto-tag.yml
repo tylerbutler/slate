@@ -31,7 +31,9 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Trellis
-        uses: ./.github/actions/setup-trellis
+        uses: ./.github/actions/setup-mise
+        with:
+          tools: github:tylerbutler/trellis
 
       - name: Push release tag
         run: trellis tag create --push
