@@ -2,6 +2,7 @@
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "slate",
 	"compatibility_date": "2026-10-11",
+	"previews": {},
 	"assets": {
 		"directory": "./dist",
 		"html_handling": "auto-trailing-slash",

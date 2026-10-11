@@ -80,6 +80,11 @@ Enable preview builds for non-production branches. Previews do not
 replace the production deployment. Cloudflare manages the build API token;
 GitHub Actions does not deploy the website.
 
+Keep the empty `previews` block in `website/wrangler.jsonc`.
+Wrangler requires it for preview deployments and uses the top-level assets
+and compatibility settings. Use `pnpm exec wrangler preview` so Cloudflare
+runs the Wrangler version from the project lockfile.
+
 Do not add `.tool-versions` at the repository root. Cloudflare detects it even
 for a website build and can fail before it runs the build command. The
 [reported failure](https://www.codejam.info/2026/02/cloudflare-workers-choke-asdf-tool-versions.html)
