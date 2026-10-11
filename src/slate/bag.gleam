@@ -36,7 +36,7 @@ pub opaque type Bag(k, v) {
   )
 }
 
-/// Internal reference to the DETS table (Erlang atom).
+/// Internal reference to the DETS table.
 type TableReference
 
 // ── Lifecycle ───────────────────────────────────────────────────────────

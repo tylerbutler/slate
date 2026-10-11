@@ -296,12 +296,15 @@ case_and_short_aliases() ->
         end,
         case os:type() of
             {win32, _} ->
-                Command = "for %I in (\"" ++ binary_to_list(Path) ++ "\") do @echo %~sI",
+                %% Keep nested CMD quotes out of Erlang's argument escaping.
+                Command = "for %I in (%SLATE_TEST_LONG_PATH%) do @echo %~sI",
                 Port = open_port({spawn_executable, os:find_executable("cmd")},
                     [binary, exit_status, use_stdio, stderr_to_stdout,
-                     {args, ["/c", Command]}]),
+                     {args, ["/d", "/s", "/c", Command]},
+                     {env, [{"SLATE_TEST_LONG_PATH", "\"" ++ binary_to_list(Path) ++ "\""}]}]),
                 Short = string:trim(short_output(Port, [], erlang:monotonic_time(millisecond) + 5000)),
                 true = string:lowercase(Short) =/= string:lowercase(binary_to_list(Path)),
+                {ok, _} = file:read_file_info(Short),
                 send_session(A, Path, set, immediate, hold),
                 opening = event(A), holding = event(A),
                 send_session(B, list_to_binary(Short), set, immediate, return_ok),
