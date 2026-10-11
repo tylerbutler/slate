@@ -1,6 +1,7 @@
 #!/usr/bin/env escript
 %%! -noshell +S 2:2 +A 1
 -mode(compile).
+-include_lib("kernel/include/file.hrl").
 
 main(["--release-artifacts"]) ->
     lists:foreach(fun require_artifact/1, targets()),
@@ -71,7 +72,7 @@ check_package(Source) ->
         run_executable(os:find_executable("escript"), [Script], Elsewhere),
         io:format("Hex consumer, shipment, and relocated escript proofs passed.~n")
     after
-        ok = file:del_dir_r(Root)
+        cleanup(Root)
     end.
 
 export_archive(Cwd) ->
@@ -80,6 +81,34 @@ export_archive(Cwd) ->
     {match, [Version]} = re:run(Toml, <<"(?m)^version = \"([^\"]+)\"">>,
                               [{capture, [1], list}]),
     filename:join([Cwd, "build", "slate-" ++ Version ++ ".tar"]).
+
+%% OTP del_dir_r discards child errors; immutable packages need writable files
+%% on Windows, and directory symlinks must be removed without following them.
+cleanup(Path) ->
+    case file:read_link_info(Path) of
+        {ok, #file_info{type = directory}} ->
+            {ok, Names} = file:list_dir_all(Path),
+            lists:foreach(fun(Name) -> cleanup(filename:join(Path, Name)) end, Names),
+            cleanup_result(Path, file:del_dir(Path));
+        {ok, #file_info{type = symlink}} ->
+            Result = case file:delete(Path) of
+                {error, eperm} -> file:del_dir(Path);
+                {error, eacces} -> file:del_dir(Path);
+                Other -> Other
+            end,
+            cleanup_result(Path, Result);
+        {ok, #file_info{type = regular}} ->
+            case os:type() of
+                {win32, _} -> cleanup_result(Path, file:change_mode(Path, 8#600));
+                {unix, _} -> ok
+            end,
+            cleanup_result(Path, file:delete(Path));
+        {ok, #file_info{type = Type}} -> error({unexpected_fixture_type, Path, Type});
+        {error, Reason} -> error({fixture_cleanup_failed, Path, Reason})
+    end.
+
+cleanup_result(_Path, ok) -> ok;
+cleanup_result(Path, {error, Reason}) -> error({fixture_cleanup_failed, Path, Reason}).
 
 targets() -> ["x86_64-linux-gnu", "aarch64-linux-gnu", "x86_64-apple-darwin",
               "aarch64-apple-darwin", "x86_64-pc-windows"].
