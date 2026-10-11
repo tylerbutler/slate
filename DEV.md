@@ -40,6 +40,51 @@ CI reads the latter through `.github/actions/setup` and
 `just ci` runs doctor, format-check, type-check, tests, then a build with
 `--warnings-as-errors`. Run it before opening a PR.
 
+## Website
+
+The Astro/Starlight website uses Cloudflare Workers Static Assets. It builds
+static files without an Astro adapter or Worker script. Use Node.js 22.12+
+and the pnpm version in `website/package.json`.
+
+```sh
+cd website
+pnpm install --frozen-lockfile
+pnpm build
+pnpm exec wrangler dev
+```
+
+`pnpm preview` serves the Astro build. `pnpm exec wrangler dev` serves it with
+Workers routing. Build first in either case. To deploy from your machine,
+run `pnpm exec wrangler login`, then `pnpm run deploy` after a successful build.
+The Worker name is `slate`.
+
+### Workers Builds
+
+Connect the `slate` Worker to `tylerbutler/slate` with
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/).
+Use these dashboard settings:
+
+| Setting | Value |
+|---------|-------|
+| Production branch | `main` |
+| Root directory | `website` |
+| Build command | `pnpm build` |
+| Deploy command | `pnpm run deploy` |
+| Preview command | `pnpm exec wrangler preview` |
+| Build watch include paths | `website/*` |
+| Build variable `NODE_VERSION` | `24` |
+| Build variable `PNPM_VERSION` | `11.9.0` |
+
+Enable preview builds for non-production branches. Previews do not
+replace the production deployment. Cloudflare manages the build API token;
+GitHub Actions does not deploy the website.
+
+After verifying the Workers deployment, add `slate.tylerbutler.com` as a
+custom domain under the Worker's Domains & Routes settings. Remove the
+existing Netlify DNS record during that cutover, then disable Netlify's Git
+builds. Keep Netlify serving the site until the Workers deployment is ready.
+Repository changes do not connect the Cloudflare project or change live DNS.
+
 ## Code style
 
 - Format with `just format` — CI enforces formatting.

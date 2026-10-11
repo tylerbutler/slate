@@ -1,6 +1,12 @@
 dist/
 .astro/
 .netlify/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
 node_modules/
 *.tsbuildinfo
 *.done.build.log
