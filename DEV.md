@@ -20,9 +20,10 @@ Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
 `gleam.toml` under `[tools.trellis]`. Only the root `slate` package is a
 member; `examples/dotes` keeps its separate build and release scope.
-Pin Gleam and Trellis to the same versions in `.mise.toml` and `.tool-versions`.
-CI reads the latter through `.github/actions/setup` and
-`.github/actions/setup-trellis`.
+Keep tool versions in `.mise.toml` for both local setup and CI.
+The shared `.github/actions/setup-mise` action installs and caches these tools.
+CI and publish jobs install all configured tools; PR and release jobs install
+only Node.js or Trellis as needed.
 
 ## Just tasks
 
@@ -75,6 +76,61 @@ and `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
 Normal builds and Hex consumers do not need cargo-about.
 Notice refresh removes obsolete files from the generated `licenses/`
 directory. Check mode rejects extra files without changing them.
+
+## Website
+
+The Astro/Starlight website uses Cloudflare Workers Static Assets. It builds
+static files without an Astro adapter or Worker script. Use Node.js 22.12+
+and the pnpm version in `website/package.json`.
+
+```sh
+cd website
+pnpm install --frozen-lockfile
+pnpm build
+pnpm exec wrangler dev
+```
+
+`pnpm preview` serves the Astro build. `pnpm exec wrangler dev` serves it with
+Workers routing. Build first in either case. To deploy from your machine,
+run `pnpm exec wrangler login`, then `pnpm run deploy` after a successful build.
+The Worker name is `slate`.
+
+### Workers Builds
+
+Connect the `slate` Worker to `tylerbutler/slate` with
+[Workers Builds](https://developers.cloudflare.com/workers/ci-cd/builds/).
+Use these dashboard settings:
+
+| Setting | Value |
+|---------|-------|
+| Production branch | `main` |
+| Root directory | `website` |
+| Build command | `pnpm build` |
+| Deploy command | `pnpm run deploy` |
+| Preview command | `pnpm exec wrangler preview` |
+| Build watch include paths | `website/*` |
+| Build variable `NODE_VERSION` | `24` |
+| Build variable `PNPM_VERSION` | `11.9.0` |
+
+Enable preview builds for non-production branches. Previews do not
+replace the production deployment. Cloudflare manages the build API token;
+GitHub Actions does not deploy the website.
+
+Keep the empty `previews` block in `website/wrangler.jsonc`.
+Wrangler requires it for preview deployments and uses the top-level assets
+and compatibility settings. Use `pnpm exec wrangler preview` so Cloudflare
+runs the Wrangler version from the project lockfile.
+
+Do not add `.tool-versions` at the repository root. Cloudflare detects it even
+for a website build and can fail before it runs the build command. The
+[reported failure](https://www.codejam.info/2026/02/cloudflare-workers-choke-asdf-tool-versions.html)
+also occurs with `SKIP_DEPENDENCY_INSTALL`. Keep tool versions in `.mise.toml`.
+
+After verifying the Workers deployment, add `slate.tylerbutler.com` as a
+custom domain under the Worker's Domains & Routes settings. Remove the
+existing Netlify DNS record during that cutover, then disable Netlify's Git
+builds. Keep Netlify serving the site until the Workers deployment is ready.
+Repository changes do not connect the Cloudflare project or change live DNS.
 
 ## Code style
 

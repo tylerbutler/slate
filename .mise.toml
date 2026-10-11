@@ -1,8 +1,9 @@
 [tools]
 "github:tylerbutler/trellis" = "1.0.0"
-erlang = "27"
+erlang = "27.2.1"
 gleam = "1.19.1"
-just = "latest"
+just = "1.38.0"
+node = "22"
 
 [env]
 LC_ALL = "en_US.UTF-8"
