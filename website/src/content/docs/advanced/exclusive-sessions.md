@@ -175,6 +175,9 @@ ownership before opening DETS.
 
 Existing data files must have one hard link. Slate rejects hard-linked data
 files, dangling symlinks, and symlinked, hard-linked, or non-regular sidecars.
+On Linux, Slate also rejects individual file mount points for data files and
+sidecars. Mount a directory instead of mounting the DETS file itself. Slate
+checks the opened file's filesystem and mount identity before accepting it.
 The sidecar persists across sessions and repair. Its presence does not mean
 an owner exists; the OS lock determines ownership.
 

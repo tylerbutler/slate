@@ -60,20 +60,44 @@ do_open(Path, Type, Repair, Access) ->
 do_open(Path, Type, Repair, Access, Unicode) ->
     try
         CanonicalPath = canonicalize_path(Path),
-        Name = table_name_for_path(CanonicalPath),
         RepairValue = repair_value(Repair),
         AccessValue = access_value(Access),
         Options = [{file, CanonicalPath}, {type, Type}, {repair, RepairValue}, {access, AccessValue}],
-        Reference = case Unicode of true -> {slate_exclusive, Name}; false -> Name end,
-        case dets:open_file(Name, Options) of
-            {ok, Name} -> {ok, Reference};
-            {error, incompatible_arguments} ->
-                %% OTP omits the filename for conflicting open options.
-                {error, translate_encoded_error(Unicode, {incompatible_arguments, CanonicalPath})};
+        case open_table(CanonicalPath, Options, 0) of
+            {ok, Name} ->
+                Reference = case Unicode of true -> {slate_exclusive, Name}; false -> Name end,
+                {ok, Reference};
             {error, OpenReason} -> {error, translate_encoded_error(Unicode, OpenReason)}
         end
     catch
         _:CatchReason -> {error, translate_encoded_error(Unicode, CatchReason)}
+    end.
+
+open_table(_CanonicalPath, _Options, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
+    erlang:error(no_available_table_name);
+open_table(CanonicalPath, Options, Attempts) ->
+    Name = table_name_for_path(CanonicalPath),
+    case dets:open_file(Name, Options) of
+        {ok, Name} -> {ok, Name};
+        {error, incompatible_arguments} ->
+            %% Selection is not a reservation: a different path can win this
+            %% name before open_file. Only an occupied SAME path is AlreadyOpen.
+            %% If the winner closed before info, retry as well. Re-scan for an
+            %% existing same-path table on every retry so shared opens reuse it.
+            %% The exclusive caller retains its file lock throughout this call.
+            case dets:info(Name, filename) of
+                undefined ->
+                    open_table(CanonicalPath, Options, Attempts + 1);
+                OpenPath ->
+                    case canonicalize_open_path(OpenPath) of
+                        CanonicalPath ->
+                            %% OTP omits the filename for conflicting options.
+                            {error, {incompatible_arguments, CanonicalPath}};
+                        _ ->
+                            open_table(CanonicalPath, Options, Attempts + 1)
+                    end
+            end;
+        {error, Reason} -> {error, Reason}
     end.
 
 %% Gleam RepairPolicy constructors map to these atoms:
@@ -121,7 +145,7 @@ find_open_table_for_path([Name | Rest], CanonicalPath) ->
         undefined ->
             find_open_table_for_path(Rest, CanonicalPath);
         OpenPath ->
-            case canonicalize_path(OpenPath) of
+            case canonicalize_open_path(OpenPath) of
                 CanonicalPath -> {ok, Name};
                 _ -> find_open_table_for_path(Rest, CanonicalPath)
             end
@@ -132,7 +156,7 @@ allocate_table_name(CanonicalPath) ->
     allocate_table_name(CanonicalPath, Start, 0).
 
 allocate_table_name(_CanonicalPath, _Start, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
-    %% Caught by the try-catch in do_open/4; translate_error/1 maps this
+    %% Caught by the try-catch in do_open/5; translate_error/1 maps this
     %% to table_name_pool_exhausted (TableNamePoolExhausted in Gleam).
     erlang:error(no_available_table_name);
 allocate_table_name(CanonicalPath, Start, Attempts) ->
@@ -142,11 +166,18 @@ allocate_table_name(CanonicalPath, Start, Attempts) ->
         undefined ->
             Name;
         OpenPath ->
-            case canonicalize_path(OpenPath) of
+            case canonicalize_open_path(OpenPath) of
                 CanonicalPath -> Name;
                 _ -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
             end
     end.
+
+%% DETS accepts/report filenames as Unicode lists or UTF-8 binaries. Decode
+%% reported binaries, unlike the intentionally byte-list legacy open input.
+canonicalize_open_path(Path) when is_binary(Path) ->
+    canonicalize_path(unicode:characters_to_list(Path));
+canonicalize_open_path(Path) when is_list(Path) ->
+    canonicalize_path(Path).
 
 table_name_atom(Index) ->
     %% Bounded atom creation: creates at most TABLE_NAME_POOL_SIZE atoms.

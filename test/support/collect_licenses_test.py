@@ -89,6 +89,25 @@ class NoticeTests(unittest.TestCase):
             collector.write_or_check(files, self.root, True)
         self.assertEqual(path.read_bytes(), b"Changed notices\n")
 
+    def test_check_rejects_obsolete_notices_without_deleting_them(self):
+        files = {"rust/current.txt": b"Current notice\n"}
+        collector.write_or_check(files, self.root, False)
+        obsolete = self.root / "rust/obsolete.txt"
+        obsolete.write_bytes(b"Obsolete notice\n")
+        with self.assertRaisesRegex(SystemExit, "Obsolete native license notices.*rust/obsolete.txt"):
+            collector.write_or_check(files, self.root, True)
+        self.assertEqual(obsolete.read_bytes(), b"Obsolete notice\n")
+
+    def test_refresh_removes_obsolete_notices(self):
+        old = {"rust/obsolete.txt": b"Obsolete notice\n", "old.txt": b"Old notice\n"}
+        collector.write_or_check(old, self.root, False)
+        current = {"rust/current.txt": b"Current notice\n"}
+        collector.write_or_check(current, self.root, False)
+        self.assertFalse((self.root / "rust/obsolete.txt").exists())
+        self.assertFalse((self.root / "old.txt").exists())
+        self.assertEqual((self.root / "rust/current.txt").read_bytes(), b"Current notice\n")
+        collector.write_or_check(current, self.root, True)
+
     def test_preserves_runtime_and_rejects_changes(self):
         name = "rust/COPYRIGHT-library.html"
         path = self.root / name

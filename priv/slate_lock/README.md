@@ -28,4 +28,5 @@ dependencies, run `just native-licenses` and review and commit the output.
 `just native-licenses-check` runs regression tests and checks for drift without
 writing files. After a Rust toolchain change, review and refresh its runtime
 notices with `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
+Refresh removes obsolete generated notices; checks reject extra files.
 Normal native builds do not need the notice generator.

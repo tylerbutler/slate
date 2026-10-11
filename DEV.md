@@ -55,6 +55,11 @@ CI reads the latter through `.github/actions/setup` and
 native formatting, clippy, and license notices. Run it before opening a PR.
 `gleam test` needs an existing native artifact for exclusive-session tests.
 
+`src/slate/internal/exclusive_session.gleam` implements the session protocol
+with typed `gleam_erlang` subjects and monitors. The Erlang bridges retain
+DETS inspection, diagnostics, and exception capture with the original stack.
+Successful callback values stay in the calling process.
+
 Crate notices are generated with cargo-about from the complete locked graph,
 including build dependencies, procedural macros, and dependencies outside
 release targets. MIT is selected where the upstream license permits it.
@@ -68,6 +73,8 @@ fail generation instead of falling back to generic notices.
 A Rust toolchain change requires a separate review
 and `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
 Normal builds and Hex consumers do not need cargo-about.
+Notice refresh removes obsolete files from the generated `licenses/`
+directory. Check mode rejects extra files without changing them.
 
 ## Code style
 
@@ -90,6 +97,9 @@ Run a file group with `gleam test -- exclusive` or filter a test name with
 `gleam test -- --test-name-filter=exclusive`. Do not edit test imports to select
 tests. Exclusive tests launch independent BEAM VMs and use a bounded message
 protocol. Delete their sidecars only after all child VMs stop.
+Linux native CI also runs mounted-file regressions inside a private mount
+namespace. These tests need mount privileges and do not run in the default
+Cargo test group.
 
 ## Changelog entries
 

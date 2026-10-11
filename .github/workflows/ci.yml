@@ -73,6 +73,14 @@ jobs:
           key: native-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('priv/slate_lock/source/Cargo.lock', 'priv/slate_lock/source/rust-toolchain.toml') }}
       - name: Check and build native component
         run: just native-check && just native-build
+      - name: Reject Linux file-mount aliases
+        if: runner.os == 'Linux'
+        working-directory: priv/slate_lock/source
+        run: |
+          binary="$(cargo test --locked --target-dir ../../../build/native --no-run --message-format=json |
+            python -c 'import json, sys; paths = [item["executable"] for item in map(json.loads, sys.stdin) if item.get("reason") == "compiler-artifact" and item.get("executable") and item.get("profile", {}).get("test")]; assert len(paths) == 1, paths; print(paths[0])')"
+          sudo -n unshare --mount --fork --propagation private -- \
+            env SLATE_PRIVATE_MOUNT_NAMESPACE=1 "$binary" --ignored
       - name: Check native license notices
         run: just native-license-tools && just native-licenses-check
       - name: Enable NTFS short names for alias proofs

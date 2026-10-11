@@ -30,6 +30,13 @@ pub fn exclusive_vm_guardian_exit_test() -> Nil {
   guardian_exit()
 }
 
+pub fn exclusive_vm_guardian_exit_primary_test() -> Nil {
+  guardian_exit_primary()
+}
+
+@external(erlang, "exclusive_vm_test_ffi", "guardian_exit_primary")
+fn guardian_exit_primary() -> Nil
+
 pub fn exclusive_vm_callback_failures_test() -> Nil {
   callback_failures()
 }
@@ -81,6 +88,13 @@ pub fn exclusive_vm_cleanup_failures_test() -> Nil {
 pub fn exclusive_vm_release_failures_test() -> Nil {
   release_failures()
 }
+
+pub fn exclusive_vm_undelivered_cleanup_test() -> Nil {
+  undelivered_cleanup()
+}
+
+@external(erlang, "exclusive_vm_test_ffi", "undelivered_cleanup")
+fn undelivered_cleanup() -> Nil
 
 @external(erlang, "exclusive_vm_test_ffi", "release_failures")
 fn release_failures() -> Nil

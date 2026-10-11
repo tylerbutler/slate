@@ -26,6 +26,7 @@ import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
 import slate/exclusive
 import slate/internal
+import slate/internal/exclusive_session
 
 /// An open DETS bag table with typed keys and values.
 pub opaque type Bag(k, v) {
@@ -37,7 +38,8 @@ pub opaque type Bag(k, v) {
 }
 
 /// Internal reference to the DETS table.
-type TableReference
+type TableReference =
+  exclusive_session.TableHandle
 
 // ── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -171,7 +173,7 @@ pub fn with_table(
   callback callback: fn(Bag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
-    Ok(table) -> ffi_with_close(table, callback, close)
+    Ok(table) -> exclusive_session.with_close(table, callback, close)
     Error(error) -> Error(error)
   }
 }
@@ -197,7 +199,7 @@ pub fn with_exclusive_table(
   value_decoder value_decoder: Decoder(v),
   callback callback: fn(Bag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, exclusive.SessionError) {
-  ffi_with_exclusive(
+  exclusive_session.with_table(
     path,
     wait,
     fn(path) { ffi_open_exclusive(path, repair, access) },
@@ -213,14 +215,6 @@ fn ffi_open_exclusive(
   repair: RepairPolicy,
   access: AccessMode,
 ) -> Result(TableReference, DetsError)
-
-@external(erlang, "slate_exclusive_table_ffi", "with_table")
-fn ffi_with_exclusive(
-  path: String,
-  wait: exclusive.Wait,
-  open: fn(String) -> Result(TableReference, DetsError),
-  callback: fn(TableReference) -> Result(a, DetsError),
-) -> Result(a, exclusive.SessionError)
 
 /// Look up all values for a key, in an unspecified order.
 ///
@@ -446,13 +440,6 @@ fn ffi_open_bag_with_access(
 
 @external(erlang, "slate_dets_ffi", "close")
 fn ffi_close(reference: TableReference) -> Result(Nil, DetsError)
-
-@external(erlang, "slate_with_table_ffi", "with_close")
-fn ffi_with_close(
-  table: Bag(k, v),
-  callback: fn(Bag(k, v)) -> Result(a, DetsError),
-  close: fn(Bag(k, v)) -> Result(Nil, DetsError),
-) -> Result(a, DetsError)
 
 @external(erlang, "slate_dets_ffi", "sync")
 fn ffi_sync(reference: TableReference) -> Result(Nil, DetsError)

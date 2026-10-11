@@ -123,6 +123,13 @@ def generate(destination=DESTINATION, refresh_rust=False):
 
 
 def write_or_check(files, destination, check):
+    obsolete = sorted(
+        path for path in destination.rglob("*")
+        if path.is_file() and path.relative_to(destination).as_posix() not in files
+    )
+    if check and obsolete:
+        names = ", ".join(path.relative_to(destination).as_posix() for path in obsolete)
+        raise SystemExit(f"Obsolete native license notices: {names}")
     for name, content in files.items():
         path = destination / name
         if check:
@@ -131,6 +138,9 @@ def write_or_check(files, destination, check):
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
+    if not check:
+        for path in obsolete:
+            path.unlink()
 
 
 def main():

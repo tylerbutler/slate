@@ -4,7 +4,8 @@
          callback_failures/0, extra_user/0, vm_crash/0, aliases/0, hard_links/0,
          different_files/0, open_exit/1, close_exit/1, cleanup_failures/0,
          waiting_owner_exit/0, tmpfs_contention/0, unicode_paths/0,
-         case_and_short_aliases/0, repair_sidecar/0, release_failures/0]).
+         case_and_short_aliases/0, repair_sidecar/0, release_failures/0,
+         undelivered_cleanup/0, guardian_exit_primary/0]).
 
 contention(Type) -> contention_at(Type, path("contention", Type)).
 
@@ -133,7 +134,9 @@ cleanup_failures() ->
 release_failures() ->
     with_vms(path("late_acquisition", set), fun(A, B, Path) ->
         send(A, {inject_release_failure, late_acquire_success}), fault_injected = event(A),
-        send_session(A, Path, set, {wait_up_to, 50}, return_ok),
+        %% Allow cold Gleam module startup; the stub expires the deadline only
+        %% after acquiring a real token, so this actually tests late release.
+        send_session(A, Path, set, {wait_up_to, 1000}, return_ok),
         {result, {error, {acquisition_failed, timed_out}}} = event(A),
         {error, enoent} = file:read_file_info(binary_to_list(Path)),
         {ok, nil} = run_session(B, Path, set, return_ok)
@@ -150,7 +153,7 @@ release_failures() ->
     end),
     with_vms(path("late_release_failure", set), fun(A, B, Path) ->
         send(A, {inject_release_failure, late_acquire}), fault_injected = event(A),
-        send_session(A, Path, set, {wait_up_to, 50}, return_ok),
+        send_session(A, Path, set, {wait_up_to, 1000}, return_ok),
         {result, {error, {cleanup_failed, {some, {acquisition_failure, timed_out}},
                          [{release_failure, {os_failure, _}}]}}} = event(A),
         {error, enoent} = file:read_file_info(binary_to_list(Path)),
@@ -158,6 +161,23 @@ release_failures() ->
         {result, {error, {acquisition_failed, busy}}} = event(B),
         send(A, halt_vm), wait_exit(A, 70),
         {ok, nil} = run_session(B, Path, set, return_ok)
+    end).
+
+undelivered_cleanup() ->
+    with_vms(path("undelivered_cleanup", set), fun(A, B, Path) ->
+        send(A, {inject_release_failure, pause_delivery}), fault_injected = event(A),
+        send_session(A, Path, set, immediate, {insert_then_error, <<"kept">>, 7}),
+        opening = event(A),
+        send(A, await_delivery), delivery_paused = event(A),
+        send(A, kill_owner), owner_killed = event(A),
+        send(A, get_log),
+        {log, #{event := slate_exclusive_cleanup_failed, owner_exit := killed,
+                error := {cleanup_failed, {some, {callback_failure, not_found}},
+                          [{release_failure, {os_failure, _}}]}}} = event(A),
+        send_session(B, Path, set, immediate, return_ok),
+        {result, {error, {acquisition_failed, busy}}} = event(B),
+        send(A, halt_vm), wait_exit(A, 70),
+        {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>})
     end).
 
 repeated_sessions(Type) ->
@@ -202,6 +222,20 @@ guardian_exit() ->
         send(A, kill_guardian), guardian_killed = event(A),
         send(A, {finish, return_ok}),
         {result, {error, {cleanup_failed, none, [{guardian_stopped, _}]}}} = event(A),
+        send_session(B, Path, set, immediate, return_ok),
+        {result, {error, {acquisition_failed, busy}}} = event(B),
+        send(A, halt_vm), wait_exit(A, 70),
+        {ok, nil} = run_session(B, Path, set, return_ok)
+    end).
+
+guardian_exit_primary() ->
+    with_vms(path("guardian_exit_primary", set), fun(A, B, Path) ->
+        send_session(A, Path, set, immediate, hold),
+        opening = event(A), holding = event(A),
+        send(A, kill_guardian), guardian_killed = event(A),
+        send(A, {finish, return_error}),
+        {result, {error, {cleanup_failed, {some, {callback_failure, not_found}},
+                         [{guardian_stopped, _}]}}} = event(A),
         send_session(B, Path, set, immediate, return_ok),
         {result, {error, {acquisition_failed, busy}}} = event(B),
         send(A, halt_vm), wait_exit(A, 70),
@@ -400,6 +434,8 @@ start_vm() ->
     Port = open_port({spawn_executable, Erl},
         [binary, exit_status, use_stdio, stderr_to_stdout, {line, 65536},
          {args, ["+S", "2:2", "+A", "1", "-noshell", "-pa", Ebin,
+                 filename:dirname(code:which('gleam@erlang@process')),
+                 filename:dirname(code:which('gleam@result')),
                  "-eval", "slate_exclusive_vm_fixture:main()."]}]),
     try ready = event(Port), Port
     catch Class:Reason:Stack ->

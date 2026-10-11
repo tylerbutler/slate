@@ -123,10 +123,53 @@ fn validate_data(path: &Path) -> Result<(), LockError> {
                     "data_hard_link".into(),
                 ));
             }
+            validate_file_location(path, &file, "data_file_mount")?;
             Ok(())
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(os_failure(path, error)),
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn validate_file_location(path: &Path, file: &File, mount_reason: &str) -> Result<(), LockError> {
+    let status = rustix::fs::fstatfs(file).map_err(|error| os_failure(path, error.into()))?;
+    if !qualified_linux_filesystem(&status) {
+        return Err(LockError::UnsupportedFilesystem(path.to_owned()));
+    }
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let directory = rustix::fs::open(
+        parent,
+        rustix::fs::OFlags::PATH | rustix::fs::OFlags::DIRECTORY | rustix::fs::OFlags::CLOEXEC,
+        rustix::fs::Mode::empty(),
+    )
+    .map_err(|error| os_failure(parent, error.into()))?;
+    if mount_id(file, path)? != mount_id(&directory, parent)? {
+        return Err(LockError::UnsafeAlias(path.to_owned(), mount_reason.into()));
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn mount_id(file: &impl std::os::fd::AsFd, path: &Path) -> Result<u64, LockError> {
+    use rustix::fs::{statx, AtFlags, StatxFlags};
+    let status = statx(file, "", AtFlags::EMPTY_PATH, StatxFlags::MNT_ID)
+        .map_err(|error| os_failure(path, error.into()))?;
+    if status.stx_mask & StatxFlags::MNT_ID.bits() == 0 {
+        return Err(LockError::UnsupportedFilesystem(path.to_owned()));
+    }
+    Ok(status.stx_mnt_id)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn validate_file_location(path: &Path, _file: &File, _mount_reason: &str) -> Result<(), LockError> {
+    if supported_filesystem(path)? {
+        Ok(())
+    } else {
+        Err(LockError::UnsupportedFilesystem(path.to_owned()))
     }
 }
 
@@ -145,7 +188,12 @@ fn unsafe_file(metadata: &fs::Metadata) -> bool {
 #[cfg(target_os = "linux")]
 fn supported_filesystem(parent: &Path) -> Result<bool, LockError> {
     let status = rustix::fs::statfs(parent).map_err(|error| os_failure(parent, error.into()))?;
-    Ok(status.f_type == 0xef53 || status.f_type == 0x01021994)
+    Ok(qualified_linux_filesystem(&status))
+}
+
+#[cfg(target_os = "linux")]
+fn qualified_linux_filesystem(status: &rustix::fs::StatFs) -> bool {
+    status.f_type == 0xef53 || status.f_type == 0x01021994
 }
 
 #[cfg(target_os = "macos")]
@@ -256,6 +304,7 @@ fn open_sidecar(path: &Path) -> Result<File, LockError> {
             ));
         }
     }
+    validate_file_location(path, &file, "sidecar_file_mount")?;
     Ok(file)
 }
 
@@ -390,6 +439,98 @@ mod tests {
         assert!(matches!(
             open_sidecar(&directory.0),
             Err(LockError::UnsafeAlias(_, _))
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn reject_data_on_unsupported_filesystem() {
+        let path = Path::new("/proc/version");
+        assert!(matches!(
+            validate_data(path),
+            Err(LockError::UnsupportedFilesystem(_))
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn accept_data_without_directory_listing_permission() {
+        use std::os::unix::fs::PermissionsExt;
+        let directory = Directory::new();
+        let data = directory.0.join("data");
+        fs::write(&data, []).unwrap();
+        fs::set_permissions(&directory.0, fs::Permissions::from_mode(0o300)).unwrap();
+        let result = validate_data(&data);
+        fs::set_permissions(&directory.0, fs::Permissions::from_mode(0o700)).unwrap();
+        result.unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    struct FileMount(PathBuf);
+
+    #[cfg(target_os = "linux")]
+    impl FileMount {
+        fn new(source: &Path, destination: &Path) -> Self {
+            assert_eq!(
+                std::env::var("SLATE_PRIVATE_MOUNT_NAMESPACE").as_deref(),
+                Ok("1"),
+                "run mounted-file tests inside a private mount namespace"
+            );
+            fs::write(destination, []).unwrap();
+            assert!(std::process::Command::new("mount")
+                .arg("--bind")
+                .arg(source)
+                .arg(destination)
+                .status()
+                .unwrap()
+                .success());
+            Self(destination.to_owned())
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    impl Drop for FileMount {
+        fn drop(&mut self) {
+            assert!(std::process::Command::new("umount")
+                .arg(&self.0)
+                .status()
+                .unwrap()
+                .success());
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "requires a private mount namespace; run by Linux native CI"]
+    fn reject_file_bind_mount_aliases() {
+        let directory = Directory::new();
+        let data = directory.0.join("data");
+        fs::write(&data, []).unwrap();
+        let first = FileMount::new(&data, &directory.0.join("first"));
+        let second = FileMount::new(&data, &directory.0.join("second"));
+        validate_data(&data).unwrap();
+        for alias in [&first.0, &second.0] {
+            assert!(matches!(
+                validate_data(alias),
+                Err(LockError::UnsafeAlias(_, reason)) if reason == "data_file_mount"
+            ));
+        }
+        assert!(matches!(
+            open_sidecar(&first.0),
+            Err(LockError::UnsafeAlias(_, reason)) if reason == "sidecar_file_mount"
+        ));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "requires a private mount namespace; run by Linux native CI"]
+    fn reject_unsupported_file_mounted_into_supported_directory() {
+        let directory = Directory::new();
+        assert!(supported_filesystem(&directory.0).unwrap());
+        let mounted = FileMount::new(Path::new("/proc/version"), &directory.0.join("data"));
+        assert!(matches!(
+            validate_data(&mounted.0),
+            Err(LockError::UnsupportedFilesystem(_))
         ));
     }
 

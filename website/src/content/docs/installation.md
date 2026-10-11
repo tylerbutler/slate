@@ -32,7 +32,7 @@ Hex releases include the native files for these targets:
 
 | OS | Architecture | Baseline | Allowed filesystems |
 |----|--------------|----------|---------------------|
-| Linux | x64, ARM64 | glibc 2.35+ | Local ext2/3/4, tmpfs |
+| Linux | x64, ARM64 | glibc 2.35+, kernel 5.8+ | Local ext2/3/4, tmpfs |
 | macOS | x64, ARM64 | macOS 15+ | Local APFS |
 | Windows | x64 | Windows Server 2022 / Windows 10+ with the MSVC runtime | Fixed-drive NTFS |
 
@@ -46,6 +46,9 @@ Use a local filesystem on one host. Sharing a network volume or a sidecar
 between hosts does not extend the support contract. Keep the data directory
 trusted and stable, and keep the sidecar beside the data file. tmpfs loses its
 contents on host restart; use persistent storage for data you must retain.
+On Linux, mount the containing directory rather than individual data or
+sidecar files. Slate requires kernel mount-identity metadata and rejects
+file mount points, including bind-mounted files.
 
 ### Source checkouts
 

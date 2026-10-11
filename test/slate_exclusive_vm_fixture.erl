@@ -2,6 +2,7 @@
 -export([main/0]).
 
 main() ->
+    true = register(exclusive_fixture_main, self()),
     ok = logger:add_handler(exclusive_fixture_capture, exclusive_test_logger,
                             #{level => error, config => #{owner => self()}}),
     emit(ready),
@@ -21,6 +22,10 @@ loop(Owner) ->
         {inject_release_failure, Mode} ->
             ok = exclusive_fault_ffi:inject(Mode),
             emit(fault_injected),
+            loop(Owner);
+        await_delivery ->
+            receive {delivery_paused, Owner} -> emit(delivery_paused)
+            after 5000 -> error(delivery_not_paused) end,
             loop(Owner);
         {finish, Action} -> Owner ! {finish, Action}, loop(Owner);
         kill_owner -> exit(Owner, kill), emit(owner_killed), loop(Owner);
@@ -76,7 +81,7 @@ spawn_session(Main, Path, Type, Repair, Access, Wait, Action) ->
         Owner = self(),
         put(exclusive_fixture_owner, Owner),
         Result = try
-            slate_exclusive_table_ffi:with_table(
+            'slate@internal@exclusive_session':with_table(
                 Path, Wait,
                 fun(Canonical) ->
                     emit(opening),
@@ -123,6 +128,7 @@ action(Table, {insert_then_error, Key, Value}, _Main) ->
     {ok, nil} = slate_dets_ffi:insert(Table, [{Key, Value}]),
     {error, not_found};
 action(_Table, return_ok, _Main) -> {ok, nil};
+action(_Table, return_error, _Main) -> {error, not_found};
 action(_Table, block_open, _Main) -> error(blocked_open_callback_ran);
 action(Table, block_close, Main) ->
     {monitors, [{process, Guardian}]} = process_info(self(), monitors),
