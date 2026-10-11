@@ -19,6 +19,36 @@ deps:
 
 # === BUILD ===
 
+# Build the native component used by exclusive table sessions
+native-build:
+    escript priv/slate_lock/source/build.escript
+
+# Check the pinned native source
+native-check:
+    cd priv/slate_lock/source && cargo fmt --check && cargo clippy --locked --all-targets --target-dir ../../../build/native -- -D warnings && cargo test --locked --target-dir ../../../build/native
+
+# Install the pinned notice generator with the native crate's Rust toolchain
+native-license-tools:
+    cd priv/slate_lock/source && cargo install --locked --version 0.9.2 --features cli cargo-about
+
+# Refresh crate notices and the native notice manifest
+native-licenses:
+    python priv/slate_lock/source/collect_licenses.py
+
+# Check native notice generation without changing committed files
+native-licenses-check:
+    python test/support/collect_licenses_test.py
+    python priv/slate_lock/source/collect_licenses.py --check
+
+# Prove Hex, shipment, and relocated escript native loading
+[positional-arguments]
+native-package-check archive="":
+    if [ -n "$1" ]; then escript test/support/exclusive-package.escript --archive "$1"; else escript test/support/exclusive-package.escript; fi
+
+# Require every release artifact before publishing
+native-release-check:
+    escript test/support/exclusive-package.escript --release-artifacts
+
 # Build project (Erlang target)
 build:
     trellis run build
@@ -30,7 +60,7 @@ build-strict:
 # === TESTING ===
 
 # Run all tests
-test:
+test: native-build
     trellis run test
 
 # === CODE QUALITY ===
@@ -81,7 +111,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor format-check check test build-strict
+ci: doctor format-check check native-check native-licenses-check test build-strict
 
 # Alias for PR checks
 alias pr := ci

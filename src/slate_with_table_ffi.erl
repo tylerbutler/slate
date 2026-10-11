@@ -1,28 +1,15 @@
 -module(slate_with_table_ffi).
--export([with_close/3]).
+-export([capture/1, reraise/1]).
 
-%% Runs Callback(Resource), then Close(Resource), and returns the appropriate result.
-%%
-%% Close is expected to return {ok, _} | {error, _} (a Gleam Result), not raise.
-%% If Callback raises, Close is attempted inside a catch (best-effort) and the
-%% original exception is re-raised. If Close itself raises after Callback succeeds,
-%% the callback's successful result is lost and the Close exception propagates;
-%% this is acceptable because Gleam close functions return Result types and
-%% should never raise under normal operation.
-with_close(Resource, Callback, Close) ->
-    try
-        CallbackResult = Callback(Resource),
-        CloseResult = Close(Resource),
-        finalize_with_close(CallbackResult, CloseResult)
+%% Gleam cannot catch arbitrary Erlang exception classes or retain the original
+%% stack. These opaque exceptions never leave the callback's process.
+capture(Callback) ->
+    try Callback() of
+        Value -> {returned, Value}
     catch
-        Class:Reason:Stacktrace ->
-            _ = catch Close(Resource),
-            erlang:raise(Class, Reason, Stacktrace)
+        Class:Reason:Stack ->
+            {raised, {exception, Class, Reason, Stack}, {Class, Reason}}
     end.
 
-finalize_with_close({ok, Value}, {ok, _}) ->
-    {ok, Value};
-finalize_with_close({ok, _}, {error, _} = CloseError) ->
-    CloseError;
-finalize_with_close({error, _} = CallbackError, _) ->
-    CallbackError.
+reraise({exception, Class, Reason, Stack}) ->
+    erlang:raise(Class, Reason, Stack).

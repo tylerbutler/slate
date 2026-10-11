@@ -7,7 +7,14 @@ Tool versions are managed with [mise](https://mise.jdx.dev/) (see `.mise.toml`).
 ```sh
 mise install
 just deps
+just native-build
+just native-license-tools
 ```
+
+Exclusive-session source builds require Rust/Cargo 1.91. The native crate pins
+its toolchain in `priv/slate_lock/source/rust-toolchain.toml`. Cargo downloads
+Rustler and OS interop dependencies from the locked manifest. You do not need
+Elixir or a shell `flock` utility.
 
 Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
@@ -25,6 +32,13 @@ only Node.js or Trellis as needed.
 | Download dependencies | `just deps` | Download project dependencies |
 | Build | `just build` | Build project (Erlang target) |
 | Build strict | `just build-strict` | Build with warnings as errors |
+| Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
+| Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
+| Notice tools | `just native-license-tools` | Install the pinned cargo-about generator |
+| Refresh notices | `just native-licenses` | Generate crate notices and update their manifest |
+| Check notices | `just native-licenses-check` | Run notice tests and check for drift without writing files |
+| Native package proof | `just native-package-check [archive]` | Load from an extracted Hex package, shipment, and relocated escript |
+| Native release check | `just native-release-check` | Require all five prebuilt artifacts |
 | Test | `just test` | Run all tests |
 | Format | `just format` | Format source code |
 | Format check | `just format-check` | Check formatting without changes |
@@ -38,8 +52,30 @@ only Node.js or Trellis as needed.
 | CI | `just ci` | Run all CI checks (doctor, format, check, test, build) |
 | Main | `just main` | Extended checks for main branch |
 
-`just ci` runs doctor, format-check, type-check, tests, then a build with
-`--warnings-as-errors`. Run it before opening a PR.
+`just test` builds the native component before tests. `just ci` also checks
+native formatting, clippy, and license notices. Run it before opening a PR.
+`gleam test` needs an existing native artifact for exclusive-session tests.
+
+`src/slate/internal/exclusive_session.gleam` implements the session protocol
+with typed `gleam_erlang` subjects and monitors. The Erlang bridges retain
+DETS inspection, diagnostics, and exception capture with the original stack.
+Successful callback values stay in the calling process.
+
+Crate notices are generated with cargo-about from the complete locked graph,
+including build dependencies, procedural macros, and dependencies outside
+release targets. MIT is selected where the upstream license permits it.
+The generator preserves full license texts and supplemental copyright notices
+in `priv/slate_lock/licenses/THIRD_PARTY_NOTICES.txt`. Rust runtime notices
+remain separate under `licenses/rust/`; cargo-about does not collect them.
+
+After changing native dependencies, run `just native-licenses` and review the
+output before committing it. Licensing warnings and unresolved upstream texts
+fail generation instead of falling back to generic notices.
+A Rust toolchain change requires a separate review
+and `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
+Normal builds and Hex consumers do not need cargo-about.
+Notice refresh removes obsolete files from the generated `licenses/`
+directory. Check mode rejects extra files without changing them.
 
 ## Website
 
@@ -113,6 +149,20 @@ Tests use the [startest](https://hexdocs.pm/startest/) framework (not `gleeunit`
 - Use `let assert Ok(...)` for expected-success paths.
 - Use `|> expect.to_equal(...)` for specific value checks.
 
+Run a file group with `gleam test -- exclusive` or filter a test name with
+`gleam test -- --test-name-filter=exclusive`. Do not edit test imports to select
+tests. Exclusive tests launch independent BEAM VMs and use a bounded message
+protocol. Delete their sidecars only after all child VMs stop.
+Resolve nested `erl` and `escript` launchers from the current runtime's
+`code:root_dir()/bin`, not inherited PATH: on Windows the root launcher prepends
+`erts/bin`, whose `erl.ini` can still contain upstream build paths. Package
+children also need root `bin` first on PATH for indirect launches by Gleam.
+The VM regression and package proof use broken launchers ahead of the runtime
+on PATH to guard this behavior.
+Linux native CI also runs mounted-file regressions inside a private mount
+namespace. These tests need mount privileges and do not run in the default
+Cargo test group.
+
 ## Changelog entries
 
 Add a TOML changelog entry in `.changes/unreleased/` for changes that affect
@@ -155,6 +205,18 @@ Merge that PR to create a `v<version>` tag at the merge commit. The tag push
 starts CI, then Trellis creates the GitHub Release from the matching changelog
 section and publishes to Hex. The workflows use `RELEASE_APP_ID` and
 `RELEASE_APP_PRIVATE_KEY` for PR and tag events, and `HEXPM_API_KEY` for Hex.
+
+CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
+macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
+from the same workflow run and checks the complete set before Hex packaging.
+CI also builds a complete Hex archive on Linux and runs its consumer, shipment,
+and relocated-escript proofs on Windows.
+Use `just native-package-check path/to/slate-version.tar` to check an existing
+archive without exporting one.
+Linux builds use Ubuntu 22.04 (glibc 2.35); macOS builds use a 15.0 deployment
+target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
+from a different revision or bypass a failed target. Missing runners or failed
+platform proofs block release.
 
 To update the release PR from a clean local checkout, run `just release-pr`.
 It pushes the release branch and requires GitHub authentication. The old

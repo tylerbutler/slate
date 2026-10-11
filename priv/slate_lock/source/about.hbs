@@ -1,0 +1,18 @@
+Third-party notices for Slate's native lock component
+====================================================
+
+This file covers the locked Cargo dependencies for all supported targets,
+including build dependencies and procedural macros.
+Rust standard-library and runtime notices are in the adjacent rust/ directory.
+
+{{#each licenses}}
+{{name}} ({{id}})
+----------------------------------------------------
+Applies to:
+{{#each used_by}}
+- {{{crate.name}}} {{{crate.version}}}
+{{/each}}
+
+{{{text}}}
+
+{{/each}}

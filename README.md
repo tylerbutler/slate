@@ -30,6 +30,11 @@ Use DETS when you need persistent key lookup without SQL or distributed storage.
 gleam add slate
 ```
 
+Exclusive sessions use a native component included in Hex releases. They require
+OTP 26+ and a supported OS, architecture, and local filesystem. Source checkouts
+need Rust/Cargo 1.91 and `just native-build`. Unlocked APIs do not load native code.
+See [native delivery and escripts](https://slate.tylerbutler.com/installation/#exclusive-session-native-component).
+
 ## Usage
 
 An entry is one key-value pair. The examples use files in a `data` directory.
@@ -117,6 +122,54 @@ table modules.
 Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to keep the previous
 behavior. Cleanup and error handling are unchanged.
 
+### Exclusive sessions across CLI processes
+
+Use `with_exclusive_table` when independent BEAM VMs share a DETS file. The helper
+acquires an OS lock before opening or repairing DETS, then closes DETS before
+releasing ownership:
+
+```gleam
+import gleam/dynamic/decode
+import slate
+import slate/exclusive
+import slate/set
+
+use table <- set.with_exclusive_table(
+  path: "data/cache.dets",
+  repair: slate.AutoRepair,
+  access: slate.ReadWrite,
+  wait: exclusive.WaitUpTo(1000),
+  key_decoder: decode.string,
+  value_decoder: decode.string,
+)
+set.insert(table, "theme", "dark")
+```
+
+Use `Immediate` for a single attempt. A contender receives
+`AcquisitionFailed(Busy)` or `AcquisitionFailed(TimedOut)` before DETS opens or
+the callback runs. The acquisition deadline does not cancel an acquired session.
+
+For CLI caching, take a locked read session, fetch missing metadata without a
+table or lock, then take a new locked write session. Insert into the current
+table rather than replacing it with an earlier snapshot. Different-key writes
+accumulate; same-key set inserts keep last-write-wins behavior. Keep freshness
+checks and read-modify-write operations inside one callback.
+
+All clients, including readers, must participate. Unlocked APIs, raw DETS, and
+older Slate versions ignore this advisory protocol. Keep table handles and all
+table work inside the callback. Do not reopen or close the table yourself.
+Callback errors do not undo writes. `CleanupFailed` preserves primary and cleanup
+failures; unsafe cleanup can retain ownership until the VM exits.
+
+The persistent `<resolved-path>.slate.lock` sidecar records lock identity, not
+ownership. Do not delete or replace it while clients can start sessions.
+Symlinks resolve to the same lock; hard-linked data and unsafe sidecars return
+typed errors. Keep paths in a trusted, stable directory.
+
+The helper is available for all three table types. See the
+[exclusive-session guide](https://slate.tylerbutler.com/advanced/exclusive-sessions/)
+for errors, recovery, filesystem limits, and measured open/close costs.
+
 ### Bag tables (multiple values per key)
 
 ```gleam
@@ -186,6 +239,10 @@ Most public operations return `Result(_, slate.DetsError)`.
 This type includes `set.CounterValueNotInteger` without adding a counter-specific
 variant to `DetsError`.
 
+`with_exclusive_table` returns `Result(_, exclusive.SessionError)`. Use
+`exclusive.error_code` and `exclusive.error_message` for these errors. The
+callback still returns `Result(_, slate.DetsError)`.
+
 The `error_code` and `error_message` helpers return strings. Exceptions raised by
 your callbacks propagate through `with_table`, `fold`, and `fold_results`.
 
@@ -244,6 +301,7 @@ The three table types (`set`, `bag`, `duplicate_bag`) share a common core API:
 | `close(table)` | Close and flush to disk |
 | `sync(table)` | Flush without closing |
 | `with_table(path, repair, access, key_decoder, value_decoder, fn)` | Auto-closing callback with repair and access options |
+| `with_exclusive_table(path, repair, access, wait, key_decoder, value_decoder, fn)` | Cross-process exclusive callback, closed before unlock |
 | `insert(table, key, value)` | Insert a key-value pair |
 | `insert_list(table, entries)` | Batch insert |
 | `lookup(table, key)` | Get value(s) for key |
@@ -309,6 +367,9 @@ The top-level `slate` module also provides:
 - Close tables after use. `with_table` attempts cleanup when the callback returns or raises.
 - The internal table name pool is bounded. Opening too many distinct tables at once can fail with `TableNamePoolExhausted`. Close unused tables to release their slots.
 - slate supports only Gleam's Erlang target.
+- Independent VMs must use exclusive sessions for every access to a shared file.
+  Simultaneous unlocked access can lose writes or damage the file. Exclusive
+  sessions require qualified local storage; network filesystems are unsupported.
 
 By default, DETS saves a table after three minutes without table access.
 Call `sync` and handle its result when you need to write pending updates to disk
@@ -320,14 +381,16 @@ files, permission failures, and other open errors.
 
 ## Stability
 
-slate follows [Semantic Versioning](https://semver.org/). The **public API** covered by semver guarantees consists of four modules:
+slate follows [Semantic Versioning](https://semver.org/). The **public API** covered by semver guarantees consists of five modules:
 
 - `slate`: Shared types (`DetsError`, `FileErrorContext`, `AccessMode`, `RepairPolicy`, `TableInfo`) and helpers
 - `slate/set`: Set tables
 - `slate/bag`: Bag tables
 - `slate/duplicate_bag`: Duplicate bag tables
+- `slate/exclusive`: Acquisition waits, session errors, and safe classifiers
 
-The Erlang FFI files (`slate_dets_ffi.erl`, `slate_with_table_ffi.erl`) are internal implementation details and are **not** part of the public API. They may change in any release without notice.
+The Erlang FFI files and native lock implementation are internal details and are
+**not** part of the public API. They may change in any release without notice.
 
 **Versioning policy:** patch releases contain bug fixes only, minor releases add backward-compatible features, and major releases may include breaking changes. The `error_code()` strings returned by `slate.error_code` are stable across minor and patch releases and are safe for programmatic matching (e.g., in error-handling logic or logging). The `error_message()` strings are human-readable and may change in any release.
 

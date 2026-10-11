@@ -21,7 +21,9 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/exclusive
 import slate/internal
+import slate/internal/exclusive_session
 
 /// Errors returned by `update_counter`.
 pub type UpdateCounterError {
@@ -40,8 +42,9 @@ pub opaque type Set(k, v) {
   )
 }
 
-/// Internal reference to the DETS table (Erlang atom).
-type TableReference
+/// Internal reference to the DETS table.
+type TableReference =
+  exclusive_session.TableHandle
 
 type UpdateCounterFfiError {
   FfiCounterValueNotInteger
@@ -180,12 +183,51 @@ pub fn with_table(
   callback callback: fn(Set(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
-    Ok(table) -> ffi_with_close(table, callback, close)
+    Ok(table) -> exclusive_session.with_close(table, callback, close)
     Error(error) -> Error(error)
   }
 }
 
+/// Use a table under exclusive ownership across OS processes.
+///
+/// All clients of this file, including readers, must use exclusive sessions.
+/// Ownership is acquired before open or repair, and released after clean close.
+/// `wait` limits acquisition only; it does not cancel an acquired callback.
+///
+/// Keep the handle and all table work within this callback. Do not reopen or
+/// manually close this table. A nested same-file session contends for ownership.
+/// Callback errors do not undo earlier writes. Exceptions are re-raised after
+/// cleanup; cleanup failures on this path are logged. If cleanup cannot confirm
+/// closure, ownership may remain until the VM exits.
+///
+/// Requires the native lock component and a qualified local filesystem.
+/// Symlinks are resolved; hard-linked data files and unsafe sidecars are rejected.
+/// Do not replace data paths or sidecars while clients can start sessions.
+pub fn with_exclusive_table(
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
+  wait wait: exclusive.Wait,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  callback callback: fn(Set(k, v)) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError) {
+  exclusive_session.with_table(
+    path,
+    wait,
+    fn(path) { ffi_open_exclusive(path, repair, access) },
+    fn(reference) { callback(Set(reference:, key_decoder:, value_decoder:)) },
+  )
+}
+
 // ── Read ────────────────────────────────────────────────────────────────
+
+@external(erlang, "slate_dets_ffi", "open_exclusive_set")
+fn ffi_open_exclusive(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(TableReference, DetsError)
 
 /// Look up the value for a key.
 ///
@@ -415,13 +457,6 @@ fn ffi_open_set_with_access(
 
 @external(erlang, "slate_dets_ffi", "close")
 fn ffi_close(reference: TableReference) -> Result(Nil, DetsError)
-
-@external(erlang, "slate_with_table_ffi", "with_close")
-fn ffi_with_close(
-  table: Set(k, v),
-  callback: fn(Set(k, v)) -> Result(a, DetsError),
-  close: fn(Set(k, v)) -> Result(Nil, DetsError),
-) -> Result(a, DetsError)
 
 @external(erlang, "slate_dets_ffi", "sync")
 fn ffi_sync(reference: TableReference) -> Result(Nil, DetsError)

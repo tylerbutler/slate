@@ -15,12 +15,28 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # ratchet:actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Setup environment
         uses: ./.github/actions/setup
+
+      - name: Collect same-revision native artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
+        with:
+          pattern: slate-native-*
+          path: build/release-native
+
+      - name: Assemble complete native package
+        shell: bash
+        run: |
+          for target in x86_64-linux-gnu aarch64-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows; do
+            mkdir -p "priv/slate_lock/$target"
+            cp "build/release-native/slate-native-$target/"slate_lock.* "priv/slate_lock/$target/"
+          done
+          just native-release-check
+          just native-package-check
 
       - name: Create GitHub Release
         run: trellis tag create --github-release

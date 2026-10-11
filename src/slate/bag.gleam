@@ -24,7 +24,9 @@ import gleam/dynamic/decode.{type Decoder, type Dynamic}
 import gleam/list
 import gleam/result
 import slate.{type AccessMode, type DetsError, type RepairPolicy, AutoRepair}
+import slate/exclusive
 import slate/internal
+import slate/internal/exclusive_session
 
 /// An open DETS bag table with typed keys and values.
 pub opaque type Bag(k, v) {
@@ -35,8 +37,9 @@ pub opaque type Bag(k, v) {
   )
 }
 
-/// Internal reference to the DETS table (Erlang atom).
-type TableReference
+/// Internal reference to the DETS table.
+type TableReference =
+  exclusive_session.TableHandle
 
 // ── Lifecycle ───────────────────────────────────────────────────────────
 
@@ -170,12 +173,48 @@ pub fn with_table(
   callback callback: fn(Bag(k, v)) -> Result(a, DetsError),
 ) -> Result(a, DetsError) {
   case open_with_access(path, repair, access, key_decoder:, value_decoder:) {
-    Ok(table) -> ffi_with_close(table, callback, close)
+    Ok(table) -> exclusive_session.with_close(table, callback, close)
     Error(error) -> Error(error)
   }
 }
 
+/// Use a table under exclusive ownership across OS processes.
+///
+/// All clients, including readers, must participate. Ownership covers open,
+/// repair, the callback, and clean close. `wait` limits acquisition only.
+/// Keep the handle within the callback; do not reopen or manually close it.
+/// Callback errors do not roll back writes. Exceptions are re-raised after
+/// cleanup; cleanup failures are logged. Unconfirmed cleanup can retain
+/// ownership until VM exit.
+///
+/// Requires the native component and a qualified local filesystem. Symlinks
+/// are resolved; hard-linked data and unsafe sidecars are rejected. Data paths
+/// and persistent sidecars must remain stable while clients can run sessions.
+pub fn with_exclusive_table(
+  path path: String,
+  repair repair: RepairPolicy,
+  access access: AccessMode,
+  wait wait: exclusive.Wait,
+  key_decoder key_decoder: Decoder(k),
+  value_decoder value_decoder: Decoder(v),
+  callback callback: fn(Bag(k, v)) -> Result(a, DetsError),
+) -> Result(a, exclusive.SessionError) {
+  exclusive_session.with_table(
+    path,
+    wait,
+    fn(path) { ffi_open_exclusive(path, repair, access) },
+    fn(reference) { callback(Bag(reference:, key_decoder:, value_decoder:)) },
+  )
+}
+
 // ── Read ────────────────────────────────────────────────────────────────
+
+@external(erlang, "slate_dets_ffi", "open_exclusive_bag")
+fn ffi_open_exclusive(
+  path: String,
+  repair: RepairPolicy,
+  access: AccessMode,
+) -> Result(TableReference, DetsError)
 
 /// Look up all values for a key, in an unspecified order.
 ///
@@ -401,13 +440,6 @@ fn ffi_open_bag_with_access(
 
 @external(erlang, "slate_dets_ffi", "close")
 fn ffi_close(reference: TableReference) -> Result(Nil, DetsError)
-
-@external(erlang, "slate_with_table_ffi", "with_close")
-fn ffi_with_close(
-  table: Bag(k, v),
-  callback: fn(Bag(k, v)) -> Result(a, DetsError),
-  close: fn(Bag(k, v)) -> Result(Nil, DetsError),
-) -> Result(a, DetsError)
 
 @external(erlang, "slate_dets_ffi", "sync")
 fn ffi_sync(reference: TableReference) -> Result(Nil, DetsError)

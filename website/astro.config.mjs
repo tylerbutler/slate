@@ -95,6 +95,10 @@ export default defineConfig({
 							slug: "advanced/with-table",
 						},
 						{
+							label: "Exclusive sessions",
+							slug: "advanced/exclusive-sessions",
+						},
+						{
 							label: "Error handling",
 							slug: "advanced/error-handling",
 						},

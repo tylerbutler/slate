@@ -13,9 +13,9 @@ runs:
         path: |
           build/packages
           ~/.cache/gleam
-        key: gleam-${{ runner.os }}-${{ hashFiles('gleam.toml', 'manifest.toml') }}
+        key: gleam-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gleam.toml', 'manifest.toml') }}
         restore-keys: |
-          gleam-${{ runner.os }}-
+          gleam-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Download dependencies
       shell: bash

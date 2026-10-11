@@ -11,6 +11,10 @@ open.
 The callback must return `Result(a, DetsError)`. If it raises an exception,
 `with_table` attempts cleanup and then re-raises the exception.
 
+For a file shared by independent BEAM VMs, use
+[`with_exclusive_table`](/advanced/exclusive-sessions/) for every read and write.
+`with_table` does not acquire an OS lock.
+
 :::caution
 `with_table` cannot run cleanup after a forced kill of the owning process.
 DETS tracks processes that open a table and normally closes it when its last
@@ -219,5 +223,6 @@ and manage the lifecycle yourself.
 | Quick lookup or insert | `with_table` |
 | Script that reads or writes once | `with_table` |
 | Short-lived read-only access or a specific repair policy | `with_table` |
+| File shared by independent CLI processes | `with_exclusive_table` |
 | Long-running server with a persistent cache | `open` / `close` |
 | Multiple operations across time | `open` / `close` |

@@ -5,6 +5,8 @@ description: Handle table errors and inspect diagnostic context.
 
 Table operations return `Result` values. Most use `slate.DetsError` for errors.
 `slate/set.update_counter` uses `set.UpdateCounterError` instead.
+`with_exclusive_table` uses `exclusive.SessionError`; its callback still uses
+`DetsError`.
 The helpers `slate.error_code` and `slate.error_message` return `String` values.
 
 Callbacks passed to `with_table`, `fold`, or `fold_results` can raise exceptions.
@@ -175,6 +177,35 @@ case set.update_counter(table, key: "hits", increment: 1) {
   Error(set.TableError(err)) -> io.println(slate.error_message(err))
 }
 ```
+
+## Exclusive-session errors
+
+`with_exclusive_table` returns `Result(a, exclusive.SessionError)`.
+Match `AcquisitionFailed(Busy)` and `AcquisitionFailed(TimedOut)` when your
+application can skip a cache operation after a warning. Other acquisition
+errors include invalid waits, unsupported targets or filesystems, missing
+native code, unsafe aliases, and OS failures. The callback does not run after
+acquisition fails.
+
+`SessionFailed(OpenFailure(error))` and
+`SessionFailed(CallbackFailure(error))` contain a `DetsError`. A callback
+error does not undo earlier writes.
+
+`CleanupFailed(primary, failures)` retains a primary failure when present,
+plus close, release, or guardian failures. A late acquisition that also fails
+release retains `Some(AcquisitionFailure(TimedOut))`. Treat cleanup failure as
+a quarantine condition: ownership can remain until the VM exits.
+Do not delete the sidecar to clear it.
+
+Use `exclusive.error_code` and `exclusive.error_message`, rather than
+`slate.error_code` and `slate.error_message`, for session errors. The safe
+classifiers omit paths and native diagnostic details. The cleanup code is
+`"exclusive_cleanup_failed"`.
+
+Slate re-raises callback exceptions after cleanup. It sends cleanup failures
+to Erlang Logger on exception or caller-death paths that cannot return a
+normal result. See [exclusive sessions](/advanced/exclusive-sessions/) for
+ownership requirements and recovery.
 
 ## File context and migration (breaking)
 

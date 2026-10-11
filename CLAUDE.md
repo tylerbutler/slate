@@ -134,7 +134,7 @@ Tests create temporary `.dets` files and clean them up after each test.
 
 Managed via mise with `.mise.toml` as the source of truth for local setup and CI:
 - Erlang 27.2.1
-- Gleam 1.18.1
+- Gleam 1.19.1
 - just 1.38.0
 - Node.js 22
 - Trellis: `github:tylerbutler/trellis` in `.mise.toml`
