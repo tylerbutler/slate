@@ -462,16 +462,21 @@ translate_encoded_error(false, Reason) -> translate_error(Reason);
 translate_encoded_error(true, Reason) -> translate_error(unicode_error_paths(Reason)).
 
 unicode_error_paths({file_error, {From, To}, Reason}) ->
-    {file_error, {unicode:characters_to_binary(From), unicode:characters_to_binary(To)}, Reason};
+    {file_error, {unicode_error_path(From), unicode_error_path(To)}, Reason};
 unicode_error_paths({file_error, Path, Reason}) ->
-    {file_error, unicode:characters_to_binary(Path), Reason};
-unicode_error_paths({Kind, Path}) when Kind =:= access_mode; Kind =:= type_mismatch;
-                                     Kind =:= keypos_mismatch; Kind =:= incompatible_arguments;
-                                     Kind =:= no_more_space_on_file; Kind =:= not_a_dets_file;
-                                     Kind =:= needs_repair ->
+    {file_error, unicode_error_path(Path), Reason};
+unicode_error_paths({Kind, Path}) when (is_list(Path) orelse is_binary(Path)),
+                                     (Kind =:= access_mode orelse Kind =:= type_mismatch orelse
+                                      Kind =:= keypos_mismatch orelse Kind =:= incompatible_arguments orelse
+                                      Kind =:= no_more_space_on_file orelse Kind =:= not_a_dets_file orelse
+                                      Kind =:= needs_repair) ->
     {Kind, unicode:characters_to_binary(Path)};
 unicode_error_paths({error, Reason}) -> {error, unicode_error_paths(Reason)};
 unicode_error_paths(Reason) -> Reason.
+
+unicode_error_path(Path) when is_list(Path); is_binary(Path) ->
+    unicode:characters_to_binary(Path);
+unicode_error_path(Path) -> Path.
 
 unexpected_error(Reason) ->
     {unexpected_error, format_reason(Reason)}.

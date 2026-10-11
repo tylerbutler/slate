@@ -4,7 +4,7 @@
          callback_failures/0, extra_user/0, vm_crash/0, aliases/0, hard_links/0,
          different_files/0, open_exit/1, close_exit/1, cleanup_failures/0,
          waiting_owner_exit/0, tmpfs_contention/0, unicode_paths/0,
-         case_and_short_aliases/0, repair_sidecar/0]).
+         case_and_short_aliases/0, repair_sidecar/0, release_failures/0]).
 
 contention(Type) -> contention_at(Type, path("contention", Type)).
 
@@ -128,6 +128,36 @@ cleanup_failures() ->
                 failures := [{close_failure, _}]}} = event(A),
         send_session(B, Path, set, immediate, return_ok),
         {result, {error, {acquisition_failed, busy}}} = event(B)
+    end).
+
+release_failures() ->
+    with_vms(path("late_acquisition", set), fun(A, B, Path) ->
+        send(A, {inject_release_failure, late_acquire_success}), fault_injected = event(A),
+        send_session(A, Path, set, {wait_up_to, 50}, return_ok),
+        {result, {error, {acquisition_failed, timed_out}}} = event(A),
+        {error, enoent} = file:read_file_info(binary_to_list(Path)),
+        {ok, nil} = run_session(B, Path, set, return_ok)
+    end),
+    with_vms(path("release_failure", set), fun(A, B, Path) ->
+        send(A, {inject_release_failure, release_only}), fault_injected = event(A),
+        {error, {cleanup_failed, {some, {callback_failure, not_found}},
+                 [{release_failure, {os_failure, _}}]}} =
+            run_session(A, Path, set, {insert_then_error, <<"kept">>, 7}),
+        send_session(B, Path, set, immediate, return_ok),
+        {result, {error, {acquisition_failed, busy}}} = event(B),
+        send(A, halt_vm), wait_exit(A, 70),
+        {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>})
+    end),
+    with_vms(path("late_release_failure", set), fun(A, B, Path) ->
+        send(A, {inject_release_failure, late_acquire}), fault_injected = event(A),
+        send_session(A, Path, set, {wait_up_to, 50}, return_ok),
+        {result, {error, {cleanup_failed, {some, {acquisition_failure, timed_out}},
+                         [{release_failure, {os_failure, _}}]}}} = event(A),
+        {error, enoent} = file:read_file_info(binary_to_list(Path)),
+        send_session(B, Path, set, immediate, return_ok),
+        {result, {error, {acquisition_failed, busy}}} = event(B),
+        send(A, halt_vm), wait_exit(A, 70),
+        {ok, nil} = run_session(B, Path, set, return_ok)
     end).
 
 repeated_sessions(Type) ->

@@ -327,6 +327,8 @@ mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
     struct Directory(PathBuf);
 
     impl Directory {
@@ -335,8 +337,11 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos();
-            let path =
-                std::env::temp_dir().join(format!("slate-lock-{}-{stamp}", std::process::id()));
+            let sequence = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "slate-lock-{}-{stamp}-{sequence}",
+                std::process::id()
+            ));
             fs::create_dir(&path).unwrap();
             Self(path)
         }

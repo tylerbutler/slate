@@ -18,6 +18,10 @@ loop(Owner) ->
             await_owner(Owner),
             Next = spawn_session(self(), Path, Type, Repair, Access, Wait, Action),
             loop(Next);
+        {inject_release_failure, Mode} ->
+            ok = exclusive_fault_ffi:inject(Mode),
+            emit(fault_injected),
+            loop(Owner);
         {finish, Action} -> Owner ! {finish, Action}, loop(Owner);
         kill_owner -> exit(Owner, kill), emit(owner_killed), loop(Owner);
         kill_guardian ->

@@ -78,6 +78,13 @@ pub fn exclusive_vm_cleanup_failures_test() -> Nil {
   cleanup_failures()
 }
 
+pub fn exclusive_vm_release_failures_test() -> Nil {
+  release_failures()
+}
+
+@external(erlang, "exclusive_vm_test_ffi", "release_failures")
+fn release_failures() -> Nil
+
 pub fn exclusive_vm_tmpfs_contention_test() -> Nil {
   tmpfs_contention()
 }
