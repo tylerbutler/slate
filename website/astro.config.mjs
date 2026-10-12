@@ -1,3 +1,4 @@
+import { unified } from "@astrojs/markdown-remark";
 import starlight from "@astrojs/starlight";
 import a11yEmoji from "@fec/remark-a11y-emoji";
 import { defineConfig } from "astro/config";
@@ -125,9 +126,11 @@ export default defineConfig({
 		}),
 	],
 	markdown: {
-		smartypants: false,
-		remarkPlugins: [
-			a11yEmoji,
-		],
+		processor: unified({
+			smartypants: false,
+			remarkPlugins: [
+				a11yEmoji,
+			],
+		}),
 	},
 });

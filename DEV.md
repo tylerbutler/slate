@@ -83,6 +83,9 @@ The Astro/Starlight website uses Cloudflare Workers Static Assets. It builds
 static files without an Astro adapter or Worker script. Use Node.js 22.12+
 and the pnpm version in `website/package.json`.
 
+Keep `@astrojs/markdown-remark` installed and use its `unified()` processor in
+`website/astro.config.mjs` to run the site's emoji accessibility plugin.
+
 ```sh
 cd website
 pnpm install --frozen-lockfile
