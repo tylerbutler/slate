@@ -147,12 +147,12 @@ fn serve_html() -> Response(ResponseData) {
 /// Serve the installed Lustre browser runtime.
 pub fn serve_runtime() -> Response(ResponseData) {
   let file = {
-    use lustre_priv <- result.try(
+    use lustre_private_directory <- result.try(
       application.priv_directory("lustre")
       |> result.map_error(fn(_) { "Cannot locate the Lustre runtime directory" }),
     )
     mist.send_file(
-      lustre_priv <> "/static/lustre-server-component.mjs",
+      lustre_private_directory <> "/static/lustre-server-component.mjs",
       offset: 0,
       limit: None,
     )
@@ -206,8 +206,8 @@ fn serve_websocket(
 
 /// Start a component in its owning WebSocket process.
 pub fn init_socket(store: Store) -> Result(SocketInit, lustre.Error) {
-  let app = lustre.application(fn(_) { init(store) }, update, view)
-  use component <- result.try(lustre.start_server_component(app, Nil))
+  let application = lustre.application(fn(_) { init(store) }, update, view)
+  use component <- result.try(lustre.start_server_component(application, Nil))
 
   let self = process.new_subject()
   let selector =
@@ -307,7 +307,7 @@ fn load_notes_effect(store: Store) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.list_notes(store) {
       Ok(notes) -> dispatch(NotesLoaded(Ok(notes)))
-      Error(e) -> dispatch(NotesLoaded(Error(slate.error_message(e))))
+      Error(error) -> dispatch(NotesLoaded(Error(slate.error_message(error))))
     }
   })
 }
@@ -315,7 +315,8 @@ fn load_notes_effect(store: Store) -> Effect(Message) {
 fn load_detail_effect(store: Store, id: Int) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.get_note(store, id) {
-      Error(e) -> dispatch(NoteDetailLoaded(id, Error(slate.error_message(e))))
+      Error(error) ->
+        dispatch(NoteDetailLoaded(id, Error(slate.error_message(error))))
       Ok(note) -> {
         let tags = store.get_tags(store, id) |> result.unwrap([])
         let history = store.get_history(store, id) |> result.unwrap([])
@@ -333,7 +334,7 @@ fn create_note_effect(
   effect.from(fn(dispatch) {
     case store.create_note(store, title: title, body: body) {
       Ok(id) -> dispatch(NoteCreated(Ok(id)))
-      Error(e) -> dispatch(NoteCreated(Error(slate.error_message(e))))
+      Error(error) -> dispatch(NoteCreated(Error(slate.error_message(error))))
     }
   })
 }
@@ -342,7 +343,8 @@ fn update_note_effect(store: Store, id: Int, body: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.update_note(store, id: id, body: body) {
       Ok(Nil) -> dispatch(NoteUpdated(id, Ok(Nil)))
-      Error(e) -> dispatch(NoteUpdated(id, Error(slate.error_message(e))))
+      Error(error) ->
+        dispatch(NoteUpdated(id, Error(slate.error_message(error))))
     }
   })
 }
@@ -351,7 +353,8 @@ fn toggle_tag_effect(store: Store, id: Int, tag: String) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.toggle_tag(store, id: id, tag: tag) {
       Ok(added) -> dispatch(TagToggled(id, Ok(added)))
-      Error(e) -> dispatch(TagToggled(id, Error(slate.error_message(e))))
+      Error(error) ->
+        dispatch(TagToggled(id, Error(slate.error_message(error))))
     }
   })
 }
@@ -360,7 +363,7 @@ fn delete_note_effect(store: Store, id: Int) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.delete_note(store, id) {
       Ok(Nil) -> dispatch(NoteDeleted(Ok(Nil)))
-      Error(e) -> dispatch(NoteDeleted(Error(slate.error_message(e))))
+      Error(error) -> dispatch(NoteDeleted(Error(slate.error_message(error))))
     }
   })
 }
@@ -372,8 +375,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
     // Data loaded
     NotesLoaded(Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
-    NotesLoaded(Error(e)) -> #(
-      Model(..model, status: Failure(e)),
+    NotesLoaded(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
@@ -390,8 +393,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               ),
               effect.none(),
             )
-            Error(error) -> #(
-              Model(..model, status: Failure(error), screen: NoteList),
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message), screen: NoteList),
               load_notes_effect(model.store),
             )
           }
@@ -482,8 +485,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       ),
       load_notes_effect(model.store),
     )
-    NoteCreated(Error(e)) -> #(
-      Model(..model, status: Failure(e)),
+    NoteCreated(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
@@ -500,8 +503,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               ),
               load_detail_effect(model.store, id),
             )
-            Error(error) -> #(
-              Model(..model, status: Failure(error)),
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message)),
               effect.none(),
             )
           }
@@ -516,8 +519,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       Model(..model, screen: NoteList, status: Success("Note deleted")),
       load_notes_effect(model.store),
     )
-    NoteDeleted(Error(e)) -> #(
-      Model(..model, status: Failure(e)),
+    NoteDeleted(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
@@ -535,8 +538,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                 load_detail_effect(model.store, id),
               )
             }
-            Error(error) -> #(
-              Model(..model, status: Failure(error)),
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message)),
               effect.none(),
             )
           }

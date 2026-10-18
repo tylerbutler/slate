@@ -101,7 +101,7 @@ fn next_id(store: Store) -> Result(Int, slate.DetsError) {
   let _ = set.insert_new(store.counter, "next_id", 0)
   case set.update_counter(store.counter, "next_id", 1) {
     Ok(id) -> Ok(id)
-    Error(set.TableError(e)) -> Error(e)
+    Error(set.TableError(error)) -> Error(error)
     Error(set.CounterValueNotInteger) ->
       Error(slate.UnexpectedError("Counter value is not an integer"))
   }
