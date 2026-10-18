@@ -124,7 +124,7 @@ fn load_notes_command(store: Store) -> fn() -> Message {
   fn() {
     case store.list_notes(store) {
       Ok(notes) -> NotesLoaded(Ok(notes))
-      Error(e) -> NotesLoaded(Error(slate.error_message(e)))
+      Error(error) -> NotesLoaded(Error(slate.error_message(error)))
     }
   }
 }
@@ -132,7 +132,7 @@ fn load_notes_command(store: Store) -> fn() -> Message {
 fn load_detail_command(store: Store, id: Int) -> fn() -> Message {
   fn() {
     case store.get_note(store, id) {
-      Error(e) -> NoteDetailLoaded(id, Error(slate.error_message(e)))
+      Error(error) -> NoteDetailLoaded(id, Error(slate.error_message(error)))
       Ok(note) -> {
         let tags = store.get_tags(store, id) |> result.unwrap([])
         let history = store.get_history(store, id) |> result.unwrap([])
@@ -150,7 +150,7 @@ fn create_note_command(
   fn() {
     case store.create_note(store, title: title, body: body) {
       Ok(id) -> NoteCreated(Ok(id))
-      Error(e) -> NoteCreated(Error(slate.error_message(e)))
+      Error(error) -> NoteCreated(Error(slate.error_message(error)))
     }
   }
 }
@@ -159,7 +159,7 @@ fn update_note_command(store: Store, id: Int, body: String) -> fn() -> Message {
   fn() {
     case store.update_note(store, id: id, body: body) {
       Ok(Nil) -> NoteUpdated(id, Ok(Nil))
-      Error(e) -> NoteUpdated(id, Error(slate.error_message(e)))
+      Error(error) -> NoteUpdated(id, Error(slate.error_message(error)))
     }
   }
 }
@@ -168,7 +168,7 @@ fn toggle_tag_command(store: Store, id: Int, tag: String) -> fn() -> Message {
   fn() {
     case store.toggle_tag(store, id: id, tag: tag) {
       Ok(added) -> TagToggled(id, Ok(added))
-      Error(e) -> TagToggled(id, Error(slate.error_message(e)))
+      Error(error) -> TagToggled(id, Error(slate.error_message(error)))
     }
   }
 }
@@ -177,7 +177,7 @@ fn delete_note_command(store: Store, id: Int) -> fn() -> Message {
   fn() {
     case store.delete_note(store, id) {
       Ok(Nil) -> NoteDeleted(Ok(Nil))
-      Error(e) -> NoteDeleted(Error(slate.error_message(e)))
+      Error(error) -> NoteDeleted(Error(slate.error_message(error)))
     }
   }
 }
@@ -195,7 +195,10 @@ pub fn update(
       let index = clamp_index(model.selected_index, notes)
       #(Model(..model, notes: notes, selected_index: index), [])
     }
-    NotesLoaded(Error(e)) -> #(Model(..model, status: Failure(e)), [])
+    NotesLoaded(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
+      [],
+    )
 
     NoteDetailLoaded(id, result) ->
       case model.screen {
@@ -210,8 +213,8 @@ pub fn update(
               ),
               [],
             )
-            Error(error) -> #(
-              Model(..model, status: Failure(error), screen: NoteList),
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message), screen: NoteList),
               [load_notes_command(model.store)],
             )
           }
@@ -275,11 +278,11 @@ pub fn update(
       [],
     )
     SelectDown -> {
-      let max_index = int.max(0, list.length(model.notes) - 1)
+      let last_index = int.max(0, list.length(model.notes) - 1)
       #(
         Model(
           ..model,
-          selected_index: int.min(max_index, model.selected_index + 1),
+          selected_index: int.min(last_index, model.selected_index + 1),
         ),
         [],
       )
@@ -316,7 +319,10 @@ pub fn update(
       ),
       [load_notes_command(model.store)],
     )
-    NoteCreated(Error(e)) -> #(Model(..model, status: Failure(e)), [])
+    NoteCreated(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
+      [],
+    )
 
     NoteUpdated(id, result) ->
       case model.screen {
@@ -331,7 +337,10 @@ pub fn update(
               ),
               [load_detail_command(model.store, id)],
             )
-            Error(error) -> #(Model(..model, status: Failure(error)), [])
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message)),
+              [],
+            )
           }
         NoteList
         | NoteCreate
@@ -349,7 +358,10 @@ pub fn update(
       ),
       [load_notes_command(model.store)],
     )
-    NoteDeleted(Error(e)) -> #(Model(..model, status: Failure(e)), [])
+    NoteDeleted(Error(error_message)) -> #(
+      Model(..model, status: Failure(error_message)),
+      [],
+    )
 
     TagToggled(id, result) ->
       case model.screen {
@@ -364,7 +376,10 @@ pub fn update(
                 load_detail_command(model.store, id),
               ])
             }
-            Error(error) -> #(Model(..model, status: Failure(error)), [])
+            Error(error_message) -> #(
+              Model(..model, status: Failure(error_message)),
+              [],
+            )
           }
         NoteList
         | NoteCreate
@@ -376,8 +391,8 @@ pub fn update(
 }
 
 fn clamp_index(index: Int, notes: List(#(Int, Note))) -> Int {
-  let max = int.max(0, list.length(notes) - 1)
-  int.clamp(index, 0, max)
+  let last_index = int.max(0, list.length(notes) - 1)
+  int.clamp(index, 0, last_index)
 }
 
 // --- View ---
@@ -456,7 +471,7 @@ fn view_detail(model: Model, id: Int) -> shore.Node(Message) {
         tags -> string.join(tags, ", ")
       }
 
-      let info = [
+      let note_details = [
         ui.table_kv(style.Px(56), [
           ["Title", note.title],
           ["Body", note.body],
@@ -506,7 +521,7 @@ fn view_detail(model: Model, id: Int) -> shore.Node(Message) {
         view_status(model),
       ]
 
-      let children = list.flatten([info, history, tag_row, actions])
+      let children = list.flatten([note_details, history, tag_row, actions])
 
       ui.box(children, Some(title))
       |> layout.center(style.Px(60), style.Fill)

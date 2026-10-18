@@ -18,26 +18,27 @@ pub fn main() -> Nil {
 }
 
 /// Run a function with an open store, closing it afterward.
-fn with_store(f: fn(store.Store) -> Nil) -> Nil {
+fn with_store(callback: fn(store.Store) -> Nil) -> Nil {
   case store.open() {
     Ok(store) -> {
-      f(store)
+      callback(store)
       case store.close(store) {
         Ok(Nil) -> Nil
-        Error(e) ->
-          io.println("Error closing store: " <> slate.error_message(e))
+        Error(error) ->
+          io.println("Error closing store: " <> slate.error_message(error))
       }
     }
-    Error(e) -> io.println("Error opening store: " <> slate.error_message(e))
+    Error(error) ->
+      io.println("Error opening store: " <> slate.error_message(error))
   }
 }
 
-/// Parse a note ID from a string, printing an error and calling f on success.
-fn with_id(id_string: String, f: fn(Int) -> Nil) -> Nil {
+/// Parse a note ID from a string, printing an error and calling the callback on success.
+fn with_id(id_string: String, callback: fn(Int) -> Nil) -> Nil {
   case int.parse(id_string) {
     Error(_) ->
       io.println("Error: '" <> id_string <> "' is not a valid note ID")
-    Ok(id) -> f(id)
+    Ok(id) -> callback(id)
   }
 }
 
@@ -47,14 +48,14 @@ fn command_save(first: String, second: String) -> Nil {
       with_store(fn(store) {
         case store.update_note(store, id: id, body: second) {
           Ok(Nil) -> io.println("✓ Updated note #" <> int.to_string(id))
-          Error(e) -> io.println("Error: " <> slate.error_message(e))
+          Error(error) -> io.println("Error: " <> slate.error_message(error))
         }
       })
     Error(_) ->
       with_store(fn(store) {
         case store.create_note(store, title: first, body: second) {
           Ok(id) -> io.println("✓ Created note #" <> int.to_string(id))
-          Error(e) -> io.println("Error: " <> slate.error_message(e))
+          Error(error) -> io.println("Error: " <> slate.error_message(error))
         }
       })
   }
@@ -82,7 +83,7 @@ fn command_list() -> Nil {
           )
         })
       }
-      Error(e) -> io.println("Error: " <> slate.error_message(e))
+      Error(error) -> io.println("Error: " <> slate.error_message(error))
     }
   })
 }
@@ -91,7 +92,7 @@ fn command_show(id_string: String) -> Nil {
   with_id(id_string, fn(id) {
     with_store(fn(store) {
       case store.get_note(store, id) {
-        Error(e) -> io.println("Error: " <> slate.error_message(e))
+        Error(error) -> io.println("Error: " <> slate.error_message(error))
         Ok(note) -> {
           io.println("Note #" <> int.to_string(id))
           io.println("Title:   " <> note.title)
@@ -145,7 +146,7 @@ fn command_tag(id_string: String, tag: String) -> Nil {
           io.println(
             "✓ Removed tag '" <> tag <> "' from note #" <> int.to_string(id),
           )
-        Error(e) -> io.println("Error: " <> slate.error_message(e))
+        Error(error) -> io.println("Error: " <> slate.error_message(error))
       }
     })
   })
@@ -156,7 +157,7 @@ fn command_delete(id_string: String) -> Nil {
     with_store(fn(store) {
       case store.delete_note(store, id) {
         Ok(Nil) -> io.println("✓ Deleted note #" <> int.to_string(id))
-        Error(e) -> io.println("Error: " <> slate.error_message(e))
+        Error(error) -> io.println("Error: " <> slate.error_message(error))
       }
     })
   })
