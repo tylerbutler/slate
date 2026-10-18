@@ -4,7 +4,6 @@ import gleam/int
 import gleam/list
 import slate
 import slate/duplicate_bag
-import startest/expect
 import test_helper
 
 // ── DuplicateBag: Open / Close ──────────────────────────────────────────
@@ -34,7 +33,7 @@ pub fn duplicate_bag_allows_duplicates_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "val")
   let assert Ok(values) = duplicate_bag.lookup(table, key: "key")
-  values |> list.length |> expect.to_equal(2)
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -51,7 +50,7 @@ pub fn duplicate_bag_multiple_values_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "b")
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "c")
   let assert Ok(values) = duplicate_bag.lookup(table, key: "key")
-  values |> list.length |> expect.to_equal(3)
+  assert { values |> list.length } == 3
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -64,7 +63,7 @@ pub fn duplicate_bag_lookup_empty_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  duplicate_bag.lookup(table, key: "missing") |> expect.to_equal(Ok([]))
+  assert duplicate_bag.lookup(table, key: "missing") == Ok([])
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -82,7 +81,7 @@ pub fn duplicate_bag_size_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "b", 2)
-  duplicate_bag.size(table) |> expect.to_equal(Ok(3))
+  assert duplicate_bag.size(table) == Ok(3)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -100,7 +99,7 @@ pub fn duplicate_bag_delete_key_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "key", "b")
   let assert Ok(Nil) = duplicate_bag.delete_key(table, key: "key")
-  duplicate_bag.lookup(table, key: "key") |> expect.to_equal(Ok([]))
+  assert duplicate_bag.lookup(table, key: "key") == Ok([])
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -126,7 +125,7 @@ pub fn duplicate_bag_persistence_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
-  values |> list.length |> expect.to_equal(2)
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = duplicate_bag.close(table2)
   test_helper.cleanup(path)
 }
@@ -143,7 +142,7 @@ pub fn duplicate_bag_info_test() -> Nil {
     )
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(info) = duplicate_bag.info(table)
-  info.object_count |> expect.to_equal(1)
+  assert info.object_count == 1
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -162,8 +161,8 @@ pub fn duplicate_bag_many_duplicates_test() -> Nil {
     test_helper.range(0, 49) |> list.map(fn(_index) { #("key", "same_value") })
   let assert Ok(Nil) = duplicate_bag.insert_list(table, entries)
   let assert Ok(values) = duplicate_bag.lookup(table, key: "key")
-  values |> list.length |> expect.to_equal(50)
-  duplicate_bag.size(table) |> expect.to_equal(Ok(50))
+  assert { values |> list.length } == 50
+  assert duplicate_bag.size(table) == Ok(50)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -187,7 +186,7 @@ pub fn duplicate_bag_shared_access_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(first_table, "key", "v1")
   let assert Ok(Nil) = duplicate_bag.insert(second_table, "key", "v1")
   let assert Ok(values) = duplicate_bag.lookup(first_table, key: "key")
-  values |> list.length |> expect.to_equal(2)
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = duplicate_bag.close(first_table)
   let assert Ok(Nil) = duplicate_bag.close(second_table)
   test_helper.cleanup(path)
@@ -221,7 +220,7 @@ pub fn duplicate_bag_fold_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "b", 20)
   let assert Ok(sum) =
     duplicate_bag.fold(table, 0, fn(acc, _key, value) { acc + value })
-  sum |> expect.to_equal(40)
+  assert sum == 40
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -238,7 +237,7 @@ pub fn duplicate_bag_to_list_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "b", 2)
   let assert Ok(entries) = duplicate_bag.to_list(table)
-  entries |> list.length |> expect.to_equal(3)
+  assert { entries |> list.length } == 3
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -255,7 +254,7 @@ pub fn duplicate_bag_delete_all_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "a", 1)
   let assert Ok(Nil) = duplicate_bag.insert(table, "b", 2)
   let assert Ok(Nil) = duplicate_bag.delete_all(table)
-  duplicate_bag.size(table) |> expect.to_equal(Ok(0))
+  assert duplicate_bag.size(table) == Ok(0)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -301,13 +300,13 @@ pub fn duplicate_bag_with_table_close_error_propagates_test() -> Nil {
     Error(_) -> True
     Ok(_) -> False
   }
-  close_error_propagated |> expect.to_be_true()
+  assert close_error_propagated
   test_helper.cleanup(path)
 }
 
 pub fn duplicate_bag_with_table_panic_still_closes_test() -> Nil {
   let path = "test_dupbag_with_panic.dets"
-  test_helper.did_panic(fn() {
+  assert test_helper.did_panic(fn() {
     let _ =
       duplicate_bag.with_table(
         path,
@@ -322,8 +321,7 @@ pub fn duplicate_bag_with_table_panic_still_closes_test() -> Nil {
       )
     Nil
   })
-  |> expect.to_be_true()
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  assert test_helper.is_table_open(path) == False
   let assert Ok(table) =
     duplicate_bag.open(
       path,
@@ -338,18 +336,16 @@ pub fn duplicate_bag_with_table_panic_still_closes_test() -> Nil {
 pub fn duplicate_bag_with_table_open_error_test() -> Nil {
   let path =
     "missing_dupbag_with_table_dir/test_dupbag_with_table_open_error.dets"
-  duplicate_bag.with_table(
-    path,
-    repair: slate.AutoRepair,
-    access: slate.ReadWrite,
-    key_decoder: decode.string,
-    value_decoder: decode.string,
-    callback: fn(_table) { Ok(Nil) },
-  )
-  |> expect.to_equal(
-    Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  assert duplicate_bag.with_table(
+      path,
+      repair: slate.AutoRepair,
+      access: slate.ReadWrite,
+      key_decoder: decode.string,
+      value_decoder: decode.string,
+      callback: fn(_table) { Ok(Nil) },
+    )
+    == Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent")))
+  assert test_helper.is_table_open(path) == False
 }
 
 pub fn duplicate_bag_repair_policies_test() -> Nil {
@@ -389,7 +385,7 @@ pub fn duplicate_bag_insert_list_test() -> Nil {
       #("k", "b"),
     ])
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k")
-  values |> list.length |> expect.to_equal(3)
+  assert { values |> list.length } == 3
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -406,10 +402,10 @@ pub fn duplicate_bag_large_dataset_test() -> Nil {
     test_helper.range(0, 999)
     |> list.map(fn(index) { #(int.to_string(index / 10), index) })
   let assert Ok(Nil) = duplicate_bag.insert_list(table, entries)
-  duplicate_bag.size(table) |> expect.to_equal(Ok(1000))
+  assert duplicate_bag.size(table) == Ok(1000)
   // Each of the 100 keys should have 10 values
   let assert Ok(values) = duplicate_bag.lookup(table, key: "0")
-  values |> list.length |> expect.to_equal(10)
+  assert { values |> list.length } == 10
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -423,8 +419,8 @@ pub fn duplicate_bag_member_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(Nil) = duplicate_bag.insert(table, "exists", "val")
-  duplicate_bag.member(table, key: "exists") |> expect.to_equal(Ok(True))
-  duplicate_bag.member(table, key: "nope") |> expect.to_equal(Ok(False))
+  assert duplicate_bag.member(table, key: "exists") == Ok(True)
+  assert duplicate_bag.member(table, key: "nope") == Ok(False)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }

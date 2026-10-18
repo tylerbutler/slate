@@ -9,19 +9,16 @@ import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 fn expect_access_denied(
   result: Result(a, slate.DetsError),
   path: String,
 ) -> Nil {
-  result
-  |> expect.to_equal(
-    Error(
+  assert result
+    == Error(
       slate.AccessDenied(file_error_test_helper.context(path, "access_mode")),
-    ),
-  )
+    )
 }
 
 // OTP/platform versions can reject delete_all at the access check or at the
@@ -31,13 +28,12 @@ fn expect_delete_all_denied(
   path: String,
 ) -> Nil {
   let assert Error(slate.AccessDenied(context)) = result
-  context.path
-  |> expect.to_equal(file_error_test_helper.context(path, "access_mode").path)
-  list.contains(
+  assert context.path
+    == file_error_test_helper.context(path, "access_mode").path
+  assert list.contains(
     ["access_mode", "{error,einval}", "{error,eacces}"],
     context.reason,
   )
-  |> expect.to_be_true()
 }
 
 // ── Set: read-only prevents writes ──────────────────────────────────────
@@ -60,8 +56,8 @@ pub fn set_readonly_lookup_test() -> Nil {
     )
   // Reads should work
   let assert Ok("value") = set.lookup(read_only_table, key: "key")
-  set.member(read_only_table, key: "key") |> expect.to_equal(Ok(True))
-  set.size(read_only_table) |> expect.to_equal(Ok(1))
+  assert set.member(read_only_table, key: "key") == Ok(True)
+  assert set.size(read_only_table) == Ok(1)
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -166,7 +162,7 @@ pub fn set_readonly_fold_works_test() -> Nil {
     )
   let assert Ok(sum) =
     set.fold(read_only_table, 0, fn(acc, _key, value) { acc + value })
-  sum |> expect.to_equal(3)
+  assert sum == 3
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -186,7 +182,7 @@ pub fn set_readonly_to_list_works_test() -> Nil {
       value_decoder: decode.int,
     )
   let assert Ok(entries) = set.to_list(read_only_table)
-  entries |> expect.to_equal([#("a", 1)])
+  assert entries == [#("a", 1)]
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -206,7 +202,7 @@ pub fn set_readonly_info_works_test() -> Nil {
       value_decoder: decode.int,
     )
   let assert Ok(info) = set.info(read_only_table)
-  info.object_count |> expect.to_equal(1)
+  assert info.object_count == 1
   let assert Ok(Nil) = set.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -222,11 +218,9 @@ pub fn set_readonly_nonexistent_file_fails_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result
-  |> expect.to_equal(
-    Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent"))),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  assert result
+    == Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent")))
+  assert test_helper.is_table_open(path) == False
 }
 
 // ── Bag: read-only ──────────────────────────────────────────────────────
@@ -247,9 +241,11 @@ pub fn bag_readonly_lookup_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = bag.lookup(read_only_table, key: "k")
-  values
-  |> list.sort(string.compare)
-  |> expect.to_equal(["a", "b"])
+  assert {
+      values
+      |> list.sort(string.compare)
+    }
+    == ["a", "b"]
   let assert Ok(Nil) = bag.close(read_only_table)
   test_helper.cleanup(path)
 }
@@ -338,7 +334,7 @@ pub fn duplicate_bag_readonly_lookup_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = duplicate_bag.lookup(read_only_table, key: "k")
-  values |> expect.to_equal(["v", "v"])
+  assert values == ["v", "v"]
   let assert Ok(Nil) = duplicate_bag.close(read_only_table)
   test_helper.cleanup(path)
 }

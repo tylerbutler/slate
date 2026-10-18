@@ -13,7 +13,7 @@ This adds slate to your `gleam.toml` dependencies. slate supports Gleam's Erlang
 
 ## Requirements
 
-- **Gleam** >= 1.7.0
+- **Gleam** >= 1.14.0
 - **Erlang/OTP** >= 26 (recommended: 27+)
 - **Target**: Erlang only
 

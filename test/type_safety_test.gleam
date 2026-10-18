@@ -9,7 +9,6 @@ import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Set: wrong value decoder ────────────────────────────────────────────
@@ -72,9 +71,9 @@ pub fn set_correct_decoders_work_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(99) = set.lookup(table2, key: "x")
   let assert Ok(entries) = set.to_list(table2)
-  entries |> expect.to_equal([#("x", 99)])
+  assert entries == [#("x", 99)]
   let assert Ok(sum) = set.fold(table2, 0, fn(acc, _key, value) { acc + value })
-  sum |> expect.to_equal(99)
+  assert sum == 99
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
 }

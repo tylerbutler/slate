@@ -4,7 +4,6 @@
 import gleam/dynamic/decode
 import slate
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Basic increment ─────────────────────────────────────────────────────
@@ -90,7 +89,7 @@ pub fn update_counter_missing_key_test() -> Nil {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table, "missing", 1)
-  result |> expect.to_equal(Error(set.TableError(slate.NotFound)))
+  assert result == Error(set.TableError(slate.NotFound))
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
@@ -102,8 +101,8 @@ pub fn update_counter_closed_table_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "hits", 0)
   let assert Ok(Nil) = set.close(table)
 
-  set.update_counter(table, "hits", 1)
-  |> expect.to_equal(Error(set.TableError(slate.TableDoesNotExist)))
+  assert set.update_counter(table, "hits", 1)
+    == Error(set.TableError(slate.TableDoesNotExist))
 
   test_helper.cleanup(path)
 }
@@ -173,7 +172,7 @@ pub fn update_counter_non_integer_value_test() -> Nil {
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let result = set.update_counter(table2, "hits", 1)
-  result |> expect.to_equal(Error(set.CounterValueNotInteger))
+  assert result == Error(set.CounterValueNotInteger)
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
 }

@@ -14,7 +14,11 @@ Keep `just` for top-level coordination. Its package recipes call Trellis,
 configured in `[tools.trellis]` in the root `gleam.toml`. Only the root
 `slate` package is a member.
 
-Gleam's test runner (`startest`) discovers test functions by the `_test` suffix — there is no built-in way to run a single test. To run one test file, temporarily comment out other imports or isolate the file.
+Unitest discovers public test functions with the `_test` suffix. Run one file
+with `gleam test -- test/set_test.gleam` or one test with
+`gleam test -- --test set_test.set_insert_lookup_test`. Do not edit imports to
+select tests. Keep the default sequential execution; tests change VM-wide
+state, so do not use `--workers`.
 
 ## Architecture
 
@@ -45,10 +49,11 @@ DETS table names are the file path converted to an Erlang atom via `binary_to_at
 
 ## Testing patterns
 
-- Tests use `startest` (not `gleeunit`). The entry point is `test/slate_test.gleam` calling `startest.run()`.
+- Tests use `unitest`. The entry point is `test/slate_test.gleam` calling `unitest.main()`.
 - Each test creates a temporary `.dets` file with a unique name and calls `cleanup(path)` at the end (from `test/test_helper.gleam`) to delete it.
 - Test functions are named `{module}_{operation}_test` (e.g., `set_insert_lookup_test`).
-- Assertions use `let assert Ok(...)` for expected-success paths and `|> expect.to_equal(...)` for specific value checks.
+- Assertions use `let assert Ok(...)` for expected-success paths and
+  `assert actual == expected` for specific value checks.
 
 ## Changelog
 

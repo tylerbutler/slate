@@ -6,7 +6,6 @@ import slate/bag
 import slate/duplicate_bag
 import slate/exclusive
 import slate/set
-import startest/expect
 import test_helper
 
 pub fn set_exclusive_table_test() -> Nil {
@@ -79,24 +78,46 @@ fn check_session(
   size: fn(table) -> Result(Int, slate.DetsError),
 ) -> Nil {
   test_helper.cleanup(path)
-  session(path, slate.NoRepair, slate.ReadWrite, exclusive.Immediate, fn(table) {
-    let assert Ok(Nil) = insert(table, "key", 42)
-    size(table)
-  })
-  |> expect.to_equal(Ok(1))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadWrite,
+      exclusive.Immediate,
+      fn(table) {
+        let assert Ok(Nil) = insert(table, "key", 42)
+        size(table)
+      },
+    )
+    == Ok(1)
+  assert test_helper.is_table_open(path) == False
 
-  session(path, slate.NoRepair, slate.ReadOnly, exclusive.WaitUpTo(1000), size)
-  |> expect.to_equal(Ok(1))
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.WaitUpTo(1000),
+      size,
+    )
+    == Ok(1)
 
-  session(path, slate.NoRepair, slate.ReadWrite, exclusive.Immediate, fn(table) {
-    session(path, slate.NoRepair, slate.ReadOnly, exclusive.Immediate, fn(_) {
-      panic as "nested session callback must not run"
-    })
-    |> expect.to_equal(Error(exclusive.AcquisitionFailed(exclusive.Busy)))
-    size(table)
-  })
-  |> expect.to_equal(Ok(1))
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadWrite,
+      exclusive.Immediate,
+      fn(table) {
+        assert session(
+            path,
+            slate.NoRepair,
+            slate.ReadOnly,
+            exclusive.Immediate,
+            fn(_) { panic as "nested session callback must not run" },
+          )
+          == Error(exclusive.AcquisitionFailed(exclusive.Busy))
+        size(table)
+      },
+    )
+    == Ok(1)
 
   let assert Error(exclusive.SessionFailed(exclusive.CallbackFailure(slate.AccessDenied(
     _,
@@ -112,34 +133,40 @@ fn check_session(
       },
     )
 
-  session(
-    path,
-    slate.NoRepair,
-    slate.ReadOnly,
-    exclusive.WaitUpTo(0),
-    fn(_table) { Error(slate.NotFound) },
-  )
-  |> expect.to_equal(
-    Error(exclusive.SessionFailed(exclusive.CallbackFailure(slate.NotFound))),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.WaitUpTo(0),
+      fn(_table) { Error(slate.NotFound) },
+    )
+    == Error(exclusive.SessionFailed(exclusive.CallbackFailure(slate.NotFound)))
+  assert test_helper.is_table_open(path) == False
 
-  session(path, slate.NoRepair, slate.ReadOnly, exclusive.WaitUpTo(-1), fn(_) {
-    panic as "invalid acquisition must not run the callback"
-  })
-  |> expect.to_equal(
-    Error(exclusive.AcquisitionFailed(exclusive.InvalidWait(-1))),
-  )
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.WaitUpTo(-1),
+      fn(_) { panic as "invalid acquisition must not run the callback" },
+    )
+    == Error(exclusive.AcquisitionFailed(exclusive.InvalidWait(-1)))
 
-  test_helper.did_panic(fn() {
-    session(path, slate.NoRepair, slate.ReadWrite, exclusive.Immediate, fn(_) {
-      panic as "exclusive callback failed"
+  assert test_helper.did_panic(fn() {
+      session(path, slate.NoRepair, slate.ReadWrite, exclusive.Immediate, fn(_) {
+        panic as "exclusive callback failed"
+      })
     })
-  })
-  |> expect.to_equal(True)
-  test_helper.is_table_open(path) |> expect.to_equal(False)
-  session(path, slate.NoRepair, slate.ReadOnly, exclusive.Immediate, size)
-  |> expect.to_equal(Ok(1))
+    == True
+  assert test_helper.is_table_open(path) == False
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.Immediate,
+      size,
+    )
+    == Ok(1)
   test_helper.cleanup(path)
   cleanup_sidecar(path)
 }
@@ -197,15 +224,15 @@ pub fn exclusive_rejects_existing_unlocked_table_test() -> Nil {
 }
 
 pub fn exclusive_context_error_message_test() -> Nil {
-  exclusive.error_message(
-    exclusive.AcquisitionFailed(
-      exclusive.OsFailure(slate.FileErrorContext(
-        Some("private-path"),
-        "private-reason",
-      )),
-    ),
-  )
-  |> expect.to_equal("A native table lock operation failed.")
+  assert exclusive.error_message(
+      exclusive.AcquisitionFailed(
+        exclusive.OsFailure(slate.FileErrorContext(
+          Some("private-path"),
+          "private-reason",
+        )),
+      ),
+    )
+    == "A native table lock operation failed."
 }
 
 pub fn exclusive_decoder_failure_test() -> Nil {
@@ -249,7 +276,7 @@ pub fn exclusive_unicode_info_and_error_test() -> Nil {
       value_decoder: decode.int,
       callback: set.info,
     )
-  string.ends_with(info.file_path, path) |> expect.to_equal(True)
+  assert string.ends_with(info.file_path, path) == True
   test_helper.cleanup(path)
   let assert Error(exclusive.SessionFailed(exclusive.OpenFailure(slate.FileNotFound(slate.FileErrorContext(
     Some(missing_path),
@@ -264,7 +291,7 @@ pub fn exclusive_unicode_info_and_error_test() -> Nil {
       value_decoder: decode.int,
       callback: fn(_) { panic as "missing unicode callback ran" },
     )
-  string.ends_with(missing_path, path) |> expect.to_equal(True)
+  assert string.ends_with(missing_path, path) == True
   cleanup_sidecar(path)
 }
 

@@ -1,5 +1,5 @@
-import startest
+import unitest
 
 pub fn main() -> Nil {
-  startest.run(startest.default_config())
+  unitest.main()
 }

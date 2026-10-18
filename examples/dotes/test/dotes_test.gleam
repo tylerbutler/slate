@@ -11,11 +11,10 @@ import simplifile
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest
-import startest/expect
+import unitest
 
 pub fn main() -> Nil {
-  startest.run(startest.default_config())
+  unitest.main()
 }
 
 pub fn tui_async_success_test() -> Nil {
@@ -25,29 +24,29 @@ pub fn tui_async_success_test() -> Nil {
   let #(editing, _) = tui.update(editing, tui.BodyChanged("edited"))
   let assert #(_, [save]) = tui.update(editing, tui.SubmitEdit(1))
   let completion = save()
-  completion |> expect.to_equal(tui.NoteUpdated(1, Ok(Nil)))
+  assert completion == tui.NoteUpdated(1, Ok(Nil))
   let #(detail, commands) = tui.update(editing, completion)
-  detail.screen |> expect.to_equal(tui.NoteDetail(1))
+  assert detail.screen == tui.NoteDetail(1)
   let assert [load] = commands
   let assert #(loaded, []) = tui.update(detail, load())
   let assert Ok(note) = loaded.detail_note
-  note.body |> expect.to_equal("edited")
+  assert note.body == "edited"
   let #(tagging, _) = tui.update(loaded, tui.TagChanged("tag"))
   let assert #(_, [toggle]) = tui.update(tagging, tui.SubmitToggleTag(1))
-  toggle() |> expect.to_equal(tui.TagToggled(1, Ok(True)))
+  assert toggle() == tui.TagToggled(1, Ok(True))
   let assert #(tagged, [refresh]) =
     tui.update(tagging, tui.TagToggled(1, Ok(True)))
-  tagged.tag_input |> expect.to_equal("")
+  assert tagged.tag_input == ""
   let #(refreshed, _) = tui.update(tagged, refresh())
-  refreshed.detail_tags |> expect.to_equal(["tag"])
+  assert refreshed.detail_tags == ["tag"]
   let assert #(edit_error, []) =
     tui.update(editing, tui.NoteUpdated(1, Error("save failed")))
-  edit_error.screen |> expect.to_equal(tui.NoteEdit(1))
-  edit_error.status_message |> expect.to_equal("save failed")
+  assert edit_error.screen == tui.NoteEdit(1)
+  assert edit_error.status_message == "save failed"
   let assert #(tag_error, []) =
     tui.update(tagging, tui.TagToggled(1, Error("tag failed")))
-  tag_error.tag_input |> expect.to_equal("tag")
-  tag_error.status_message |> expect.to_equal("tag failed")
+  assert tag_error.tag_input == "tag"
+  assert tag_error.status_message == "tag failed"
 }
 
 pub fn tui_late_completions_test() -> Nil {
@@ -75,8 +74,8 @@ pub fn tui_late_completions_test() -> Nil {
         ],
         fn(message) {
           let #(updated, commands) = tui.update(current, message)
-          updated |> expect.to_equal(current)
-          list.length(commands) |> expect.to_equal(0)
+          assert updated == current
+          assert commands == []
         },
       )
     },
@@ -84,21 +83,21 @@ pub fn tui_late_completions_test() -> Nil {
   let previous =
     tui.Model(..initial, detail_note: Ok(note), detail_tags: ["old"])
   let #(loading, _) = tui.update(previous, tui.GoToDetail(2))
-  loading.detail_note |> expect.to_equal(Error(Nil))
-  loading.detail_tags |> expect.to_equal([])
+  assert loading.detail_note == Error(Nil)
+  assert loading.detail_tags == []
   let #(failed, _) =
     tui.update(loading, tui.NoteDetailLoaded(2, Error("missing")))
-  failed.screen |> expect.to_equal(tui.NoteList)
-  failed.status_message |> expect.to_equal("missing")
+  assert failed.screen == tui.NoteList
+  assert failed.status_message == "missing"
   let detail = tui.Model(..initial, screen: tui.NoteDetail(1))
   let #(unchanged, _) = tui.update(detail, tui.NoteUpdated(1, Ok(Nil)))
-  unchanged |> expect.to_equal(detail)
+  assert unchanged == detail
   let editing = tui.Model(..initial, screen: tui.NoteEdit(1))
   let #(unchanged, _) = tui.update(editing, tui.TagToggled(1, Ok(True)))
-  unchanged |> expect.to_equal(editing)
+  assert unchanged == editing
   let #(unchanged, _) =
     tui.update(editing, tui.NoteDetailLoaded(1, Ok(#(note, [], []))))
-  unchanged |> expect.to_equal(editing)
+  assert unchanged == editing
 }
 
 pub fn web_async_success_test() -> Nil {
@@ -108,31 +107,31 @@ pub fn web_async_success_test() -> Nil {
   let #(editing, _) = web.update(editing, web.BodyChanged("edited"))
   let #(_, save) = web.update(editing, web.SubmitEdit(1))
   let assert Ok(completion) = run_effect(save)
-  completion |> expect.to_equal(web.NoteUpdated(1, Ok(Nil)))
+  assert completion == web.NoteUpdated(1, Ok(Nil))
   let #(detail, load) = web.update(editing, completion)
-  detail.screen |> expect.to_equal(web.NoteDetail(1))
+  assert detail.screen == web.NoteDetail(1)
   let assert Ok(completion) = run_effect(load)
   let #(loaded, _) = web.update(detail, completion)
   let assert Ok(note) = loaded.detail_note
-  note.body |> expect.to_equal("edited")
+  assert note.body == "edited"
   let #(tagging, _) = web.update(loaded, web.TagChanged("tag"))
   let #(_, toggle) = web.update(tagging, web.SubmitToggleTag(1))
-  run_effect(toggle) |> expect.to_equal(Ok(web.TagToggled(1, Ok(True))))
+  assert run_effect(toggle) == Ok(web.TagToggled(1, Ok(True)))
   let #(tagged, refresh) = web.update(tagging, web.TagToggled(1, Ok(True)))
-  tagged.tag_input |> expect.to_equal("")
+  assert tagged.tag_input == ""
   let assert Ok(completion) = run_effect(refresh)
   let #(refreshed, _) = web.update(tagged, completion)
-  refreshed.detail_tags |> expect.to_equal(["tag"])
+  assert refreshed.detail_tags == ["tag"]
   let #(edit_error, effect) =
     web.update(editing, web.NoteUpdated(1, Error("save failed")))
-  edit_error.screen |> expect.to_equal(web.NoteEdit(1))
-  edit_error.status_message |> expect.to_equal("save failed")
-  run_effect(effect) |> expect.to_equal(Error(Nil))
+  assert edit_error.screen == web.NoteEdit(1)
+  assert edit_error.status_message == "save failed"
+  assert run_effect(effect) == Error(Nil)
   let #(tag_error, effect) =
     web.update(tagging, web.TagToggled(1, Error("tag failed")))
-  tag_error.tag_input |> expect.to_equal("tag")
-  tag_error.status_message |> expect.to_equal("tag failed")
-  run_effect(effect) |> expect.to_equal(Error(Nil))
+  assert tag_error.tag_input == "tag"
+  assert tag_error.status_message == "tag failed"
+  assert run_effect(effect) == Error(Nil)
 }
 
 pub fn web_late_completions_test() -> Nil {
@@ -160,8 +159,8 @@ pub fn web_late_completions_test() -> Nil {
         ],
         fn(message) {
           let #(updated, effect) = web.update(current, message)
-          updated |> expect.to_equal(current)
-          run_effect(effect) |> expect.to_equal(Error(Nil))
+          assert updated == current
+          assert run_effect(effect) == Error(Nil)
         },
       )
     },
@@ -169,24 +168,24 @@ pub fn web_late_completions_test() -> Nil {
   let previous =
     web.Model(..initial, detail_note: Ok(note), detail_tags: ["old"])
   let #(loading, _) = web.update(previous, web.GoToDetail(2))
-  loading.detail_note |> expect.to_equal(Error(Nil))
-  loading.detail_tags |> expect.to_equal([])
+  assert loading.detail_note == Error(Nil)
+  assert loading.detail_tags == []
   let #(failed, _) =
     web.update(loading, web.NoteDetailLoaded(2, Error("missing")))
-  failed.screen |> expect.to_equal(web.NoteList)
-  failed.status_message |> expect.to_equal("missing")
+  assert failed.screen == web.NoteList
+  assert failed.status_message == "missing"
   let detail = web.Model(..initial, screen: web.NoteDetail(1))
   let #(unchanged, effect) = web.update(detail, web.NoteUpdated(1, Ok(Nil)))
-  unchanged |> expect.to_equal(detail)
-  run_effect(effect) |> expect.to_equal(Error(Nil))
+  assert unchanged == detail
+  assert run_effect(effect) == Error(Nil)
   let editing = web.Model(..initial, screen: web.NoteEdit(1))
   let #(unchanged, effect) = web.update(editing, web.TagToggled(1, Ok(True)))
-  unchanged |> expect.to_equal(editing)
-  run_effect(effect) |> expect.to_equal(Error(Nil))
+  assert unchanged == editing
+  assert run_effect(effect) == Error(Nil)
   let #(unchanged, effect) =
     web.update(editing, web.NoteDetailLoaded(1, Ok(#(note, [], []))))
-  unchanged |> expect.to_equal(editing)
-  run_effect(effect) |> expect.to_equal(Error(Nil))
+  assert unchanged == editing
+  assert run_effect(effect) == Error(Nil)
 }
 
 pub fn websocket_success_and_cleanup_test() -> Nil {
