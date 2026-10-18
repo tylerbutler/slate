@@ -1,1 +1,12 @@
 priv/slate_lock/licenses/** -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab
+
+# Keep agent support files and the docs site out of language statistics.
+.agents/** -linguist-detectable
+.claude/** -linguist-detectable
+.github/agents/** -linguist-detectable
+.github/copilot-instructions.md -linguist-detectable
+.github/hooks/** -linguist-detectable
+.github/instructions/** -linguist-detectable
+.github/prompts/** -linguist-detectable
+CLAUDE.md -linguist-detectable
+website/** -linguist-detectable

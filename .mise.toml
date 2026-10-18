@@ -1,5 +1,6 @@
 [tools]
 "github:tylerbutler/trellis" = "1.0.0"
+"github:tylerbutler/licence_audit" = "0.13.0"
 erlang = "27.2.1"
 gleam = "1.19.1"
 just = "1.38.0"
