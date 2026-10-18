@@ -9,19 +9,18 @@ import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 fn expect_type_mismatch_open(
   result: Result(a, slate.DetsError),
   path: String,
 ) -> Nil {
-  result
-  |> expect.to_equal(
-    Error(
+  let assert True =
+    result
+    == Error(
       slate.TypeMismatch(file_error_test_helper.context(path, "type_mismatch")),
-    ),
-  )
+    )
+  Nil
 }
 
 // ── Type mismatch: open set file as bag ─────────────────────────────────
@@ -135,15 +134,14 @@ pub fn already_open_with_conflicting_access_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result
-  |> expect.to_equal(
-    Error(
+  let assert True =
+    result
+    == Error(
       slate.AlreadyOpen(file_error_test_helper.context(
         path,
         "incompatible_arguments",
       )),
-    ),
-  )
+    )
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
@@ -162,9 +160,9 @@ pub fn bag_insert_same_key_different_values_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "k", "second")
   let assert Ok(values) = bag.lookup(table, key: "k")
   // Both distinct values should be present
-  values |> list.length |> expect.to_equal(2)
-  list.contains(values, "first") |> expect.to_be_true()
-  list.contains(values, "second") |> expect.to_be_true()
+  let assert True = { values |> list.length } == 2
+  let assert True = list.contains(values, "first")
+  let assert True = list.contains(values, "second")
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -182,7 +180,7 @@ pub fn set_large_key_count_stress_test() -> Nil {
     test_helper.range(0, entry_count - 1)
     |> list.map(fn(key) { #(key, key * 3) })
   let assert Ok(Nil) = set.insert_list(table, entries)
-  set.size(table) |> expect.to_equal(Ok(entry_count))
+  let assert True = set.size(table) == Ok(entry_count)
   // Verify first, middle, last
   let assert Ok(0) = set.lookup(table, key: 0)
   let assert Ok(7500) = set.lookup(table, key: 2500)
@@ -193,7 +191,7 @@ pub fn set_large_key_count_stress_test() -> Nil {
     let assert Ok(Nil) = set.delete_key(table, key:)
     Nil
   })
-  set.size(table) |> expect.to_equal(Ok(2500))
+  let assert True = set.size(table) == Ok(2500)
   // Remaining keys still accessible
   let assert Ok(7500) = set.lookup(table, key: 2500)
   let assert Ok(Nil) = set.close(table)
@@ -212,7 +210,7 @@ pub fn set_large_key_count_persistence_test() -> Nil {
   // Reopen and verify all entries survived
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.int, value_decoder: decode.int)
-  set.size(table2) |> expect.to_equal(Ok(entry_count))
+  let assert True = set.size(table2) == Ok(entry_count)
   let assert Ok(0) = set.lookup(table2, key: 0)
   let assert Ok(1500) = set.lookup(table2, key: 1500)
   let assert Ok(2999) = set.lookup(table2, key: 2999)
@@ -233,7 +231,7 @@ pub fn set_fold_large_dataset_test() -> Nil {
   let assert Ok(Nil) = set.insert_list(table, entries)
   let assert Ok(sum) = set.fold(table, 0, fn(acc, _key, value) { acc + value })
   // Sum of 1..2000 = 2000 * 2001 / 2 = 2_001_000
-  sum |> expect.to_equal(2_001_000)
+  let assert True = sum == 2_001_000
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
@@ -253,9 +251,9 @@ pub fn bag_fold_large_dataset_test() -> Nil {
       Nil
     })
   })
-  bag.size(table) |> expect.to_equal(Ok(1000))
+  let assert True = bag.size(table) == Ok(1000)
   let assert Ok(count) = bag.fold(table, 0, fn(acc, _key, _value) { acc + 1 })
-  count |> expect.to_equal(1000)
+  let assert True = count == 1000
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -271,7 +269,7 @@ pub fn set_delete_object_preserves_on_mismatch_test() -> Nil {
   let assert Ok(Nil) = set.delete_object(table, "x", 99)
   // Should still be there
   let assert Ok(42) = set.lookup(table, key: "x")
-  set.size(table) |> expect.to_equal(Ok(1))
+  let assert True = set.size(table) == Ok(1)
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
@@ -283,7 +281,7 @@ pub fn bag_insert_list_empty_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert_list(table, [])
-  bag.size(table) |> expect.to_equal(Ok(0))
+  let assert True = bag.size(table) == Ok(0)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -297,7 +295,7 @@ pub fn duplicate_bag_insert_list_empty_test() -> Nil {
       value_decoder: decode.int,
     )
   let assert Ok(Nil) = duplicate_bag.insert_list(table, [])
-  duplicate_bag.size(table) |> expect.to_equal(Ok(0))
+  let assert True = duplicate_bag.size(table) == Ok(0)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -312,7 +310,7 @@ pub fn bag_to_list_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "a", 2)
   let assert Ok(Nil) = bag.insert(table, "b", 3)
   let assert Ok(entries) = bag.to_list(table)
-  entries |> list.length |> expect.to_equal(3)
+  let assert True = { entries |> list.length } == 3
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -323,7 +321,7 @@ pub fn bag_to_list_empty_test() -> Nil {
   let path = "test_bag_to_list_empty.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  bag.to_list(table) |> expect.to_equal(Ok([]))
+  let assert True = bag.to_list(table) == Ok([])
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -338,7 +336,7 @@ pub fn duplicate_bag_to_list_empty_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  duplicate_bag.to_list(table) |> expect.to_equal(Ok([]))
+  let assert True = duplicate_bag.to_list(table) == Ok([])
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -352,7 +350,7 @@ pub fn bag_multiple_insert_list_test() -> Nil {
   let assert Ok(Nil) = bag.insert_list(table, [#("k", 1), #("k", 2)])
   let assert Ok(Nil) = bag.insert_list(table, [#("k", 3), #("k", 4)])
   let assert Ok(values) = bag.lookup(table, key: "k")
-  values |> list.length |> expect.to_equal(4)
+  let assert True = { values |> list.length } == 4
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -369,7 +367,7 @@ pub fn duplicate_bag_multiple_insert_list_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert_list(table, [#("k", 1), #("k", 2)])
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k")
   // All 4 entries stored (duplicate_bag keeps everything)
-  values |> list.length |> expect.to_equal(4)
+  let assert True = { values |> list.length } == 4
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -394,7 +392,7 @@ pub fn set_shared_write_read_test() -> Nil {
   let assert Ok("from_t1") = set.lookup(second_table, key: "key1")
   let assert Ok("from_t2") = set.lookup(third_table, key: "key2")
   let assert Ok("from_t3") = set.lookup(first_table, key: "key3")
-  set.size(first_table) |> expect.to_equal(Ok(3))
+  let assert True = set.size(first_table) == Ok(3)
   // Close all (DETS ref-counts; last close does actual close)
   let assert Ok(Nil) = set.close(first_table)
   let assert Ok(Nil) = set.close(second_table)
@@ -412,7 +410,7 @@ pub fn set_shared_overwrite_test() -> Nil {
   let assert Ok(Nil) = set.insert(second_table, "key", "v2")
   // Last write wins
   let assert Ok("v2") = set.lookup(first_table, key: "key")
-  set.size(first_table) |> expect.to_equal(Ok(1))
+  let assert True = set.size(first_table) == Ok(1)
   let assert Ok(Nil) = set.close(first_table)
   let assert Ok(Nil) = set.close(second_table)
   test_helper.cleanup(path)
@@ -427,7 +425,7 @@ pub fn set_shared_delete_visible_test() -> Nil {
   let assert Ok(Nil) = set.insert(first_table, "key", "val")
   let assert Ok(Nil) = set.delete_key(second_table, key: "key")
   // Delete from the second handle is visible to the first
-  set.lookup(first_table, key: "key") |> expect.to_equal(Error(slate.NotFound))
+  let assert True = set.lookup(first_table, key: "key") == Error(slate.NotFound)
   let assert Ok(Nil) = set.close(first_table)
   let assert Ok(Nil) = set.close(second_table)
   test_helper.cleanup(path)
@@ -444,7 +442,7 @@ pub fn bag_shared_accumulate_test() -> Nil {
   let assert Ok(Nil) = bag.insert(first_table, "k", "c")
   // All 3 distinct values visible from either handle
   let assert Ok(values) = bag.lookup(second_table, key: "k")
-  values |> list.length |> expect.to_equal(3)
+  let assert True = { values |> list.length } == 3
   let assert Ok(Nil) = bag.close(first_table)
   let assert Ok(Nil) = bag.close(second_table)
   test_helper.cleanup(path)
@@ -470,7 +468,7 @@ pub fn set_force_repair_preserves_data_test() -> Nil {
   let assert Ok(1) = set.lookup(table2, key: "a")
   let assert Ok(2) = set.lookup(table2, key: "b")
   let assert Ok(3) = set.lookup(table2, key: "c")
-  set.size(table2) |> expect.to_equal(Ok(3))
+  let assert True = set.size(table2) == Ok(3)
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
 }
@@ -490,7 +488,7 @@ pub fn bag_force_repair_preserves_data_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = bag.lookup(table2, key: "k")
-  values |> list.length |> expect.to_equal(2)
+  let assert True = { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table2)
   test_helper.cleanup(path)
 }
@@ -514,7 +512,7 @@ pub fn duplicate_bag_force_repair_preserves_data_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
-  values |> list.length |> expect.to_equal(2)
+  let assert True = { values |> list.length } == 2
   let assert Ok(Nil) = duplicate_bag.close(table2)
   test_helper.cleanup(path)
 }

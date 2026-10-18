@@ -6,7 +6,6 @@ import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 pub fn file_error_context_nested_otp_reasons_test() -> Nil {
@@ -15,48 +14,54 @@ pub fn file_error_context_nested_otp_reasons_test() -> Nil {
   |> list.each(fn(test_case) {
     let #(error, code, reason) = test_case
     let assert Ok(context) = file_context(error)
-    context |> expect.to_equal(slate.FileErrorContext(Some(path), reason))
-    slate.error_code(error) |> expect.to_equal(code)
+    let assert True = context == slate.FileErrorContext(Some(path), reason)
+    let assert True = slate.error_code(error) == code
+    Nil
   })
 }
 
 pub fn file_error_context_pathless_otp_errors_test() -> Nil {
-  pathless_errors()
-  |> expect.to_equal([
-    slate.NotADetsFile(slate.FileErrorContext(None, "not_a_dets_file")),
-    slate.NeedsRepair(slate.FileErrorContext(None, "needs_repair")),
-    slate.AccessDenied(slate.FileErrorContext(None, "eacces")),
-    slate.AlreadyOpen(slate.FileErrorContext(None, "incompatible_arguments")),
-    slate.AlreadyOpen(slate.FileErrorContext(
-      None,
-      "{incompatible_arguments,slate_context_table}",
-    )),
-    slate.TableDoesNotExist,
-    slate.TableDoesNotExist,
-  ])
+  let assert True =
+    pathless_errors()
+    == [
+      slate.NotADetsFile(slate.FileErrorContext(None, "not_a_dets_file")),
+      slate.NeedsRepair(slate.FileErrorContext(None, "needs_repair")),
+      slate.AccessDenied(slate.FileErrorContext(None, "eacces")),
+      slate.AlreadyOpen(slate.FileErrorContext(None, "incompatible_arguments")),
+      slate.AlreadyOpen(slate.FileErrorContext(
+        None,
+        "{incompatible_arguments,slate_context_table}",
+      )),
+      slate.TableDoesNotExist,
+      slate.TableDoesNotExist,
+    ]
+  Nil
 }
 
 pub fn file_error_context_unknown_reason_stays_unexpected_test() -> Nil {
   let assert slate.UnexpectedError(detail) = unknown_error()
-  detail
-  |> expect.to_equal("{file_error,<<\"private.dets\">>,{error,enospc}}")
+  let assert True = detail == "{file_error,<<\"private.dets\">>,{error,enospc}}"
+  Nil
 }
 
 pub fn file_error_context_rename_retains_both_paths_test() -> Nil {
   let assert slate.AccessDenied(context) = rename_error()
-  context
-  |> expect.to_equal(slate.FileErrorContext(
-    None,
-    "{file_error,{\"old.dets\",\"new.dets\"},eacces}",
-  ))
+  let assert True =
+    context
+    == slate.FileErrorContext(
+      None,
+      "{file_error,{\"old.dets\",\"new.dets\"},eacces}",
+    )
+  Nil
 }
 
 pub fn file_error_context_missing_parent_test() -> Nil {
   let path = "missing_context_é_資料/absent.dets"
   let assert Error(slate.FileNotFound(context)) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
-  context |> expect.to_equal(file_error_test_helper.context(path, "enoent"))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True = context == file_error_test_helper.context(path, "enoent")
+  let assert True = test_helper.is_table_open(path) == False
+  Nil
 }
 
 pub fn file_error_context_set_conflicting_options_test() -> Nil {
@@ -116,12 +121,9 @@ fn check_conflicting_options(
   let assert Error(slate.AlreadyOpen(context)) =
     open("./unused/../" <> path, slate.ReadOnly)
   let assert Ok(Nil) = close(table)
-  test_helper.is_table_open(path) |> expect.to_equal(False)
-  context
-  |> expect.to_equal(file_error_test_helper.context(
-    path,
-    "incompatible_arguments",
-  ))
+  let assert True = test_helper.is_table_open(path) == False
+  let assert True =
+    context == file_error_test_helper.context(path, "incompatible_arguments")
   let assert Ok(table) = open(path, slate.ReadOnly)
   let assert Ok(Nil) = close(table)
   test_helper.cleanup(path)
@@ -146,9 +148,9 @@ pub fn file_error_context_readonly_counter_test() -> Nil {
   let assert Ok(10) = set.lookup(table, "hits")
   let assert Ok(Nil) = set.close(table)
   // Context does not depend on a live table or table-name pool slot.
-  context
-  |> expect.to_equal(file_error_test_helper.context(path, "access_mode"))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True =
+    context == file_error_test_helper.context(path, "access_mode")
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
 
@@ -157,21 +159,22 @@ pub fn file_error_context_closed_set_operations_test() -> Nil {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = set.close(table)
-  set.lookup(table, "key") |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.member(table, "key") |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.to_list(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.fold(table, 0, fn(acc, _, _) { acc })
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.fold_results(table, 0, fn(acc, _) { acc })
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.insert(table, "key", 1)
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.delete_key(table, "key")
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.sync(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
-  set.info(table) |> expect.to_equal(Error(slate.TableDoesNotExist))
+  let assert True = set.lookup(table, "key") == Error(slate.TableDoesNotExist)
+  let assert True = set.member(table, "key") == Error(slate.TableDoesNotExist)
+  let assert True = set.to_list(table) == Error(slate.TableDoesNotExist)
+  let assert True =
+    set.fold(table, 0, fn(acc, _, _) { acc }) == Error(slate.TableDoesNotExist)
+  let assert True =
+    set.fold_results(table, 0, fn(acc, _) { acc })
+    == Error(slate.TableDoesNotExist)
+  let assert True =
+    set.insert(table, "key", 1) == Error(slate.TableDoesNotExist)
+  let assert True =
+    set.delete_key(table, "key") == Error(slate.TableDoesNotExist)
+  let assert True = set.sync(table) == Error(slate.TableDoesNotExist)
+  let assert True = set.info(table) == Error(slate.TableDoesNotExist)
   expect_closed_close(set.close(table))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
 
@@ -180,11 +183,11 @@ pub fn file_error_context_closed_bags_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.close(table)
-  bag.lookup(table, "key") |> expect.to_equal(Error(slate.TableDoesNotExist))
-  bag.insert(table, "key", 1)
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
+  let assert True = bag.lookup(table, "key") == Error(slate.TableDoesNotExist)
+  let assert True =
+    bag.insert(table, "key", 1) == Error(slate.TableDoesNotExist)
   expect_closed_close(bag.close(table))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 
   let path = "test_context_closed_duplicate_bag.dets"
@@ -195,12 +198,12 @@ pub fn file_error_context_closed_bags_test() -> Nil {
       value_decoder: decode.int,
     )
   let assert Ok(Nil) = duplicate_bag.close(table)
-  duplicate_bag.lookup(table, "key")
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
-  duplicate_bag.insert(table, "key", 1)
-  |> expect.to_equal(Error(slate.TableDoesNotExist))
+  let assert True =
+    duplicate_bag.lookup(table, "key") == Error(slate.TableDoesNotExist)
+  let assert True =
+    duplicate_bag.insert(table, "key", 1) == Error(slate.TableDoesNotExist)
   expect_closed_close(duplicate_bag.close(table))
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
 
@@ -219,11 +222,12 @@ pub fn file_error_context_with_table_cleanup_test() -> Nil {
         slate.is_dets_file(missing)
       },
     )
-  result
-  |> expect.to_equal(
-    Error(slate.FileNotFound(slate.FileErrorContext(Some(missing), "enoent"))),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+  let assert True =
+    result
+    == Error(
+      slate.FileNotFound(slate.FileErrorContext(Some(missing), "enoent")),
+    )
+  let assert True = test_helper.is_table_open(path) == False
   // The callback error did not prevent a clean, readable close.
   let assert Ok(table) =
     set.open_with(
@@ -310,8 +314,9 @@ pub fn file_error_context_stable_safe_codes_and_messages_test() -> Nil {
     ]
     |> list.each(fn(test_case) {
       let #(error, code, message) = test_case
-      slate.error_code(error) |> expect.to_equal(code)
-      slate.error_message(error) |> expect.to_equal(message)
+      let assert True = slate.error_code(error) == code
+      let assert True = slate.error_message(error) == message
+      Nil
     })
   })
 }
@@ -337,14 +342,15 @@ fn file_context(error: slate.DetsError) -> Result(slate.FileErrorContext, Nil) {
 fn expect_closed_close(result: Result(Nil, slate.DetsError)) -> Nil {
   // A second close can see a missing owner or an already removed table.
   // Keep these existing classifications; neither has file context.
-  list.contains(
-    [
-      Error(slate.TableDoesNotExist),
-      Error(slate.UnexpectedError("not_owner")),
-    ],
-    result,
-  )
-  |> expect.to_be_true()
+  let assert True =
+    list.contains(
+      [
+        Error(slate.TableDoesNotExist),
+        Error(slate.UnexpectedError("not_owner")),
+      ],
+      result,
+    )
+  Nil
 }
 
 @external(erlang, "file_error_test_ffi", "file_errors")

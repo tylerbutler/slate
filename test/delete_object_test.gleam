@@ -7,7 +7,6 @@ import gleam/string
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Set: delete_object ──────────────────────────────────────────────────
@@ -18,7 +17,7 @@ pub fn set_delete_object_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.delete_object(table, "key", "val")
-  set.size(table) |> expect.to_equal(Ok(0))
+  let assert True = set.size(table) == Ok(0)
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
 }
@@ -30,7 +29,7 @@ pub fn set_delete_object_wrong_value_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "key", "correct")
   // Deleting with wrong value should be a no-op for sets
   let assert Ok(Nil) = set.delete_object(table, "key", "wrong")
-  set.size(table) |> expect.to_equal(Ok(1))
+  let assert True = set.size(table) == Ok(1)
   let assert Ok("correct") = set.lookup(table, key: "key")
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
@@ -58,10 +57,10 @@ pub fn bag_delete_object_removes_one_value_test() -> Nil {
   // Delete only "red"
   let assert Ok(Nil) = bag.delete_object(table, "color", "red")
   let assert Ok(values) = bag.lookup(table, key: "color")
-  values |> list.length |> expect.to_equal(2)
-  list.contains(values, "red") |> expect.to_equal(False)
-  list.contains(values, "blue") |> expect.to_be_true()
-  list.contains(values, "green") |> expect.to_be_true()
+  let assert True = { values |> list.length } == 2
+  let assert True = list.contains(values, "red") == False
+  let assert True = list.contains(values, "blue")
+  let assert True = list.contains(values, "green")
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -76,8 +75,8 @@ pub fn bag_delete_object_all_values_one_by_one_test() -> Nil {
   let assert Ok(Nil) = bag.delete_object(table, "k", "a")
   let assert Ok(Nil) = bag.delete_object(table, "k", "b")
   let assert Ok(Nil) = bag.delete_object(table, "k", "c")
-  bag.size(table) |> expect.to_equal(Ok(0))
-  bag.lookup(table, key: "k") |> expect.to_equal(Ok([]))
+  let assert True = bag.size(table) == Ok(0)
+  let assert True = bag.lookup(table, key: "k") == Ok([])
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -90,7 +89,7 @@ pub fn bag_delete_object_wrong_value_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "k", "b")
   // Delete non-existent value — should be no-op
   let assert Ok(Nil) = bag.delete_object(table, "k", "z")
-  bag.size(table) |> expect.to_equal(Ok(2))
+  let assert True = bag.size(table) == Ok(2)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -105,9 +104,9 @@ pub fn bag_delete_object_preserves_other_keys_test() -> Nil {
   let assert Ok(Nil) = bag.delete_object(table, "k1", "a")
   // k1 should have 1 value, k2 untouched
   let assert Ok(remaining_values) = bag.lookup(table, key: "k1")
-  remaining_values |> expect.to_equal(["b"])
+  let assert True = remaining_values == ["b"]
   let assert Ok(other_key_values) = bag.lookup(table, key: "k2")
-  other_key_values |> expect.to_equal(["x"])
+  let assert True = other_key_values == ["x"]
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -138,14 +137,14 @@ pub fn bag_delete_object_large_test() -> Nil {
     let assert Ok(Nil) = bag.insert(table, "key", string.inspect(value))
     Nil
   })
-  bag.size(table) |> expect.to_equal(Ok(100))
+  let assert True = bag.size(table) == Ok(100)
   // Delete half
   test_helper.range(0, 49)
   |> list.each(fn(value) {
     let assert Ok(Nil) = bag.delete_object(table, "key", string.inspect(value))
     Nil
   })
-  bag.size(table) |> expect.to_equal(Ok(50))
+  let assert True = bag.size(table) == Ok(50)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -166,8 +165,8 @@ pub fn duplicate_bag_delete_object_removes_all_copies_test() -> Nil {
   // delete_object removes ALL copies of {k, a}
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "a")
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k")
-  values |> expect.to_equal(["b"])
-  duplicate_bag.size(table) |> expect.to_equal(Ok(1))
+  let assert True = values == ["b"]
+  let assert True = duplicate_bag.size(table) == Ok(1)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -187,8 +186,8 @@ pub fn duplicate_bag_delete_object_preserves_other_duplicates_test() -> Nil {
   // Delete only {k, a} copies
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "a")
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k")
-  values |> expect.to_equal(["b", "b"])
-  duplicate_bag.size(table) |> expect.to_equal(Ok(2))
+  let assert True = values == ["b", "b"]
+  let assert True = duplicate_bag.size(table) == Ok(2)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -204,7 +203,7 @@ pub fn duplicate_bag_delete_object_wrong_value_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k", "a")
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "z")
-  duplicate_bag.size(table) |> expect.to_equal(Ok(2))
+  let assert True = duplicate_bag.size(table) == Ok(2)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -229,7 +228,7 @@ pub fn duplicate_bag_delete_object_persistence_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(values) = duplicate_bag.lookup(table2, key: "k")
-  values |> expect.to_equal(["keep", "keep"])
+  let assert True = values == ["keep", "keep"]
   let assert Ok(Nil) = duplicate_bag.close(table2)
   test_helper.cleanup(path)
 }
@@ -243,7 +242,7 @@ pub fn duplicate_bag_delete_object_empty_table_test() -> Nil {
       value_decoder: decode.string,
     )
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k", "v")
-  duplicate_bag.size(table) |> expect.to_equal(Ok(0))
+  let assert True = duplicate_bag.size(table) == Ok(0)
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }
@@ -260,9 +259,9 @@ pub fn duplicate_bag_delete_object_preserves_other_keys_test() -> Nil {
   let assert Ok(Nil) = duplicate_bag.insert(table, "k1", "a")
   let assert Ok(Nil) = duplicate_bag.insert(table, "k2", "b")
   let assert Ok(Nil) = duplicate_bag.delete_object(table, "k1", "a")
-  duplicate_bag.size(table) |> expect.to_equal(Ok(1))
+  let assert True = duplicate_bag.size(table) == Ok(1)
   let assert Ok(values) = duplicate_bag.lookup(table, key: "k2")
-  values |> expect.to_equal(["b"])
+  let assert True = values == ["b"]
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
 }

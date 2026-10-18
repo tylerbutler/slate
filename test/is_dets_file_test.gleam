@@ -5,7 +5,6 @@ import gleam/dynamic/decode
 import gleam/option.{Some}
 import slate
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Valid DETS file ─────────────────────────────────────────────────────
@@ -18,7 +17,7 @@ pub fn is_dets_file_valid_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "key", "val")
   let assert Ok(Nil) = set.close(table)
   // Check it
-  slate.is_dets_file(path) |> expect.to_equal(Ok(True))
+  let assert True = slate.is_dets_file(path) == Ok(True)
   test_helper.cleanup(path)
 }
 
@@ -28,7 +27,7 @@ pub fn is_dets_file_not_dets_test() -> Nil {
   let path = "test_is_dets_not.txt"
   // Write a plain text file
   let assert Ok(Nil) = write_file(path, "hello world this is not dets")
-  slate.is_dets_file(path) |> expect.to_equal(Ok(False))
+  let assert True = slate.is_dets_file(path) == Ok(False)
   test_helper.cleanup(path)
 }
 
@@ -39,7 +38,7 @@ pub fn is_dets_file_empty_table_test() -> Nil {
   let assert Ok(table) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.close(table)
-  slate.is_dets_file(path) |> expect.to_equal(Ok(True))
+  let assert True = slate.is_dets_file(path) == Ok(True)
   test_helper.cleanup(path)
 }
 
@@ -47,15 +46,15 @@ pub fn is_dets_file_empty_table_test() -> Nil {
 
 pub fn is_dets_file_nonexistent_test() -> Nil {
   let path = "nonexistent_file_12345.dets"
-  slate.is_dets_file(path)
-  |> expect.to_equal(
-    Error(
+  let assert True =
+    slate.is_dets_file(path)
+    == Error(
       slate.FileNotFound(slate.FileErrorContext(
         path: Some(path),
         reason: "enoent",
       )),
-    ),
-  )
+    )
+  Nil
 }
 
 // ── DETS file with data, verified after reopen ──────────────────────────
@@ -69,7 +68,7 @@ pub fn is_dets_file_after_use_test() -> Nil {
   let assert Ok(Nil) = set.insert(table, "c", 3)
   let assert Ok(Nil) = set.sync(table)
   let assert Ok(Nil) = set.close(table)
-  slate.is_dets_file(path) |> expect.to_equal(Ok(True))
+  let assert True = slate.is_dets_file(path) == Ok(True)
   test_helper.cleanup(path)
 }
 

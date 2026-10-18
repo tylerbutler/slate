@@ -18,7 +18,7 @@ poisoned_path() ->
     try
         ok = file:write_file(BrokenErl, <<"not an Erlang launcher\n">>),
         ok = file:change_mode(BrokenErl, 8#755),
-        %% Locked startest 0.8 runs tests synchronously; always restore PATH.
+        %% Changes VM-wide PATH: tests must run sequentially; always restore PATH.
         true = os:putenv("PATH", Directory ++ Separator ++ os:getenv("PATH", "")),
         BrokenErl = os:find_executable("erl"),
         Port = start_vm(),

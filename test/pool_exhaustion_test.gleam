@@ -21,7 +21,6 @@ import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Pool: multiple concurrent opens ─────────────────────────────────────
@@ -48,7 +47,8 @@ pub fn pool_concurrent_opens_test() -> Nil {
     let assert Ok(Nil) =
       set.insert(table, index, "value_" <> int.to_string(index))
     let assert Ok(value) = set.lookup(table, key: index)
-    value |> expect.to_equal("value_" <> int.to_string(index))
+    let assert True = value == "value_" <> int.to_string(index)
+    Nil
   })
 
   // Clean up
@@ -99,7 +99,8 @@ pub fn pool_slot_reuse_after_close_test() -> Nil {
   list.index_map(tables_b, fn(table, index) {
     let assert Ok(Nil) = set.insert(table, index, index * 100)
     let assert Ok(value) = set.lookup(table, key: index)
-    value |> expect.to_equal(index * 100)
+    let assert True = value == index * 100
+    Nil
   })
 
   // Clean up
@@ -125,7 +126,7 @@ pub fn pool_reopen_same_path_test() -> Nil {
   let assert Ok(table2) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(value) = set.lookup(table2, key: "key")
-  value |> expect.to_equal("from_first_open")
+  let assert True = value == "from_first_open"
 
   let assert Ok(Nil) = set.close(table1)
   test_helper.cleanup(path)

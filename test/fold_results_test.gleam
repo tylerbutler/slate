@@ -4,7 +4,6 @@ import gleam/string
 import slate/bag
 import slate/duplicate_bag
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Success path ────────────────────────────────────────────────────────
@@ -24,7 +23,7 @@ pub fn set_fold_results_success_test() -> Nil {
         Error(_) -> acc
       }
     })
-  sum |> expect.to_equal(60)
+  let assert True = sum == 60
 
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
@@ -45,7 +44,7 @@ pub fn bag_fold_results_success_test() -> Nil {
         Error(_) -> acc
       }
     })
-  sum |> expect.to_equal(6)
+  let assert True = sum == 6
 
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
@@ -70,7 +69,7 @@ pub fn duplicate_bag_fold_results_success_test() -> Nil {
         Error(_) -> acc
       }
     })
-  sum |> expect.to_equal(5)
+  let assert True = sum == 5
 
   let assert Ok(Nil) = duplicate_bag.close(table)
   test_helper.cleanup(path)
@@ -82,7 +81,7 @@ pub fn set_fold_results_empty_table_test() -> Nil {
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
 
   let assert Ok(count) = set.fold_results(table, 0, fn(acc, _entry) { acc + 1 })
-  count |> expect.to_equal(0)
+  let assert True = count == 0
 
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)
@@ -113,7 +112,7 @@ pub fn set_fold_results_skips_decode_errors_test() -> Nil {
         Error(_) -> acc
       }
     })
-  items |> expect.to_equal([])
+  let assert True = items == []
 
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
@@ -140,7 +139,7 @@ pub fn bag_fold_results_skips_decode_errors_test() -> Nil {
         Error(_) -> acc
       }
     })
-  items |> expect.to_equal([])
+  let assert True = items == []
 
   let assert Ok(Nil) = bag.close(table2)
   test_helper.cleanup(path)
@@ -171,7 +170,7 @@ pub fn duplicate_bag_fold_results_skips_decode_errors_test() -> Nil {
         Error(_) -> acc
       }
     })
-  items |> expect.to_equal([])
+  let assert True = items == []
 
   let assert Ok(Nil) = duplicate_bag.close(table2)
   test_helper.cleanup(path)
@@ -202,8 +201,8 @@ pub fn set_fold_results_partition_test() -> Nil {
         Error(errors) -> #(entries, [errors, ..decode_errors])
       }
     })
-  good |> expect.to_equal([])
-  list.length(bad) |> expect.to_equal(20)
+  let assert True = good == []
+  let assert True = list.length(bad) == 20
 
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
@@ -229,7 +228,7 @@ pub fn set_fold_results_visits_all_entries_test() -> Nil {
 
   let assert Ok(visited) =
     set.fold_results(table2, 0, fn(acc, _entry) { acc + 1 })
-  visited |> expect.to_equal(count)
+  let assert True = visited == count
 
   let assert Ok(Nil) = set.close(table2)
   test_helper.cleanup(path)
@@ -250,7 +249,7 @@ pub fn set_fold_results_collects_keys_test() -> Nil {
         Error(_) -> acc
       }
     })
-  keys |> list.sort(string.compare) |> expect.to_equal(["a", "b", "c"])
+  let assert True = { keys |> list.sort(string.compare) } == ["a", "b", "c"]
 
   let assert Ok(Nil) = set.close(table)
   test_helper.cleanup(path)

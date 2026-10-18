@@ -15,7 +15,6 @@ import slate
 import slate/bag
 import slate/exclusive
 import slate/set
-import startest/expect
 import test_helper
 
 type OpenBreakpoint
@@ -62,14 +61,13 @@ pub fn ordinary_colliding_opens_test() -> Nil {
     test_helper.cleanup(first_path)
     test_helper.cleanup(second_path)
 
-    let Opened(path: actual_first, ..) =
-      first_result |> expect.to_be_ok |> expect.to_be_ok
-    let Opened(path: actual_second, ..) =
-      second_result |> expect.to_be_ok |> expect.to_be_ok
-    actual_first |> expect.to_equal(first_path)
-    actual_second |> expect.to_equal(second_path)
-    first_done |> expect.to_equal(Ok(Ok(Nil)))
-    second_done |> expect.to_equal(Ok(Ok(Nil)))
+    let assert Ok(Ok(Opened(path: actual_first, ..))) = first_result
+    let assert Ok(Ok(Opened(path: actual_second, ..))) = second_result
+    let assert True = actual_first == first_path
+    let assert True = actual_second == second_path
+    let assert True = first_done == Ok(Ok(Nil))
+    let assert True = second_done == Ok(Ok(Nil))
+    Nil
   })
 }
 
@@ -102,12 +100,13 @@ pub fn exclusive_unicode_colliding_opens_test() -> Nil {
     test_helper.cleanup(first_path <> ".slate.lock")
     test_helper.cleanup(second_path <> ".slate.lock")
 
-    first_done |> expect.to_equal(Ok(Ok(Nil)))
-    second_done |> expect.to_equal(Ok(Ok(Nil)))
-    let actual_first = first_result |> expect.to_be_ok
-    let actual_second = second_result |> expect.to_be_ok
-    actual_first |> expect.to_equal(first_path)
-    actual_second |> expect.to_equal(second_path)
+    let assert True = first_done == Ok(Ok(Nil))
+    let assert True = second_done == Ok(Ok(Nil))
+    let assert Ok(actual_first) = first_result
+    let assert Ok(actual_second) = second_result
+    let assert True = actual_first == first_path
+    let assert True = actual_second == second_path
+    Nil
   })
 }
 
@@ -141,9 +140,8 @@ pub fn duplicate_same_path_collision_interleaving_test() -> Nil {
     let first_done = process.receive(completed, 5000)
 
     // The second opener keeps the shared table alive after the first closes.
-    let Opened(table: second_table, ..) =
-      second_result |> expect.to_be_ok |> expect.to_be_ok
-    set.lookup(second_table, "key") |> expect.to_equal(Ok(22))
+    let assert Ok(Ok(Opened(table: second_table, ..))) = second_result
+    let assert True = set.lookup(second_table, "key") == Ok(22)
     process.send(second.commands, Nil)
     let second_done = process.receive(completed, 5000)
     await_worker(foreign)
@@ -152,13 +150,13 @@ pub fn duplicate_same_path_collision_interleaving_test() -> Nil {
     test_helper.cleanup(foreign_path)
     test_helper.cleanup(shared_path)
 
-    let Opened(table: first_table, ..) =
-      first_result |> expect.to_be_ok |> expect.to_be_ok
-    first_table |> expect.to_equal(second_table)
-    let _ = foreign_result |> expect.to_be_ok |> expect.to_be_ok
-    foreign_done |> expect.to_equal(Ok(Ok(Nil)))
-    first_done |> expect.to_equal(Ok(Ok(Nil)))
-    second_done |> expect.to_equal(Ok(Ok(Nil)))
+    let assert Ok(Ok(Opened(table: first_table, ..))) = first_result
+    let assert True = first_table == second_table
+    let assert Ok(Ok(_)) = foreign_result
+    let assert True = foreign_done == Ok(Ok(Nil))
+    let assert True = first_done == Ok(Ok(Nil))
+    let assert True = second_done == Ok(Ok(Nil))
+    Nil
   })
 }
 
@@ -213,8 +211,8 @@ pub fn conflicting_options_after_collision_test() -> Nil {
     test_helper.cleanup(foreign_path)
     test_helper.cleanup(shared_path)
 
-    let _ = foreign_result |> expect.to_be_ok |> expect.to_be_ok
-    let _ = shared_result |> expect.to_be_ok |> expect.to_be_ok
+    let assert Ok(Ok(_)) = foreign_result
+    let assert Ok(Ok(_)) = shared_result
     let expected =
       Error(
         slate.AlreadyOpen(slate.FileErrorContext(
@@ -222,10 +220,11 @@ pub fn conflicting_options_after_collision_test() -> Nil {
           "incompatible_arguments",
         )),
       )
-    reader_result |> expect.to_equal(Ok(expected))
-    bag_result |> expect.to_equal(expected)
-    foreign_done |> expect.to_equal(Ok(Ok(Nil)))
-    shared_done |> expect.to_equal(Ok(Ok(Nil)))
+    let assert True = reader_result == Ok(expected)
+    let assert True = bag_result == expected
+    let assert True = foreign_done == Ok(Ok(Nil))
+    let assert True = shared_done == Ok(Ok(Nil))
+    Nil
   })
 }
 
@@ -257,10 +256,11 @@ pub fn collision_winner_closes_before_inspection_test() -> Nil {
     test_helper.cleanup(first_path)
     test_helper.cleanup(second_path)
 
-    let _ = first_result |> expect.to_be_ok |> expect.to_be_ok
-    let _ = second_result |> expect.to_be_ok |> expect.to_be_ok
-    first_done |> expect.to_equal(Ok(Ok(Nil)))
-    second_done |> expect.to_equal(Ok(Ok(Nil)))
+    let assert Ok(Ok(_)) = first_result
+    let assert Ok(Ok(_)) = second_result
+    let assert True = first_done == Ok(Ok(Nil))
+    let assert True = second_done == Ok(Ok(Nil))
+    Nil
   })
 }
 
@@ -281,8 +281,8 @@ fn start_ordinary(
         Ok(table) -> {
           let assert Ok(Nil) = set.insert(table, "key", value)
           let assert Ok(info) = set.info(table)
-          info.file_path
-          |> expect.to_equal(charlist.to_string(canonical_bytes(path)))
+          let assert True =
+            info.file_path == charlist.to_string(canonical_bytes(path))
           Nil
         }
         Error(_) -> Nil
@@ -296,7 +296,7 @@ fn start_ordinary(
         Ok(table) -> {
           let found = set.lookup(table, "key")
           let closed = set.close(table)
-          found |> expect.to_equal(Ok(value))
+          let assert True = found == Ok(value)
           closed
         }
         Error(error) -> Error(error)
@@ -329,10 +329,10 @@ fn start_exclusive(
           callback: fn(table) {
             let assert Ok(Nil) = set.insert(table, "key", value)
             let assert Ok(info) = set.info(table)
-            info.file_path |> expect.to_equal(canonical_unicode_string(path))
+            let assert True = info.file_path == canonical_unicode_string(path)
             process.send(opened, path)
             let _ = process.receive(commands, 10_000)
-            set.lookup(table, "key") |> expect.to_equal(Ok(value))
+            let assert True = set.lookup(table, "key") == Ok(value)
             Ok(Nil)
           },
         )
@@ -349,7 +349,8 @@ fn await_worker(worker: Worker) -> Nil {
     |> process.selector_receive(1000)
   process.demonitor_process(worker.monitor)
   let assert Ok(process.ProcessDown(_, pid, process.Normal)) = down
-  pid |> expect.to_equal(worker.pid)
+  let assert True = pid == worker.pid
+  Nil
 }
 
 fn colliding_paths(

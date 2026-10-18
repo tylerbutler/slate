@@ -12,7 +12,6 @@ import gleam/dynamic/decode
 import gleam/list
 import slate
 import slate/set
-import startest/expect
 import test_helper
 
 // ── Truncated file with AutoRepair recovers ─────────────────────────────
@@ -43,7 +42,7 @@ pub fn truncated_file_auto_repair_test() -> Nil {
     Ok(table2) -> {
       // Table opened (possibly with some data lost)
       let assert Ok(size) = set.size(table2)
-      { size <= 100 } |> expect.to_be_true()
+      let assert True = size <= 100
       let assert Ok(Nil) = set.close(table2)
       Nil
     }
@@ -74,13 +73,12 @@ pub fn no_repair_rejects_corrupted_file_test() -> Nil {
       key_decoder: decode.string,
       value_decoder: decode.string,
     )
-  result
-  |> expect.to_equal(
-    Error(
+  let assert True =
+    result
+    == Error(
       slate.NeedsRepair(file_error_test_helper.context(path, "needs_repair")),
-    ),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+    )
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
 
@@ -112,7 +110,7 @@ pub fn force_repair_on_corrupted_file_test() -> Nil {
       // Some data may be recovered
       let assert Ok(size) = set.size(table2)
       // Size should be at most the original (some may be lost)
-      { size <= 50 } |> expect.to_be_true()
+      let assert True = size <= 50
       let assert Ok(Nil) = set.close(table2)
       Nil
     }
@@ -133,13 +131,12 @@ pub fn open_non_dets_file_test() -> Nil {
   let assert Ok(Nil) = write_garbage(path)
   let result =
     set.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  result
-  |> expect.to_equal(
-    Error(
+  let assert True =
+    result
+    == Error(
       slate.NotADetsFile(file_error_test_helper.context(path, "not_a_dets_file")),
-    ),
-  )
-  test_helper.is_table_open(path) |> expect.to_equal(False)
+    )
+  let assert True = test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
 

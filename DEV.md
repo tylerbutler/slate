@@ -144,17 +144,22 @@ Repository changes do not connect the Cloudflare project or change live DNS.
 
 ## Testing conventions
 
-Tests use the [startest](https://hexdocs.pm/startest/) framework (not `gleeunit`).
+Tests use [Unitest](https://hexdocs.pm/unitest/) with Gleam's built-in assertions.
 
 - Name test functions `{module}_{operation}_test` (e.g., `set_insert_lookup_test`).
 - Each test creates a temporary `.dets` file with a unique name.
 - Call `cleanup(path)` from `test/test_helper.gleam` at the end of each test to delete the file.
 - Use `let assert Ok(...)` for expected-success paths.
-- Use `|> expect.to_equal(...)` for specific value checks.
+- Use `let assert True = actual == expected` for specific value checks. This
+  keeps tests compatible with the minimum Gleam version in `gleam.toml`.
 
-Run a file group with `gleam test -- exclusive` or filter a test name with
-`gleam test -- --test-name-filter=exclusive`. Do not edit test imports to select
-tests. Exclusive tests launch independent BEAM VMs and use a bounded message
+Run a test file with `gleam test -- test/exclusive_table_test.gleam` or a single
+test with `gleam test -- --test exclusive_table_test.set_exclusive_table_test`.
+Use `gleam test -- --seed 123` to repeat the same random order.
+Do not edit test imports to select tests. Keep the default sequential execution:
+tests change VM-wide state, including PATH and debugger breakpoints. Do not use
+`--workers` for this suite.
+Exclusive tests launch independent BEAM VMs and use a bounded message
 protocol. Delete their sidecars only after all child VMs stop.
 Resolve nested `erl` and `escript` launchers from the current runtime's
 `code:root_dir()/bin`, not inherited PATH: on Windows the root launcher prepends

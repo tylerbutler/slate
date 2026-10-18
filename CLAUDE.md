@@ -49,7 +49,7 @@ src/
     ├── bag.gleam             # Bag tables (multiple distinct values per key)
     └── duplicate_bag.gleam   # Duplicate bag tables (duplicates allowed)
 test/
-├── slate_test.gleam            # Test entry point (startest.run)
+├── slate_test.gleam            # Test entry point (unitest.main)
 ├── test_helper.gleam           # Shared test utilities (cleanup, unique paths)
 ├── set_test.gleam              # Set table tests
 ├── bag_test.gleam              # Bag table tests
@@ -118,7 +118,7 @@ a breaking change; see `docs/file-error-context-migration.md`.
 - `gleam_erlang` - Erlang interop
 
 ### Development
-- `startest` - Testing framework
+- `unitest` - Testing framework
 
 ## Testing
 
@@ -129,6 +129,12 @@ gleam test
 ```
 
 Tests create temporary `.dets` files and clean them up after each test.
+Use Gleam's built-in `let assert` syntax to keep tests compatible with the
+minimum Gleam version. Run one file with `gleam test -- test/set_test.gleam`
+or one test with `gleam test -- --test set_test.set_insert_lookup_test`.
+Use `gleam test -- --seed 123` to repeat the same random order.
+Keep the default sequential execution; tests change VM-wide state, so do not
+use `--workers`.
 
 ## Tool Versions
 
