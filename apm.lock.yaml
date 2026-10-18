@@ -242,6 +242,24 @@ deployments:
   content_hash: sha256:4bb6bf9b41f0f62cd0d779e0020b276c05ec68ebb4b913135774d0a12acdf851
 - kind: project-relative
   target: claude
+  value: .claude/agents/slate-otp-expert.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:8d750d174dbfa6123d016948e1f61a265dfd6893ef6a543d484b39d9142a966f
+- kind: project-relative
+  target: claude
+  value: .claude/agents/slate-otp-performance-expert.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:7cfb6b1fcacdc044d07d98908cadcdeaca6996159a95274af6f5ebd34d96b383
+- kind: project-relative
+  target: claude
   value: .claude/commands/create-pr.md
   runtime: null
   scope: project
@@ -294,6 +312,24 @@ deployments:
   - juliusbrussee/caveman/skills/caveman-commit
   active_owner: juliusbrussee/caveman/skills/caveman-commit
   content_hash: sha256:c788a282fc75b981b421dfdad5d84ea7f83f946c126daa39cfc7d3f97845e193
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-entry
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-entry/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
 - kind: project-relative
   target: claude
   value: .claude/skills/gleam-reference-docs
@@ -953,6 +989,24 @@ deployments:
   content_hash: sha256:4bb6bf9b41f0f62cd0d779e0020b276c05ec68ebb4b913135774d0a12acdf851
 - kind: project-relative
   target: copilot
+  value: .github/agents/slate-otp-expert.agent.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:8d750d174dbfa6123d016948e1f61a265dfd6893ef6a543d484b39d9142a966f
+- kind: project-relative
+  target: copilot
+  value: .github/agents/slate-otp-performance-expert.agent.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:7cfb6b1fcacdc044d07d98908cadcdeaca6996159a95274af6f5ebd34d96b383
+- kind: project-relative
+  target: copilot
   value: .github/hooks/ponytail-copilot-hooks.json
   runtime: null
   scope: project
@@ -987,3 +1041,37 @@ deployments:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
   content_hash: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/changelog-entry
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+- kind: project-relative
+  target: legacy
+  value: .agents/skills/changelog-entry/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
+local_deployed_files:
+- .agents/skills/changelog-entry
+- .agents/skills/changelog-entry/SKILL.md
+- .claude/agents/slate-otp-expert.md
+- .claude/agents/slate-otp-performance-expert.md
+- .claude/skills/changelog-entry
+- .claude/skills/changelog-entry/SKILL.md
+- .github/agents/slate-otp-expert.agent.md
+- .github/agents/slate-otp-performance-expert.agent.md
+local_deployed_file_hashes:
+  .agents/skills/changelog-entry/SKILL.md: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
+  .claude/agents/slate-otp-expert.md: sha256:8d750d174dbfa6123d016948e1f61a265dfd6893ef6a543d484b39d9142a966f
+  .claude/agents/slate-otp-performance-expert.md: sha256:7cfb6b1fcacdc044d07d98908cadcdeaca6996159a95274af6f5ebd34d96b383
+  .claude/skills/changelog-entry/SKILL.md: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
+  .github/agents/slate-otp-expert.agent.md: sha256:8d750d174dbfa6123d016948e1f61a265dfd6893ef6a543d484b39d9142a966f
+  .github/agents/slate-otp-performance-expert.agent.md: sha256:7cfb6b1fcacdc044d07d98908cadcdeaca6996159a95274af6f5ebd34d96b383

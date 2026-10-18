@@ -25,6 +25,18 @@ The shared `.github/actions/setup-mise` action installs and caches these tools.
 CI and publish jobs install all configured tools; PR and release jobs install
 only Node.js or Trellis as needed.
 
+## Agent configuration
+
+Edit project skills in `.apm/skills/<name>/SKILL.md` and agent definitions in
+`.apm/agents/<name>.agent.md`. Shared skills and agents come from the
+dependencies in `apm.yml`; do not copy those sources into `.apm/`.
+
+Run `apm install --frozen` to install the locked dependencies and deploy the
+project definitions to the Claude and Copilot targets in `apm.yml`.
+APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
+`.claude/agents/` and `.github/agents/`. Commit the generated files and
+`apm.lock.yaml` with source changes. Do not edit the generated copies.
+
 ## Just tasks
 
 | Task | Command | Description |
