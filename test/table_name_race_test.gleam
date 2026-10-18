@@ -170,7 +170,7 @@ pub fn conflicting_options_after_collision_test() -> Nil {
     let shared = start_ordinary(shared_path, 22, opened, completed)
     let shared_opener = await_paused(breakpoint, [foreign_opener], 1000)
     let _reader =
-      process.spawn(fn() {
+      process.spawn_unlinked(fn() {
         let result =
           set.open_with_access(
             shared_path,
@@ -259,6 +259,29 @@ pub fn collision_winner_closes_before_inspection_test() -> Nil {
   })
 }
 
+pub fn ordinary_worker_failure_is_isolated_test() -> Nil {
+  let path = "test_race_worker_failure.dets"
+  let opened = process.new_subject()
+  let completed = process.new_subject()
+  let worker = start_ordinary(path, 11, opened, completed)
+  let assert Ok(Ok(Opened(_, table))) = process.receive(opened, 5000)
+  let assert Ok(Nil) = set.insert(table, "key", 22)
+  process.send(worker.commands, Nil)
+
+  let selector =
+    process.new_selector()
+    |> process.select_specific_monitor(worker.monitor, fn(down) { down })
+  let down = process.selector_receive(selector, 5000)
+  process.demonitor_process(worker.monitor)
+  test_helper.cleanup(path)
+
+  let assert Ok(process.ProcessDown(_, pid, process.Abnormal(_))) = down
+  assert pid == worker.pid
+  assert process.selector_receive(selector, 0) == Error(Nil)
+  assert process.receive(completed, 0) == Error(Nil)
+  assert test_helper.is_table_open(path) == False
+}
+
 fn start_ordinary(
   path: String,
   value: Int,
@@ -267,7 +290,7 @@ fn start_ordinary(
 ) -> Worker {
   let ready = process.new_subject()
   let pid =
-    process.spawn(fn() {
+    process.spawn_unlinked(fn() {
       let commands = process.new_subject()
       process.send(ready, commands)
       let result =
@@ -308,7 +331,7 @@ fn start_exclusive(
 ) -> Worker {
   let ready = process.new_subject()
   let pid =
-    process.spawn(fn() {
+    process.spawn_unlinked(fn() {
       let commands = process.new_subject()
       process.send(ready, commands)
       let result =

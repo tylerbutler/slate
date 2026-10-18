@@ -15,18 +15,18 @@ pub fn exclusive_session_payload_stays_in_caller_test() -> Nil {
   let path = "test_exclusive_session_payload.dets"
   let value =
     CallbackValue(list.repeat(42, 20_000), Error("callback-owned-value"))
-  let assert Ok(trace) = begin_trace()
-  let result =
-    set.with_exclusive_table(
-      path:,
-      repair: slate.NoRepair,
-      access: slate.ReadWrite,
-      wait: exclusive.Immediate,
-      key_decoder: decode.string,
-      value_decoder: decode.int,
-      callback: fn(_) { Ok(value) },
-    )
-  let messages = end_trace(trace)
+  let #(result, messages) =
+    with_trace(fn() {
+      set.with_exclusive_table(
+        path:,
+        repair: slate.NoRepair,
+        access: slate.ReadWrite,
+        wait: exclusive.Immediate,
+        key_decoder: decode.string,
+        value_decoder: decode.int,
+        callback: fn(_) { Ok(value) },
+      )
+    })
   test_helper.cleanup(path)
   cleanup_sidecar(path)
   assert result == Ok(value)
@@ -53,23 +53,66 @@ pub fn exclusive_session_nested_result_test() -> Nil {
 
 pub fn exclusive_session_original_exception_test() -> Nil {
   let path = "test_exclusive_session_exception.dets"
-  let assert Ok(trace) = begin_trace()
-  assert check_original_exception(fn() {
-      set.with_exclusive_table(
-        path:,
-        repair: slate.NoRepair,
-        access: slate.ReadWrite,
-        wait: exclusive.Immediate,
-        key_decoder: decode.string,
-        value_decoder: decode.int,
-        callback: fn(_) { raise_original() },
-      )
+  let #(Nil, messages) =
+    with_trace(fn() {
+      assert check_original_exception(fn() {
+          set.with_exclusive_table(
+            path:,
+            repair: slate.NoRepair,
+            access: slate.ReadWrite,
+            wait: exclusive.Immediate,
+            key_decoder: decode.string,
+            value_decoder: decode.int,
+            callback: fn(_) { raise_original() },
+          )
+        })
+        == True
     })
-    == True
-  assert end_trace(trace) == True
+  assert messages == True
   assert test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
   cleanup_sidecar(path)
+}
+
+pub fn exclusive_session_trace_return_cleanup_test() -> Nil {
+  let value = Error(CallbackValue([42], Ok("nested")))
+  let #(#(tracer, returned), safe) =
+    with_trace(fn() { #(current_tracer(), value) })
+  assert returned == value
+  assert safe == True
+  assert trace_is_clean(tracer) == True
+}
+
+pub fn exclusive_session_trace_exception_cleanup_test() -> Nil {
+  let tracers = process.new_subject()
+  assert check_original_exception(fn() {
+      with_trace(fn() {
+        process.send(tracers, current_tracer())
+        raise_original()
+      })
+    })
+    == True
+  let assert Ok(tracer) = process.receive(tracers, 0)
+  assert trace_is_clean(tracer) == True
+  // Sequential tests reuse this process; another scope must work immediately.
+  assert with_trace(fn() { 42 }) == #(42, True)
+}
+
+pub fn exclusive_session_trace_assertion_cleanup_test() -> Nil {
+  let tracers = process.new_subject()
+  let unrelated = process.new_subject()
+  process.send(unrelated, "keep")
+  assert check_assertion_exception(fn() {
+      with_trace(fn() {
+        process.send(tracers, current_tracer())
+        assert process.self() == current_tracer()
+      })
+    })
+    == True
+  let assert Ok(tracer) = process.receive(tracers, 0)
+  assert trace_is_clean(tracer) == True
+  assert process.receive(unrelated, 0) == Ok("keep")
+  assert with_trace(fn() { 42 }) == #(42, True)
 }
 
 pub fn exclusive_session_with_close_precedence_test() -> Nil {
@@ -123,13 +166,17 @@ pub fn exclusive_session_with_close_retries_raised_close_test() -> Nil {
   assert process.receive(attempts, 0) == Error(Nil)
 }
 
-type Trace
+@external(erlang, "exclusive_session_test_ffi", "with_trace")
+fn with_trace(callback: fn() -> a) -> #(a, Bool)
 
-@external(erlang, "exclusive_session_test_ffi", "begin_trace")
-fn begin_trace() -> Result(Trace, Nil)
+@external(erlang, "exclusive_session_test_ffi", "current_tracer")
+fn current_tracer() -> process.Pid
 
-@external(erlang, "exclusive_session_test_ffi", "end_trace")
-fn end_trace(trace: Trace) -> Bool
+@external(erlang, "exclusive_session_test_ffi", "trace_is_clean")
+fn trace_is_clean(tracer: process.Pid) -> Bool
+
+@external(erlang, "exclusive_session_test_ffi", "check_assertion_exception")
+fn check_assertion_exception(callback: fn() -> a) -> Bool
 
 @external(erlang, "exclusive_session_test_ffi", "raise_original")
 fn raise_original() -> Result(Nil, slate.DetsError)

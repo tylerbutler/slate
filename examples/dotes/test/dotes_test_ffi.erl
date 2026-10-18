@@ -8,24 +8,24 @@ socket_lifecycle(Store, FailSend) ->
     Reference = make_ref(),
     OnInit = fun(Connection) ->
         {ok, {State = {socket, Component, _}, _} = Initialised} =
-            dotes_web:init_socket(Store),
+            'dotes@web':init_socket(Store),
         {ok, ComponentPid} = 'gleam@erlang@process':subject_owner(Component),
         Parent ! {Reference, component, ComponentPid},
         case FailSend of
             true -> ok = gen_tcp:close(Server);
             false -> ok
         end,
-        Initialised = dotes_web:finish_socket_init(Connection, {ok, Initialised}),
+        Initialised = 'dotes@web':finish_socket_init(Connection, {ok, Initialised}),
         Parent ! {Reference, state, State},
         Initialised
     end,
     OnClose = fun(State) ->
-        dotes_web:close_socket(State),
+        'dotes@web':close_socket(State),
         Parent ! {Reference, closed},
         nil
     end,
     Handler = fun(State, {user, Message}, Connection) ->
-        dotes_web:loop_socket(State, {custom, Message}, Connection)
+        'dotes@web':loop_socket(State, {custom, Message}, Connection)
     end,
     try
         {ok, {started, WebsocketPid, _}} =
@@ -78,7 +78,7 @@ socket_init_failure() ->
             fun(_) -> 'lustre@element':none() end
         ),
         {error, _} = Started = lustre:start_server_component(App, nil),
-        dotes_web:finish_socket_init(Connection, Started)
+        'dotes@web':finish_socket_init(Connection, Started)
     end,
     try
         {error, _} = 'mist@internal@websocket':initialize_connection(
@@ -105,12 +105,12 @@ socket_init_failure() ->
     end.
 
 runtime_file_responses() ->
-    {response, 200, _, _} = dotes_web:serve_runtime(),
+    {response, 200, _, _} = 'dotes@web':serve_runtime(),
     %% This VM is private to the tests; restore its code path even on failure.
     Path = filename:join(code:lib_dir(lustre), "ebin"),
     true = code:del_path(Path),
     try
-        {response, 500, _, _} = dotes_web:serve_runtime(),
+        {response, 500, _, _} = 'dotes@web':serve_runtime(),
         nil
     after
         true = code:add_patha(Path)
