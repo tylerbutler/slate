@@ -82,26 +82,26 @@ fn check_path(
   let assert Ok(table) = open("./unused/../" <> filename, slate.ReadWrite)
   let assert Ok(details) = info(table)
   let actual_path = details.file_path
-  let assert True = details.object_count == 0
-  let assert True = details.file_size > 0
-  let assert True = string.starts_with(actual_path, "/") == True
-  let assert True = string.ends_with(actual_path, "/" <> filename) == True
-  let assert True = string.contains(actual_path, "/unused/../") == False
+  assert details.object_count == 0
+  assert details.file_size > 0
+  assert string.starts_with(actual_path, "/") == True
+  assert string.ends_with(actual_path, "/" <> filename) == True
+  assert string.contains(actual_path, "/unused/../") == False
 
   let assert Ok(alias_table) = open(actual_path, slate.ReadWrite)
   let assert Ok(alias_info) = info(alias_table)
-  let assert True = alias_info.file_path == actual_path
+  assert alias_info.file_path == actual_path
   let assert Ok(Nil) = close(alias_table)
   let assert Ok(still_open_info) = info(table)
-  let assert True = still_open_info.file_path == actual_path
+  assert still_open_info.file_path == actual_path
   let assert Ok(Nil) = close(table)
-  let assert True = info(table) == Error(slate.TableDoesNotExist)
+  assert info(table) == Error(slate.TableDoesNotExist)
 
   let assert Ok(read_only_table) = open(actual_path, slate.ReadOnly)
   let assert Ok(read_only_info) = info(read_only_table)
-  let assert True = read_only_info.file_path == actual_path
-  let assert True = read_only_info.object_count == 0
-  let assert True = read_only_info.file_size > 0
+  assert read_only_info.file_path == actual_path
+  assert read_only_info.object_count == 0
+  assert read_only_info.file_size > 0
   let assert Ok(Nil) = close(read_only_table)
   // Match the byte-list filename convention used by open.
   let assert Ok(Nil) = delete_file(actual_path)

@@ -26,7 +26,7 @@ pub fn bag_insert_lookup_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "color", "red")
   let assert Ok(Nil) = bag.insert(table, "color", "blue")
   let assert Ok(values) = bag.lookup(table, key: "color")
-  let assert True = { values |> list.sort(string.compare) } == ["blue", "red"]
+  assert { values |> list.sort(string.compare) } == ["blue", "red"]
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -36,10 +36,9 @@ pub fn bag_no_duplicates_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert_new(table, "key", "val")
-  let assert True =
-    bag.insert_new(table, "key", "val") == Error(slate.KeyAlreadyPresent)
+  assert bag.insert_new(table, "key", "val") == Error(slate.KeyAlreadyPresent)
   let assert Ok(values) = bag.lookup(table, key: "key")
-  let assert True = { values |> list.length } == 1
+  assert { values |> list.length } == 1
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -48,7 +47,7 @@ pub fn bag_lookup_empty_test() -> Nil {
   let path = "test_bag_lookup_empty.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert True = bag.lookup(table, key: "missing") == Ok([])
+  assert bag.lookup(table, key: "missing") == Ok([])
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -60,8 +59,8 @@ pub fn bag_member_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert(table, "exists", "val")
-  let assert True = bag.member(table, key: "exists") == Ok(True)
-  let assert True = bag.member(table, key: "nope") == Ok(False)
+  assert bag.member(table, key: "exists") == Ok(True)
+  assert bag.member(table, key: "nope") == Ok(False)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -75,7 +74,7 @@ pub fn bag_delete_key_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "key", "a")
   let assert Ok(Nil) = bag.insert(table, "key", "b")
   let assert Ok(Nil) = bag.delete_key(table, key: "key")
-  let assert True = bag.lookup(table, key: "key") == Ok([])
+  assert bag.lookup(table, key: "key") == Ok([])
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -87,7 +86,7 @@ pub fn bag_delete_all_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "a", 1)
   let assert Ok(Nil) = bag.insert(table, "b", 2)
   let assert Ok(Nil) = bag.delete_all(table)
-  let assert True = bag.size(table) == Ok(0)
+  assert bag.size(table) == Ok(0)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -98,11 +97,11 @@ pub fn bag_size_test() -> Nil {
   let path = "test_bag_size.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
-  let assert True = bag.size(table) == Ok(0)
+  assert bag.size(table) == Ok(0)
   let assert Ok(Nil) = bag.insert(table, "a", 1)
   let assert Ok(Nil) = bag.insert(table, "a", 2)
   let assert Ok(Nil) = bag.insert(table, "b", 3)
-  let assert True = bag.size(table) == Ok(3)
+  assert bag.size(table) == Ok(3)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -117,7 +116,7 @@ pub fn bag_fold_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "a", 20)
   let assert Ok(Nil) = bag.insert(table, "b", 30)
   let assert Ok(sum) = bag.fold(table, 0, fn(acc, _key, value) { acc + value })
-  let assert True = sum == 60
+  assert sum == 60
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -135,7 +134,7 @@ pub fn bag_persistence_test() -> Nil {
   let assert Ok(table2) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(values) = bag.lookup(table2, key: "key")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table2)
   test_helper.cleanup(path)
 }
@@ -148,7 +147,7 @@ pub fn bag_info_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert(table, "a", 1)
   let assert Ok(info) = bag.info(table)
-  let assert True = info.object_count == 1
+  assert info.object_count == 1
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -166,7 +165,7 @@ pub fn bag_tuple_values_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "point", #(1, 2))
   let assert Ok(Nil) = bag.insert(table, "point", #(3, 4))
   let assert Ok(values) = bag.lookup(table, key: "point")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -182,7 +181,7 @@ pub fn bag_list_values_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "nums", [1, 2, 3])
   let assert Ok(Nil) = bag.insert(table, "nums", [4, 5, 6])
   let assert Ok(values) = bag.lookup(table, key: "nums")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -203,10 +202,10 @@ pub fn bag_large_dataset_test() -> Nil {
       Nil
     })
   })
-  let assert True = bag.size(table) == Ok(1000)
+  assert bag.size(table) == Ok(1000)
   // Each key should have 10 values
   let assert Ok(values) = bag.lookup(table, key: "0")
-  let assert True = { values |> list.length } == 10
+  assert { values |> list.length } == 10
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -222,7 +221,7 @@ pub fn bag_shared_access_test() -> Nil {
   let assert Ok(Nil) = bag.insert(first_table, "key", "from_t1")
   let assert Ok(Nil) = bag.insert(second_table, "key", "from_t2")
   let assert Ok(values) = bag.lookup(first_table, key: "key")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(first_table)
   let assert Ok(Nil) = bag.close(second_table)
   test_helper.cleanup(path)
@@ -244,7 +243,7 @@ pub fn bag_fold_empty_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(result) = bag.fold(table, 0, fn(acc, _key, _value) { acc + 1 })
-  let assert True = result == 0
+  assert result == 0
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -256,7 +255,7 @@ pub fn bag_insert_list_test() -> Nil {
   let assert Ok(Nil) =
     bag.insert_list(table, [#("k", "a"), #("k", "b"), #("k", "c")])
   let assert Ok(values) = bag.lookup(table, key: "k")
-  let assert True = { values |> list.sort(string.compare) } == ["a", "b", "c"]
+  assert { values |> list.sort(string.compare) } == ["a", "b", "c"]
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -298,29 +297,28 @@ pub fn bag_with_table_close_error_propagates_test() -> Nil {
     Error(_) -> True
     Ok(_) -> False
   }
-  let assert True = close_error_propagated
+  assert close_error_propagated
   test_helper.cleanup(path)
 }
 
 pub fn bag_with_table_panic_still_closes_test() -> Nil {
   let path = "test_bag_with_panic.dets"
-  let assert True =
-    test_helper.did_panic(fn() {
-      let _ =
-        bag.with_table(
-          path,
-          repair: slate.AutoRepair,
-          access: slate.ReadWrite,
-          key_decoder: decode.string,
-          value_decoder: decode.string,
-          callback: fn(table) {
-            let assert Ok(Nil) = bag.insert(table, "key", "val")
-            panic as "boom"
-          },
-        )
-      Nil
-    })
-  let assert True = test_helper.is_table_open(path) == False
+  assert test_helper.did_panic(fn() {
+    let _ =
+      bag.with_table(
+        path,
+        repair: slate.AutoRepair,
+        access: slate.ReadWrite,
+        key_decoder: decode.string,
+        value_decoder: decode.string,
+        callback: fn(table) {
+          let assert Ok(Nil) = bag.insert(table, "key", "val")
+          panic as "boom"
+        },
+      )
+    Nil
+  })
+  assert test_helper.is_table_open(path) == False
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(["val"]) = bag.lookup(table, key: "key")
@@ -330,8 +328,7 @@ pub fn bag_with_table_panic_still_closes_test() -> Nil {
 
 pub fn bag_with_table_open_error_test() -> Nil {
   let path = "missing_bag_with_table_dir/test_bag_with_table_open_error.dets"
-  let assert True =
-    bag.with_table(
+  assert bag.with_table(
       path,
       repair: slate.AutoRepair,
       access: slate.ReadWrite,
@@ -340,8 +337,7 @@ pub fn bag_with_table_open_error_test() -> Nil {
       callback: fn(_table) { Ok(Nil) },
     )
     == Error(slate.FileNotFound(file_error_test_helper.context(path, "enoent")))
-  let assert True = test_helper.is_table_open(path) == False
-  Nil
+  assert test_helper.is_table_open(path) == False
 }
 
 pub fn bag_repair_policies_test() -> Nil {
@@ -372,7 +368,7 @@ pub fn bag_many_values_per_key_test() -> Nil {
     |> list.map(fn(value) { #("single_key", value) })
   let assert Ok(Nil) = bag.insert_list(table, entries)
   let assert Ok(values) = bag.lookup(table, key: "single_key")
-  let assert True = { values |> list.length } == 100
+  assert { values |> list.length } == 100
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }

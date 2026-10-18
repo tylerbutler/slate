@@ -29,17 +29,15 @@ pub fn exclusive_session_payload_stays_in_caller_test() -> Nil {
   let messages = end_trace(trace)
   test_helper.cleanup(path)
   cleanup_sidecar(path)
-  let assert True = result == Ok(value)
+  assert result == Ok(value)
   // The result is a large list rather than just a ref-counted binary. Reject
   // either copying pass without depending on private protocol constructor tags.
-  let assert True = messages == True
-  Nil
+  assert messages == True
 }
 
 pub fn exclusive_session_nested_result_test() -> Nil {
   let path = "test_exclusive_session_nested.dets"
-  let assert True =
-    set.with_exclusive_table(
+  assert set.with_exclusive_table(
       path:,
       repair: slate.NoRepair,
       access: slate.ReadWrite,
@@ -56,8 +54,7 @@ pub fn exclusive_session_nested_result_test() -> Nil {
 pub fn exclusive_session_original_exception_test() -> Nil {
   let path = "test_exclusive_session_exception.dets"
   let assert Ok(trace) = begin_trace()
-  let assert True =
-    check_original_exception(fn() {
+  assert check_original_exception(fn() {
       set.with_exclusive_table(
         path:,
         repair: slate.NoRepair,
@@ -69,64 +66,61 @@ pub fn exclusive_session_original_exception_test() -> Nil {
       )
     })
     == True
-  let assert True = end_trace(trace) == True
-  let assert True = test_helper.is_table_open(path) == False
+  assert end_trace(trace) == True
+  assert test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
   cleanup_sidecar(path)
 }
 
 pub fn exclusive_session_with_close_precedence_test() -> Nil {
   let value = Error(CallbackValue([42], Error("inner error")))
-  let assert True =
-    exclusive_session.with_close(Nil, fn(_) { Ok(value) }, fn(_) { Ok(Nil) })
+  assert exclusive_session.with_close(Nil, fn(_) { Ok(value) }, fn(_) {
+      Ok(Nil)
+    })
     == Ok(value)
-  let assert True =
-    exclusive_session.with_close(Nil, fn(_) { Ok(value) }, fn(_) {
+  assert exclusive_session.with_close(Nil, fn(_) { Ok(value) }, fn(_) {
       Error(slate.TableDoesNotExist)
     })
     == Error(slate.TableDoesNotExist)
-  let assert True =
-    exclusive_session.with_close(Nil, fn(_) { Error(slate.NotFound) }, fn(_) {
-      Ok(Nil)
-    })
+  assert exclusive_session.with_close(
+      Nil,
+      fn(_) { Error(slate.NotFound) },
+      fn(_) { Ok(Nil) },
+    )
     == Error(slate.NotFound)
-  let assert True =
-    exclusive_session.with_close(Nil, fn(_) { Error(slate.NotFound) }, fn(_) {
-      Error(slate.TableDoesNotExist)
-    })
+  assert exclusive_session.with_close(
+      Nil,
+      fn(_) { Error(slate.NotFound) },
+      fn(_) { Error(slate.TableDoesNotExist) },
+    )
     == Error(slate.NotFound)
-  Nil
 }
 
 pub fn exclusive_session_with_close_original_exception_test() -> Nil {
   let attempts = process.new_subject()
-  let assert True =
-    check_original_exception(fn() {
+  assert check_original_exception(fn() {
       exclusive_session.with_close(Nil, fn(_) { raise_original() }, fn(_) {
         process.send(attempts, Nil)
         raise_cleanup()
       })
     })
     == True
-  let assert True = process.receive(attempts, 0) == Ok(Nil)
-  let assert True = process.receive(attempts, 0) == Error(Nil)
-  Nil
+  assert process.receive(attempts, 0) == Ok(Nil)
+  assert process.receive(attempts, 0) == Error(Nil)
 }
 
 pub fn exclusive_session_with_close_retries_raised_close_test() -> Nil {
   let attempts = process.new_subject()
-  let assert True =
-    check_original_exception(fn() {
+  assert check_original_exception(fn() {
       exclusive_session.with_close(Nil, fn(_) { Ok(42) }, fn(_) {
         process.send(attempts, Nil)
         raise_original()
       })
     })
     == True
-  let assert True = process.receive(attempts, 0) == Ok(Nil)
-  let assert True = process.receive(attempts, 0) == Ok(Nil)
-  let assert True = process.receive(attempts, 0) == Error(Nil)
-  Nil
+  assert process.receive(attempts, 0) == Ok(Nil)
+  assert process.receive(attempts, 0) == Ok(Nil)
+  assert process.receive(attempts, 0) == Error(Nil)
 }
 
 type Trace

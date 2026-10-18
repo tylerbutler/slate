@@ -3,7 +3,7 @@ version = "2.1.0"
 description = "Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage)"
 licences = ["MIT"]
 repository = { type = "github", user = "tylerbutler", repo = "slate" }
-gleam = ">= 1.7.0"
+gleam = ">= 1.14.0"
 target = "erlang"
 
 internal_modules = ["slate/internal", "slate/internal/*"]

@@ -25,6 +25,7 @@ When proposing changes:
 - Prefer reusable helpers over duplicated logic across table modules.
 
 Testing expectations:
-- Use existing Gleam/Unitest patterns and built-in `let assert` assertions.
+- Use existing Gleam/Unitest patterns: `assert` for boolean checks and
+  `let assert` for pattern matches.
 - Recommend commands already used in this repo: `gleam test`, `gleam check`, `just ci`.
 - Ensure tests cover success paths, error translation paths, and lifecycle/cleanup behavior.

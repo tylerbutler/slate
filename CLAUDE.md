@@ -129,8 +129,8 @@ gleam test
 ```
 
 Tests create temporary `.dets` files and clean them up after each test.
-Use Gleam's built-in `let assert` syntax to keep tests compatible with the
-minimum Gleam version. Run one file with `gleam test -- test/set_test.gleam`
+Use `assert` for boolean checks and `let assert` for pattern matches.
+Run one file with `gleam test -- test/set_test.gleam`
 or one test with `gleam test -- --test set_test.set_insert_lookup_test`.
 Use `gleam test -- --seed 123` to repeat the same random order.
 Keep the default sequential execution; tests change VM-wide state, so do not

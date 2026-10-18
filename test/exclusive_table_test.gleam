@@ -78,8 +78,7 @@ fn check_session(
   size: fn(table) -> Result(Int, slate.DetsError),
 ) -> Nil {
   test_helper.cleanup(path)
-  let assert True =
-    session(
+  assert session(
       path,
       slate.NoRepair,
       slate.ReadWrite,
@@ -90,10 +89,9 @@ fn check_session(
       },
     )
     == Ok(1)
-  let assert True = test_helper.is_table_open(path) == False
+  assert test_helper.is_table_open(path) == False
 
-  let assert True =
-    session(
+  assert session(
       path,
       slate.NoRepair,
       slate.ReadOnly,
@@ -102,15 +100,13 @@ fn check_session(
     )
     == Ok(1)
 
-  let assert True =
-    session(
+  assert session(
       path,
       slate.NoRepair,
       slate.ReadWrite,
       exclusive.Immediate,
       fn(table) {
-        let assert True =
-          session(
+        assert session(
             path,
             slate.NoRepair,
             slate.ReadOnly,
@@ -137,8 +133,7 @@ fn check_session(
       },
     )
 
-  let assert True =
-    session(
+  assert session(
       path,
       slate.NoRepair,
       slate.ReadOnly,
@@ -146,24 +141,31 @@ fn check_session(
       fn(_table) { Error(slate.NotFound) },
     )
     == Error(exclusive.SessionFailed(exclusive.CallbackFailure(slate.NotFound)))
-  let assert True = test_helper.is_table_open(path) == False
+  assert test_helper.is_table_open(path) == False
 
-  let assert True =
-    session(path, slate.NoRepair, slate.ReadOnly, exclusive.WaitUpTo(-1), fn(_) {
-      panic as "invalid acquisition must not run the callback"
-    })
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.WaitUpTo(-1),
+      fn(_) { panic as "invalid acquisition must not run the callback" },
+    )
     == Error(exclusive.AcquisitionFailed(exclusive.InvalidWait(-1)))
 
-  let assert True =
-    test_helper.did_panic(fn() {
+  assert test_helper.did_panic(fn() {
       session(path, slate.NoRepair, slate.ReadWrite, exclusive.Immediate, fn(_) {
         panic as "exclusive callback failed"
       })
     })
     == True
-  let assert True = test_helper.is_table_open(path) == False
-  let assert True =
-    session(path, slate.NoRepair, slate.ReadOnly, exclusive.Immediate, size)
+  assert test_helper.is_table_open(path) == False
+  assert session(
+      path,
+      slate.NoRepair,
+      slate.ReadOnly,
+      exclusive.Immediate,
+      size,
+    )
     == Ok(1)
   test_helper.cleanup(path)
   cleanup_sidecar(path)
@@ -222,8 +224,7 @@ pub fn exclusive_rejects_existing_unlocked_table_test() -> Nil {
 }
 
 pub fn exclusive_context_error_message_test() -> Nil {
-  let assert True =
-    exclusive.error_message(
+  assert exclusive.error_message(
       exclusive.AcquisitionFailed(
         exclusive.OsFailure(slate.FileErrorContext(
           Some("private-path"),
@@ -232,7 +233,6 @@ pub fn exclusive_context_error_message_test() -> Nil {
       ),
     )
     == "A native table lock operation failed."
-  Nil
 }
 
 pub fn exclusive_decoder_failure_test() -> Nil {
@@ -276,7 +276,7 @@ pub fn exclusive_unicode_info_and_error_test() -> Nil {
       value_decoder: decode.int,
       callback: set.info,
     )
-  let assert True = string.ends_with(info.file_path, path) == True
+  assert string.ends_with(info.file_path, path) == True
   test_helper.cleanup(path)
   let assert Error(exclusive.SessionFailed(exclusive.OpenFailure(slate.FileNotFound(slate.FileErrorContext(
     Some(missing_path),
@@ -291,7 +291,7 @@ pub fn exclusive_unicode_info_and_error_test() -> Nil {
       value_decoder: decode.int,
       callback: fn(_) { panic as "missing unicode callback ran" },
     )
-  let assert True = string.ends_with(missing_path, path) == True
+  assert string.ends_with(missing_path, path) == True
   cleanup_sidecar(path)
 }
 

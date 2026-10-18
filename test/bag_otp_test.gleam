@@ -18,12 +18,10 @@ pub fn bag_insert_deduplicates_test() -> Nil {
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = bag.insert_new(table, "color", "red")
-  let assert True =
-    bag.insert_new(table, "color", "red") == Error(slate.KeyAlreadyPresent)
-  let assert True =
-    bag.insert_new(table, "color", "red") == Error(slate.KeyAlreadyPresent)
+  assert bag.insert_new(table, "color", "red") == Error(slate.KeyAlreadyPresent)
+  assert bag.insert_new(table, "color", "red") == Error(slate.KeyAlreadyPresent)
   let assert Ok(values) = bag.lookup(table, key: "color")
-  let assert True = { values |> list.length } == 1
+  assert { values |> list.length } == 1
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -41,12 +39,11 @@ pub fn bag_many_distinct_values_test() -> Nil {
     Nil
   })
   let assert Ok(values) = bag.lookup(table, key: "color")
-  let assert True = { values |> list.length } == 6
+  assert { values |> list.length } == 6
   // All distinct colors should be present
   colors
   |> list.each(fn(color) {
-    let assert True = list.contains(values, color)
-    Nil
+    assert list.contains(values, color)
   })
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
@@ -61,7 +58,7 @@ pub fn bag_int_key_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, 1, "int_a")
   let assert Ok(Nil) = bag.insert(table, 1, "int_b")
   let assert Ok(values) = bag.lookup(table, key: 1)
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -73,7 +70,7 @@ pub fn bag_float_key_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, 1.0, "float_a")
   let assert Ok(Nil) = bag.insert(table, 1.0, "float_b")
   let assert Ok(values) = bag.lookup(table, key: 1.0)
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -87,7 +84,7 @@ pub fn bag_unicode_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "タグ", "日本語")
   let assert Ok(Nil) = bag.insert(table, "タグ", "英語")
   let assert Ok(values) = bag.lookup(table, key: "タグ")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -103,7 +100,7 @@ pub fn bag_large_values_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "key", big_a)
   let assert Ok(Nil) = bag.insert(table, "key", big_b)
   let assert Ok(values) = bag.lookup(table, key: "key")
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -117,10 +114,10 @@ pub fn bag_delete_key_removes_all_values_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "k", "v1")
   let assert Ok(Nil) = bag.insert(table, "k", "v2")
   let assert Ok(Nil) = bag.insert(table, "k", "v3")
-  let assert True = bag.size(table) == Ok(3)
+  assert bag.size(table) == Ok(3)
   let assert Ok(Nil) = bag.delete_key(table, key: "k")
-  let assert True = bag.size(table) == Ok(0)
-  let assert True = bag.lookup(table, key: "k") == Ok([])
+  assert bag.size(table) == Ok(0)
+  assert bag.lookup(table, key: "k") == Ok([])
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -133,9 +130,9 @@ pub fn bag_delete_all_reuse_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(Nil) = bag.insert_list(table, [#("a", 1), #("a", 2), #("b", 3)])
   let assert Ok(Nil) = bag.delete_all(table)
-  let assert True = bag.size(table) == Ok(0)
+  assert bag.size(table) == Ok(0)
   let assert Ok(Nil) = bag.insert(table, "x", 42)
-  let assert True = bag.size(table) == Ok(1)
+  assert bag.size(table) == Ok(1)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -154,10 +151,10 @@ pub fn bag_persistence_multiple_values_test() -> Nil {
   let assert Ok(table2) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(values) = bag.lookup(table2, key: "tags")
-  let assert True = { values |> list.length } == 3
-  let assert True = list.contains(values, "gleam")
-  let assert True = list.contains(values, "erlang")
-  let assert True = list.contains(values, "beam")
+  assert { values |> list.length } == 3
+  assert list.contains(values, "gleam")
+  assert list.contains(values, "erlang")
+  assert list.contains(values, "beam")
   let assert Ok(Nil) = bag.close(table2)
   test_helper.cleanup(path)
 }
@@ -173,7 +170,7 @@ pub fn bag_size_counts_objects_not_keys_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "k1", "c")
   let assert Ok(Nil) = bag.insert(table, "k2", "x")
   // 4 objects total (3 for k1, 1 for k2)
-  let assert True = bag.size(table) == Ok(4)
+  assert bag.size(table) == Ok(4)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -190,7 +187,7 @@ pub fn bag_fold_all_entries_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, "b", 40)
   let assert Ok(pairs) =
     bag.fold(table, [], fn(acc, key, value) { [#(key, value), ..acc] })
-  let assert True = { pairs |> list.length } == 4
+  assert { pairs |> list.length } == 4
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -204,7 +201,7 @@ pub fn bag_negative_keys_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, -1, "neg_one")
   let assert Ok(Nil) = bag.insert(table, -1, "neg_one_b")
   let assert Ok(values) = bag.lookup(table, key: -1)
-  let assert True = { values |> list.length } == 2
+  assert { values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -223,9 +220,9 @@ pub fn bag_tuple_keys_test() -> Nil {
   let assert Ok(Nil) = bag.insert(table, #("user", 1), "editor")
   let assert Ok(Nil) = bag.insert(table, #("user", 2), "viewer")
   let assert Ok(first_user_roles) = bag.lookup(table, key: #("user", 1))
-  let assert True = { first_user_roles |> list.length } == 2
+  assert { first_user_roles |> list.length } == 2
   let assert Ok(second_user_roles) = bag.lookup(table, key: #("user", 2))
-  let assert True = second_user_roles == ["viewer"]
+  assert second_user_roles == ["viewer"]
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -246,7 +243,7 @@ pub fn bag_many_open_close_cycles_test() -> Nil {
     bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
   let assert Ok(values) = bag.lookup(table, key: "round")
   // Bag keeps distinct values, so we get 10 values
-  let assert True = { values |> list.length } == 10
+  assert { values |> list.length } == 10
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -264,7 +261,7 @@ pub fn bag_with_table_error_propagation_test() -> Nil {
       value_decoder: decode.string,
       callback: fn(_table) { Error(slate.UnexpectedError("test error")) },
     )
-  let assert True = result == Error(slate.UnexpectedError("test error"))
+  assert result == Error(slate.UnexpectedError("test error"))
   test_helper.cleanup(path)
 }
 
@@ -281,12 +278,12 @@ pub fn bag_large_many_keys_test() -> Nil {
       [#(int.to_string(key), key), #(int.to_string(key), key + 1000)]
     })
   let assert Ok(Nil) = bag.insert_list(table, entries)
-  let assert True = bag.size(table) == Ok(1000)
+  assert bag.size(table) == Ok(1000)
   // Each key should have 2 values
   let assert Ok(first_key_values) = bag.lookup(table, key: "0")
-  let assert True = { first_key_values |> list.length } == 2
+  assert { first_key_values |> list.length } == 2
   let assert Ok(last_key_values) = bag.lookup(table, key: "499")
-  let assert True = { last_key_values |> list.length } == 2
+  assert { last_key_values |> list.length } == 2
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }
@@ -297,7 +294,7 @@ pub fn bag_member_empty_test() -> Nil {
   let path = "test_bag_member_empty.dets"
   let assert Ok(table) =
     bag.open(path, key_decoder: decode.string, value_decoder: decode.string)
-  let assert True = bag.member(table, key: "anything") == Ok(False)
+  assert bag.member(table, key: "anything") == Ok(False)
   let assert Ok(Nil) = bag.close(table)
   test_helper.cleanup(path)
 }

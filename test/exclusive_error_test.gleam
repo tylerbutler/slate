@@ -4,34 +4,29 @@ import slate
 import slate/exclusive
 
 pub fn exclusive_error_codes_test() -> Nil {
-  let assert True =
-    exclusive.error_code(exclusive.AcquisitionFailed(exclusive.Busy))
+  assert exclusive.error_code(exclusive.AcquisitionFailed(exclusive.Busy))
     == "lock_busy"
-  let assert True =
-    exclusive.error_code(exclusive.AcquisitionFailed(exclusive.TimedOut))
+  assert exclusive.error_code(exclusive.AcquisitionFailed(exclusive.TimedOut))
     == "lock_timed_out"
-  let assert True =
-    exclusive.error_code(exclusive.AcquisitionFailed(exclusive.InvalidWait(-1)))
+  assert exclusive.error_code(
+      exclusive.AcquisitionFailed(exclusive.InvalidWait(-1)),
+    )
     == "invalid_lock_wait"
-  let assert True =
-    exclusive.error_code(
+  assert exclusive.error_code(
       exclusive.CleanupFailed(Some(exclusive.CallbackFailure(slate.NotFound)), [
         exclusive.CloseFailure(slate.TableDoesNotExist),
       ]),
     )
     == "exclusive_cleanup_failed"
-  Nil
 }
 
 pub fn exclusive_error_message_omits_native_details_test() -> Nil {
-  let assert True =
-    exclusive.error_message(
+  assert exclusive.error_message(
       exclusive.AcquisitionFailed(exclusive.NativeUnavailable(
         "private path and native details",
       )),
     )
     == "The native table lock component could not be loaded."
-  Nil
 }
 
 pub fn exclusive_error_classifiers_test() -> Nil {
@@ -82,9 +77,8 @@ pub fn exclusive_error_classifiers_test() -> Nil {
         exclusive.SessionFailed(exclusive.AcquisitionFailure(error)),
       ],
       fn(error) {
-        let assert True = exclusive.error_code(error) == code
-        let assert True = exclusive.error_message(error) == message
-        Nil
+        assert exclusive.error_code(error) == code
+        assert exclusive.error_message(error) == message
       },
     )
   })
@@ -94,11 +88,9 @@ pub fn exclusive_error_classifiers_test() -> Nil {
       exclusive.SessionFailed(exclusive.CallbackFailure(slate.NotFound)),
     ],
     fn(error) {
-      let assert True =
-        exclusive.error_code(error) == slate.error_code(slate.NotFound)
-      let assert True =
-        exclusive.error_message(error) == slate.error_message(slate.NotFound)
-      Nil
+      assert exclusive.error_code(error) == slate.error_code(slate.NotFound)
+      assert exclusive.error_message(error)
+        == slate.error_message(slate.NotFound)
     },
   )
   list.each(
@@ -109,12 +101,9 @@ pub fn exclusive_error_classifiers_test() -> Nil {
     ],
     fn(failure) {
       let error = exclusive.CleanupFailed(None, [failure])
-      let assert True =
-        exclusive.error_code(error) == "exclusive_cleanup_failed"
-      let assert True =
-        exclusive.error_message(error)
+      assert exclusive.error_code(error) == "exclusive_cleanup_failed"
+      assert exclusive.error_message(error)
         == "Table cleanup failed. Ownership may remain until the VM exits."
-      Nil
     },
   )
 }

@@ -53,8 +53,7 @@ DETS table names are the file path converted to an Erlang atom via `binary_to_at
 - Each test creates a temporary `.dets` file with a unique name and calls `cleanup(path)` at the end (from `test/test_helper.gleam`) to delete it.
 - Test functions are named `{module}_{operation}_test` (e.g., `set_insert_lookup_test`).
 - Assertions use `let assert Ok(...)` for expected-success paths and
-  `let assert True = actual == expected` for specific value checks. Use
-  `let assert` to keep tests compatible with the minimum Gleam version.
+  `assert actual == expected` for specific value checks.
 
 ## Changelog
 

@@ -150,8 +150,7 @@ Tests use [Unitest](https://hexdocs.pm/unitest/) with Gleam's built-in assertion
 - Each test creates a temporary `.dets` file with a unique name.
 - Call `cleanup(path)` from `test/test_helper.gleam` at the end of each test to delete the file.
 - Use `let assert Ok(...)` for expected-success paths.
-- Use `let assert True = actual == expected` for specific value checks. This
-  keeps tests compatible with the minimum Gleam version in `gleam.toml`.
+- Use `assert actual == expected` for specific value checks.
 
 Run a test file with `gleam test -- test/exclusive_table_test.gleam` or a single
 test with `gleam test -- --test exclusive_table_test.set_exclusive_table_test`.

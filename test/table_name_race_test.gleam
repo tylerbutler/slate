@@ -63,11 +63,10 @@ pub fn ordinary_colliding_opens_test() -> Nil {
 
     let assert Ok(Ok(Opened(path: actual_first, ..))) = first_result
     let assert Ok(Ok(Opened(path: actual_second, ..))) = second_result
-    let assert True = actual_first == first_path
-    let assert True = actual_second == second_path
-    let assert True = first_done == Ok(Ok(Nil))
-    let assert True = second_done == Ok(Ok(Nil))
-    Nil
+    assert actual_first == first_path
+    assert actual_second == second_path
+    assert first_done == Ok(Ok(Nil))
+    assert second_done == Ok(Ok(Nil))
   })
 }
 
@@ -100,13 +99,12 @@ pub fn exclusive_unicode_colliding_opens_test() -> Nil {
     test_helper.cleanup(first_path <> ".slate.lock")
     test_helper.cleanup(second_path <> ".slate.lock")
 
-    let assert True = first_done == Ok(Ok(Nil))
-    let assert True = second_done == Ok(Ok(Nil))
+    assert first_done == Ok(Ok(Nil))
+    assert second_done == Ok(Ok(Nil))
     let assert Ok(actual_first) = first_result
     let assert Ok(actual_second) = second_result
-    let assert True = actual_first == first_path
-    let assert True = actual_second == second_path
-    Nil
+    assert actual_first == first_path
+    assert actual_second == second_path
   })
 }
 
@@ -141,7 +139,7 @@ pub fn duplicate_same_path_collision_interleaving_test() -> Nil {
 
     // The second opener keeps the shared table alive after the first closes.
     let assert Ok(Ok(Opened(table: second_table, ..))) = second_result
-    let assert True = set.lookup(second_table, "key") == Ok(22)
+    assert set.lookup(second_table, "key") == Ok(22)
     process.send(second.commands, Nil)
     let second_done = process.receive(completed, 5000)
     await_worker(foreign)
@@ -151,12 +149,11 @@ pub fn duplicate_same_path_collision_interleaving_test() -> Nil {
     test_helper.cleanup(shared_path)
 
     let assert Ok(Ok(Opened(table: first_table, ..))) = first_result
-    let assert True = first_table == second_table
+    assert first_table == second_table
     let assert Ok(Ok(_)) = foreign_result
-    let assert True = foreign_done == Ok(Ok(Nil))
-    let assert True = first_done == Ok(Ok(Nil))
-    let assert True = second_done == Ok(Ok(Nil))
-    Nil
+    assert foreign_done == Ok(Ok(Nil))
+    assert first_done == Ok(Ok(Nil))
+    assert second_done == Ok(Ok(Nil))
   })
 }
 
@@ -220,11 +217,10 @@ pub fn conflicting_options_after_collision_test() -> Nil {
           "incompatible_arguments",
         )),
       )
-    let assert True = reader_result == Ok(expected)
-    let assert True = bag_result == expected
-    let assert True = foreign_done == Ok(Ok(Nil))
-    let assert True = shared_done == Ok(Ok(Nil))
-    Nil
+    assert reader_result == Ok(expected)
+    assert bag_result == expected
+    assert foreign_done == Ok(Ok(Nil))
+    assert shared_done == Ok(Ok(Nil))
   })
 }
 
@@ -258,9 +254,8 @@ pub fn collision_winner_closes_before_inspection_test() -> Nil {
 
     let assert Ok(Ok(_)) = first_result
     let assert Ok(Ok(_)) = second_result
-    let assert True = first_done == Ok(Ok(Nil))
-    let assert True = second_done == Ok(Ok(Nil))
-    Nil
+    assert first_done == Ok(Ok(Nil))
+    assert second_done == Ok(Ok(Nil))
   })
 }
 
@@ -281,9 +276,7 @@ fn start_ordinary(
         Ok(table) -> {
           let assert Ok(Nil) = set.insert(table, "key", value)
           let assert Ok(info) = set.info(table)
-          let assert True =
-            info.file_path == charlist.to_string(canonical_bytes(path))
-          Nil
+          assert info.file_path == charlist.to_string(canonical_bytes(path))
         }
         Error(_) -> Nil
       }
@@ -296,7 +289,7 @@ fn start_ordinary(
         Ok(table) -> {
           let found = set.lookup(table, "key")
           let closed = set.close(table)
-          let assert True = found == Ok(value)
+          assert found == Ok(value)
           closed
         }
         Error(error) -> Error(error)
@@ -329,10 +322,10 @@ fn start_exclusive(
           callback: fn(table) {
             let assert Ok(Nil) = set.insert(table, "key", value)
             let assert Ok(info) = set.info(table)
-            let assert True = info.file_path == canonical_unicode_string(path)
+            assert info.file_path == canonical_unicode_string(path)
             process.send(opened, path)
             let _ = process.receive(commands, 10_000)
-            let assert True = set.lookup(table, "key") == Ok(value)
+            assert set.lookup(table, "key") == Ok(value)
             Ok(Nil)
           },
         )
@@ -349,8 +342,7 @@ fn await_worker(worker: Worker) -> Nil {
     |> process.selector_receive(1000)
   process.demonitor_process(worker.monitor)
   let assert Ok(process.ProcessDown(_, pid, process.Normal)) = down
-  let assert True = pid == worker.pid
-  Nil
+  assert pid == worker.pid
 }
 
 fn colliding_paths(
@@ -367,7 +359,7 @@ fn find_collision(
   seen: dict.Dict(Int, String),
 ) -> #(String, String) {
   // Pigeonhole principle guarantees a collision within 4097 candidates.
-  let assert True = index <= 4096
+  assert index <= 4096
   let path = prefix <> int.to_string(index) <> ".dets"
   let canonical = case encoding {
     LegacyBytes -> canonical_bytes(path)
@@ -393,7 +385,7 @@ fn await_paused(
   previous: List(Pid),
   remaining: Int,
 ) -> Pid {
-  let assert True = remaining > 0 as "opener did not reach DETS breakpoint"
+  assert remaining > 0 as "opener did not reach DETS breakpoint"
   case
     paused_openers(breakpoint)
     |> list.find(fn(pid) { !list.contains(previous, pid) })
