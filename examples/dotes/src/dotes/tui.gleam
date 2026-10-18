@@ -23,6 +23,13 @@ pub type Screen {
   ConfirmDelete(id: Int)
 }
 
+/// A status message and its meaning.
+pub type Status {
+  NoStatus
+  Success(String)
+  Failure(String)
+}
+
 /// Terminal state, separate from commands so updates can be tested directly.
 pub type Model {
   Model(
@@ -36,8 +43,7 @@ pub type Model {
     title_input: String,
     body_input: String,
     tag_input: String,
-    status_message: String,
-    status_is_error: Bool,
+    status: Status,
   )
 }
 
@@ -107,8 +113,7 @@ pub fn init(store: Store) -> #(Model, List(fn() -> Message)) {
       title_input: "",
       body_input: "",
       tag_input: "",
-      status_message: "",
-      status_is_error: False,
+      status: NoStatus,
     )
   #(model, [load_notes_command(store)])
 }
@@ -190,10 +195,7 @@ pub fn update(
       let index = clamp_index(model.selected_index, notes)
       #(Model(..model, notes: notes, selected_index: index), [])
     }
-    NotesLoaded(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      [],
-    )
+    NotesLoaded(Error(e)) -> #(Model(..model, status: Failure(e)), [])
 
     NoteDetailLoaded(id, result) ->
       case model.screen {
@@ -209,12 +211,7 @@ pub fn update(
               [],
             )
             Error(error) -> #(
-              Model(
-                ..model,
-                status_message: error,
-                status_is_error: True,
-                screen: NoteList,
-              ),
+              Model(..model, status: Failure(error), screen: NoteList),
               [load_notes_command(model.store)],
             )
           }
@@ -233,7 +230,7 @@ pub fn update(
         title_input: "",
         body_input: "",
         tag_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       [load_notes_command(model.store)],
     )
@@ -243,7 +240,7 @@ pub fn update(
         screen: NoteCreate,
         title_input: "",
         body_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       [],
     )
@@ -255,7 +252,7 @@ pub fn update(
         detail_tags: [],
         detail_history: [],
         tag_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       [load_detail_command(model.store, id)],
     )
@@ -265,12 +262,7 @@ pub fn update(
         Error(_) -> ""
       }
       #(
-        Model(
-          ..model,
-          screen: NoteEdit(id),
-          body_input: body,
-          status_message: "",
-        ),
+        Model(..model, screen: NoteEdit(id), body_input: body, status: NoStatus),
         [],
       )
     }
@@ -320,15 +312,11 @@ pub fn update(
         screen: NoteList,
         title_input: "",
         body_input: "",
-        status_message: "Created note #" <> int.to_string(id),
-        status_is_error: False,
+        status: Success("Created note #" <> int.to_string(id)),
       ),
       [load_notes_command(model.store)],
     )
-    NoteCreated(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      [],
-    )
+    NoteCreated(Error(e)) -> #(Model(..model, status: Failure(e)), [])
 
     NoteUpdated(id, result) ->
       case model.screen {
@@ -339,15 +327,11 @@ pub fn update(
                 ..model,
                 screen: NoteDetail(id),
                 detail_note: Error(Nil),
-                status_message: "Note updated",
-                status_is_error: False,
+                status: Success("Note updated"),
               ),
               [load_detail_command(model.store, id)],
             )
-            Error(error) -> #(
-              Model(..model, status_message: error, status_is_error: True),
-              [],
-            )
+            Error(error) -> #(Model(..model, status: Failure(error)), [])
           }
         NoteList
         | NoteCreate
@@ -361,15 +345,11 @@ pub fn update(
         ..model,
         screen: NoteList,
         selected_index: 0,
-        status_message: "Note deleted",
-        status_is_error: False,
+        status: Success("Note deleted"),
       ),
       [load_notes_command(model.store)],
     )
-    NoteDeleted(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
-      [],
-    )
+    NoteDeleted(Error(e)) -> #(Model(..model, status: Failure(e)), [])
 
     TagToggled(id, result) ->
       case model.screen {
@@ -380,20 +360,11 @@ pub fn update(
                 True -> "Tag added"
                 False -> "Tag removed"
               }
-              #(
-                Model(
-                  ..model,
-                  tag_input: "",
-                  status_message: message,
-                  status_is_error: False,
-                ),
-                [load_detail_command(model.store, id)],
-              )
+              #(Model(..model, tag_input: "", status: Success(message)), [
+                load_detail_command(model.store, id),
+              ])
             }
-            Error(error) -> #(
-              Model(..model, status_message: error, status_is_error: True),
-              [],
-            )
+            Error(error) -> #(Model(..model, status: Failure(error)), [])
           }
         NoteList
         | NoteCreate
@@ -649,14 +620,9 @@ fn view_exit_hint() -> shore.Node(Message) {
 }
 
 fn view_status(model: Model) -> shore.Node(Message) {
-  case model.status_message {
-    "" -> ui.text("")
-    message -> {
-      let color = case model.status_is_error {
-        True -> Some(style.Red)
-        False -> Some(style.Green)
-      }
-      ui.text_styled(message, color, None)
-    }
+  case model.status {
+    NoStatus -> ui.text("")
+    Success(message) -> ui.text_styled(message, Some(style.Green), None)
+    Failure(message) -> ui.text_styled(message, Some(style.Red), None)
   }
 }

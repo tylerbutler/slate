@@ -1,6 +1,6 @@
 import dotes/store
-import dotes_tui as tui
-import dotes_web as web
+import dotes/tui
+import dotes/web
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/erlang/process
@@ -27,6 +27,7 @@ pub fn tui_async_success_test() -> Nil {
   assert completion == tui.NoteUpdated(1, Ok(Nil))
   let #(detail, commands) = tui.update(editing, completion)
   assert detail.screen == tui.NoteDetail(1)
+  assert detail.status == tui.Success("Note updated")
   let assert [load] = commands
   let assert #(loaded, []) = tui.update(detail, load())
   let assert Ok(note) = loaded.detail_note
@@ -37,16 +38,19 @@ pub fn tui_async_success_test() -> Nil {
   let assert #(tagged, [refresh]) =
     tui.update(tagging, tui.TagToggled(1, Ok(True)))
   assert tagged.tag_input == ""
+  assert tagged.status == tui.Success("Tag added")
   let #(refreshed, _) = tui.update(tagged, refresh())
   assert refreshed.detail_tags == ["tag"]
   let assert #(edit_error, []) =
     tui.update(editing, tui.NoteUpdated(1, Error("save failed")))
   assert edit_error.screen == tui.NoteEdit(1)
-  assert edit_error.status_message == "save failed"
+  assert edit_error.status == tui.Failure("save failed")
   let assert #(tag_error, []) =
     tui.update(tagging, tui.TagToggled(1, Error("tag failed")))
   assert tag_error.tag_input == "tag"
-  assert tag_error.status_message == "tag failed"
+  assert tag_error.status == tui.Failure("tag failed")
+  let #(list, _) = tui.update(tag_error, tui.GoToList)
+  assert list.status == tui.NoStatus
 }
 
 pub fn tui_late_completions_test() -> Nil {
@@ -88,7 +92,7 @@ pub fn tui_late_completions_test() -> Nil {
   let #(failed, _) =
     tui.update(loading, tui.NoteDetailLoaded(2, Error("missing")))
   assert failed.screen == tui.NoteList
-  assert failed.status_message == "missing"
+  assert failed.status == tui.Failure("missing")
   let detail = tui.Model(..initial, screen: tui.NoteDetail(1))
   let #(unchanged, _) = tui.update(detail, tui.NoteUpdated(1, Ok(Nil)))
   assert unchanged == detail
@@ -110,6 +114,7 @@ pub fn web_async_success_test() -> Nil {
   assert completion == web.NoteUpdated(1, Ok(Nil))
   let #(detail, load) = web.update(editing, completion)
   assert detail.screen == web.NoteDetail(1)
+  assert detail.status == web.Success("Note updated")
   let assert Ok(completion) = run_effect(load)
   let #(loaded, _) = web.update(detail, completion)
   let assert Ok(note) = loaded.detail_note
@@ -119,19 +124,22 @@ pub fn web_async_success_test() -> Nil {
   assert run_effect(toggle) == Ok(web.TagToggled(1, Ok(True)))
   let #(tagged, refresh) = web.update(tagging, web.TagToggled(1, Ok(True)))
   assert tagged.tag_input == ""
+  assert tagged.status == web.Success("Tag added")
   let assert Ok(completion) = run_effect(refresh)
   let #(refreshed, _) = web.update(tagged, completion)
   assert refreshed.detail_tags == ["tag"]
   let #(edit_error, effect) =
     web.update(editing, web.NoteUpdated(1, Error("save failed")))
   assert edit_error.screen == web.NoteEdit(1)
-  assert edit_error.status_message == "save failed"
+  assert edit_error.status == web.Failure("save failed")
   assert run_effect(effect) == Error(Nil)
   let #(tag_error, effect) =
     web.update(tagging, web.TagToggled(1, Error("tag failed")))
   assert tag_error.tag_input == "tag"
-  assert tag_error.status_message == "tag failed"
+  assert tag_error.status == web.Failure("tag failed")
   assert run_effect(effect) == Error(Nil)
+  let #(list, _) = web.update(tag_error, web.GoToList)
+  assert list.status == web.NoStatus
 }
 
 pub fn web_late_completions_test() -> Nil {
@@ -173,7 +181,7 @@ pub fn web_late_completions_test() -> Nil {
   let #(failed, _) =
     web.update(loading, web.NoteDetailLoaded(2, Error("missing")))
   assert failed.screen == web.NoteList
-  assert failed.status_message == "missing"
+  assert failed.status == web.Failure("missing")
   let detail = web.Model(..initial, screen: web.NoteDetail(1))
   let #(unchanged, effect) = web.update(detail, web.NoteUpdated(1, Ok(Nil)))
   assert unchanged == detail

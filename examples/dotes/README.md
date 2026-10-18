@@ -9,7 +9,7 @@ A simple note-taking CLI built with [slate](https://github.com/tylerbutler/slate
 Launch the interactive terminal UI:
 
 ```sh
-gleam run -m dotes_tui
+gleam run -m dotes/tui
 ```
 
 > **Note:** The TUI requires Erlang/OTP 28+ (via [Shore](https://hex.pm/packages/shore)).
@@ -22,7 +22,7 @@ Navigate with arrow keys, press `n` to create notes, `Enter` to view details,
 Launch the web interface:
 
 ```sh
-gleam run -m dotes_web
+gleam run -m dotes/web
 ```
 
 Then open [http://localhost:3000](http://localhost:3000) in your browser. Uses

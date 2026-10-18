@@ -33,6 +33,13 @@ pub type Screen {
   ConfirmDelete(id: Int)
 }
 
+/// A status message and its meaning.
+pub type Status {
+  NoStatus
+  Success(String)
+  Failure(String)
+}
+
 /// Browser state, separate from effects so updates can be tested directly.
 pub type Model {
   Model(
@@ -45,8 +52,7 @@ pub type Model {
     title_input: String,
     body_input: String,
     tag_input: String,
-    status_message: String,
-    status_is_error: Bool,
+    status: Status,
   )
 }
 
@@ -290,8 +296,7 @@ pub fn init(store: Store) -> #(Model, Effect(Message)) {
       title_input: "",
       body_input: "",
       tag_input: "",
-      status_message: "",
-      status_is_error: False,
+      status: NoStatus,
     )
   #(model, load_notes_effect(store))
 }
@@ -368,7 +373,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     // Data loaded
     NotesLoaded(Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
     NotesLoaded(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
+      Model(..model, status: Failure(e)),
       effect.none(),
     )
 
@@ -386,12 +391,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
               effect.none(),
             )
             Error(error) -> #(
-              Model(
-                ..model,
-                status_message: error,
-                status_is_error: True,
-                screen: NoteList,
-              ),
+              Model(..model, status: Failure(error), screen: NoteList),
               load_notes_effect(model.store),
             )
           }
@@ -410,7 +410,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         title_input: "",
         body_input: "",
         tag_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       load_notes_effect(model.store),
     )
@@ -420,7 +420,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         screen: NoteCreate,
         title_input: "",
         body_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       effect.none(),
     )
@@ -432,7 +432,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         detail_tags: [],
         detail_history: [],
         tag_input: "",
-        status_message: "",
+        status: NoStatus,
       ),
       load_detail_effect(model.store, id),
     )
@@ -442,12 +442,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         Error(_) -> ""
       }
       #(
-        Model(
-          ..model,
-          screen: NoteEdit(id),
-          body_input: body,
-          status_message: "",
-        ),
+        Model(..model, screen: NoteEdit(id), body_input: body, status: NoStatus),
         effect.none(),
       )
     }
@@ -483,13 +478,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         screen: NoteList,
         title_input: "",
         body_input: "",
-        status_message: "Created note #" <> int.to_string(id),
-        status_is_error: False,
+        status: Success("Created note #" <> int.to_string(id)),
       ),
       load_notes_effect(model.store),
     )
     NoteCreated(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
+      Model(..model, status: Failure(e)),
       effect.none(),
     )
 
@@ -502,13 +496,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                 ..model,
                 screen: NoteDetail(id),
                 detail_note: Error(Nil),
-                status_message: "Note updated",
-                status_is_error: False,
+                status: Success("Note updated"),
               ),
               load_detail_effect(model.store, id),
             )
             Error(error) -> #(
-              Model(..model, status_message: error, status_is_error: True),
+              Model(..model, status: Failure(error)),
               effect.none(),
             )
           }
@@ -520,16 +513,11 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       }
 
     NoteDeleted(Ok(Nil)) -> #(
-      Model(
-        ..model,
-        screen: NoteList,
-        status_message: "Note deleted",
-        status_is_error: False,
-      ),
+      Model(..model, screen: NoteList, status: Success("Note deleted")),
       load_notes_effect(model.store),
     )
     NoteDeleted(Error(e)) -> #(
-      Model(..model, status_message: e, status_is_error: True),
+      Model(..model, status: Failure(e)),
       effect.none(),
     )
 
@@ -543,17 +531,12 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                 False -> "Tag removed"
               }
               #(
-                Model(
-                  ..model,
-                  tag_input: "",
-                  status_message: message,
-                  status_is_error: False,
-                ),
+                Model(..model, tag_input: "", status: Success(message)),
                 load_detail_effect(model.store, id),
               )
             }
             Error(error) -> #(
-              Model(..model, status_message: error, status_is_error: True),
+              Model(..model, status: Failure(error)),
               effect.none(),
             )
           }
@@ -800,15 +783,12 @@ fn key_value_row(key: String, value: String) -> Element(Message) {
 }
 
 fn view_status(model: Model) -> Element(Message) {
-  case model.status_message {
-    "" -> element.none()
-    message -> {
-      let class = case model.status_is_error {
-        True -> "status error"
-        False -> "status success"
-      }
-      html.div([attribute.class(class)], [html.text(message)])
-    }
+  case model.status {
+    NoStatus -> element.none()
+    Success(message) ->
+      html.div([attribute.class("status success")], [html.text(message)])
+    Failure(message) ->
+      html.div([attribute.class("status error")], [html.text(message)])
   }
 }
 

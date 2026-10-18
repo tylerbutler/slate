@@ -127,5 +127,7 @@ pub fn pool_reopen_same_path_test() -> Nil {
   assert value == "from_first_open"
 
   let assert Ok(Nil) = set.close(table1)
+  let assert Ok(Nil) = set.close(table2)
+  assert test_helper.is_table_open(path) == False
   test_helper.cleanup(path)
 }
