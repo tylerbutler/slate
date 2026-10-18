@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.2.0 - 2026-10-18
+
+### Added
+
+#### Raised the minimum supported Gleam version from 1.7.0 to 1.14.0.
+
+Use Gleam 1.14.0 or later to build slate. The public API is unchanged.
+
 ## 2.1.0 - 2026-10-11
 
 ### Added
