@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Preserved typed traversal errors and Result-shaped fold accumulators."

@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Prevented same-VM opens and closes from overlapping on the same DETS file."

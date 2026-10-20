@@ -1,10 +1,131 @@
 import gleam/dynamic/decode
+import gleam/erlang/process
 import gleam/list
 import gleam/string
+import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
 import test_helper
+
+pub fn set_result_shaped_accumulators_test() -> Nil {
+  let path = "test_set_result_accumulators.dets"
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.int, value_decoder: decode.int)
+  check_accumulator(
+    fn(initial, callback) { set.fold_results(table, initial, callback) },
+    Error(0),
+    0,
+  )
+  let assert Ok(Nil) = set.insert_list(table, [#(1, 1), #(2, 2), #(3, 3)])
+  check_accumulator(
+    fn(initial, callback) { set.fold_results(table, initial, callback) },
+    Error(0),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) { set.fold_results(table, initial, callback) },
+    Error(slate.DecodeErrors([])),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) { set.fold_results(table, initial, callback) },
+    Ok(Error(Ok(7))),
+    3,
+  )
+  assert set.fold(table, Error(0), fn(_, _, _) { Error(1) }) == Ok(Error(1))
+  let assert Ok(Nil) = set.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_result_shaped_accumulators_test() -> Nil {
+  let path = "test_bag_result_accumulators.dets"
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
+  check_accumulator(
+    fn(initial, callback) { bag.fold_results(table, initial, callback) },
+    Error(0),
+    0,
+  )
+  let assert Ok(Nil) = bag.insert_list(table, [#(1, 1), #(2, 2), #(3, 3)])
+  check_accumulator(
+    fn(initial, callback) { bag.fold_results(table, initial, callback) },
+    Error(0),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) { bag.fold_results(table, initial, callback) },
+    Error(slate.DecodeErrors([])),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) { bag.fold_results(table, initial, callback) },
+    Ok(Error(Ok(7))),
+    3,
+  )
+  assert bag.fold(table, Error(0), fn(_, _, _) { Error(1) }) == Ok(Error(1))
+  let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn duplicate_bag_result_shaped_accumulators_test() -> Nil {
+  let path = "test_duplicate_bag_result_accumulators.dets"
+  let assert Ok(table) =
+    duplicate_bag.open(path, key_decoder: decode.int, value_decoder: decode.int)
+  check_accumulator(
+    fn(initial, callback) {
+      duplicate_bag.fold_results(table, initial, callback)
+    },
+    Error(0),
+    0,
+  )
+  let assert Ok(Nil) =
+    duplicate_bag.insert_list(table, [#(1, 1), #(2, 2), #(3, 3)])
+  check_accumulator(
+    fn(initial, callback) {
+      duplicate_bag.fold_results(table, initial, callback)
+    },
+    Error(0),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) {
+      duplicate_bag.fold_results(table, initial, callback)
+    },
+    Error(slate.DecodeErrors([])),
+    3,
+  )
+  check_accumulator(
+    fn(initial, callback) {
+      duplicate_bag.fold_results(table, initial, callback)
+    },
+    Ok(Error(Ok(7))),
+    3,
+  )
+  assert duplicate_bag.fold(table, Error(0), fn(_, _, _) { Error(1) })
+    == Ok(Error(1))
+  let assert Ok(Nil) = duplicate_bag.close(table)
+  test_helper.cleanup(path)
+}
+
+fn check_accumulator(
+  fold: fn(acc, fn(acc, Result(#(Int, Int), List(decode.DecodeError))) -> acc) ->
+    Result(acc, slate.DetsError),
+  initial: acc,
+  count: Int,
+) -> Nil {
+  let visits = process.new_subject()
+  assert fold(initial, fn(accumulator, entry) {
+      let assert Ok(_) = entry
+      process.send(visits, Nil)
+      accumulator
+    })
+    == Ok(initial)
+  list.each(test_helper.range(1, count), fn(_) {
+    assert process.receive(visits, 0) == Ok(Nil)
+  })
+  assert process.receive(visits, 0) == Error(Nil)
+}
 
 // ── Success path ────────────────────────────────────────────────────────
 

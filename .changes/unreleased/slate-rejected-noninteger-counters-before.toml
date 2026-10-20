@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Rejected noninteger counters before mutation and coordinated writes within each table."

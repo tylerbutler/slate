@@ -317,11 +317,14 @@ pub fn fold_results(
 ) -> Result(acc, DetsError) {
   let entry_decoder =
     internal.tuple_decoder(table.key_decoder, table.value_decoder)
-  let wrapper = fn(entry: Dynamic, accumulator: acc) {
-    let decoded = decode.run(entry, entry_decoder)
-    callback(accumulator, decoded)
+  // The outer Result belongs to traversal, never to the user's accumulator.
+  let wrapper = fn(entry: Dynamic, accumulator: Result(acc, DetsError)) {
+    result.map(accumulator, fn(value) {
+      callback(value, decode.run(entry, entry_decoder))
+    })
   }
-  ffi_fold(table.reference, wrapper, initial)
+  ffi_fold(table.reference, wrapper, Ok(initial))
+  |> result.flatten
 }
 
 /// Return the number of stored entries, not the number of distinct keys.

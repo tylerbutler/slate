@@ -1,9 +1,19 @@
 import gleam/dynamic/decode
+import gleam/list
 import gleam/string
 import slate
 import slate/bag
 import slate/duplicate_bag
 import slate/set
+
+pub fn absolute_root_normalization_test() -> Nil {
+  list.each(root_cases(), fn(example) {
+    let #(input, expected) = example
+    assert canonical_path(input) == expected
+    assert canonical_path(expected) == expected
+    assert is_absolute(canonical_path(input))
+  })
+}
 
 pub fn set_info_path_test() -> Nil {
   check_path(
@@ -84,14 +94,21 @@ fn check_path(
   let actual_path = details.file_path
   assert details.object_count == 0
   assert details.file_size > 0
-  assert string.starts_with(actual_path, "/") == True
+  assert is_absolute(actual_path)
   assert string.ends_with(actual_path, "/" <> filename) == True
   assert string.contains(actual_path, "/unused/../") == False
 
   let assert Ok(alias_table) = open(actual_path, slate.ReadWrite)
+  assert same_table(table, alias_table)
   let assert Ok(alias_info) = info(alias_table)
   assert alias_info.file_path == actual_path
   let assert Ok(Nil) = close(alias_table)
+  let parent_alias = above_root_alias(actual_path)
+  assert canonical_path(parent_alias) == actual_path
+  assert canonical_path(canonical_path(parent_alias)) == actual_path
+  let assert Ok(parent_table) = open(parent_alias, slate.ReadWrite)
+  assert same_table(table, parent_table)
+  let assert Ok(Nil) = close(parent_table)
   let assert Ok(still_open_info) = info(table)
   assert still_open_info.file_path == actual_path
   let assert Ok(Nil) = close(table)
@@ -112,3 +129,18 @@ type FileDeleteError
 
 @external(erlang, "path_test_ffi", "delete_file")
 fn delete_file(path: String) -> Result(Nil, FileDeleteError)
+
+@external(erlang, "path_test_ffi", "is_absolute")
+fn is_absolute(path: String) -> Bool
+
+@external(erlang, "path_test_ffi", "canonical_path")
+fn canonical_path(path: String) -> String
+
+@external(erlang, "path_test_ffi", "above_root_alias")
+fn above_root_alias(path: String) -> String
+
+@external(erlang, "path_test_ffi", "root_cases")
+fn root_cases() -> List(#(String, String))
+
+@external(erlang, "path_test_ffi", "same_table")
+fn same_table(first: table, second: table) -> Bool

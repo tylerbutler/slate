@@ -371,6 +371,20 @@ The top-level `slate` module also provides:
   Simultaneous unlocked access can lose writes or damage the file. Exclusive
   sessions require qualified local storage; network filesystems are unsupported.
 
+Slate coordinates writes to each table within one VM. Counter validation and
+increment share that coordination with inserts and deletes, so a rejected
+noninteger counter remains unchanged. Reads and operations on other tables stay
+independent. Raw `dets:*` writes bypass this coordination. It does not replace
+exclusive sessions across VMs or provide multi-operation transactions.
+
+Slate keeps a VM-wide reservation for each active table path until its DETS
+process and pending opens finish. A close caller's death does not release that
+reservation while the file can still be written. If the private lifetime service
+fails, new opens return `UnexpectedError`; existing reads and cleanup closes
+remain available. Restart the VM to recover. Do not restart an empty lifetime
+service or hot-upgrade from an older implementation while table work is active.
+A stuck native open or close can block later work on the same path.
+
 By default, DETS saves a table after three minutes without table access.
 Call `sync` and handle its result when you need to write pending updates to disk
 before continuing.

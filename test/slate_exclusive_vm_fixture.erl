@@ -175,7 +175,9 @@ add_user(Table, Main) ->
 await_close(Guardian, Deadline) ->
     {current_stacktrace, Stack} = process_info(Guardian, current_stacktrace),
     case lists:any(fun
-        ({slate_dets_ffi, close, _, _}) -> true;
+        %% close/1 tail-calls the mutation gate; this frame proves the guardian
+        %% has acquired it and is waiting in the actual DETS close operation.
+        ({slate_dets_ffi, close_unlocked, _, _}) -> true;
         (_) -> false
     end, Stack) of
         true -> ok;

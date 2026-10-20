@@ -25,7 +25,7 @@ Both `fold` and `to_list` use a fail-fast strategy:
 - `to_list` calls `list.try_map` over decoded entries — stops at the first error.
 - `fold` wraps the user callback so that a decode error returns
   `Error(DecodeErrors(...))`, which the FFI layer catches via
-  `throw({slate_fold_abort, Err})` to immediately abort the `dets:foldl`
+  a private abort tag to stop the `dets:foldl`
   iteration.
 
 This is the correct default for the common case where all records should decode
@@ -48,7 +48,7 @@ implement any of these strategies themselves.
 ## Decision
 
 Add a `fold_results` function to `set`, `bag`, and `duplicate_bag`. Keep the
-existing `fold` and `to_list` unchanged.
+existing public contracts of `fold` and `to_list`.
 
 ### Signature
 
@@ -76,10 +76,23 @@ tuple, count of errors, etc.). This keeps the API surface small.
 - Users dealing with schema drift or mixed-type tables can recover healthy
   records without losing the entire read.
 - The existing `fold` and `to_list` remain the simple, recommended default.
-- No FFI changes required — the same `slate_dets_ffi:fold/3` function is reused. The
-  Gleam wrapper simply never returns an error result to the FFI, so it never
-  triggers the abort path.
+- Reuse `slate_dets_ffi:fold/3` with a traversal-owned outer success value.
+  A user accumulator can itself be an `Error` or a nested `Result`; it must not
+  trigger the internal abort path.
 - Added to all three table modules to maintain API symmetry.
+
+### Accumulator and storage-error boundaries
+
+The original implementation passed the arbitrary accumulator to the FFI without
+an outer wrapper. An `Error` accumulator therefore stopped traversal after the
+first entry. Each `fold_results` wrapper must keep user values inside its own
+success result.
+
+DETS can also return an error tuple from `foldl` instead of raising. The FFI
+uses a private reference-tagged accumulator to distinguish successful traversal
+from those storage errors and translates failures into `DetsError`. `to_list`
+checks for returned errors before accepting a list. Callback exceptions still
+propagate with their original stack.
 
 ## Alternatives considered
 

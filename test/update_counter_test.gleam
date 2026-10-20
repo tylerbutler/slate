@@ -6,6 +6,38 @@ import slate
 import slate/set
 import test_helper
 
+pub fn update_counter_float_is_unchanged_test() -> Nil {
+  let path = "test_counter_float.dets"
+  let assert Ok(writer) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.float)
+  let assert Ok(Nil) = set.insert(writer, "hits", 1.5)
+  let assert Ok(Nil) = set.close(writer)
+  let assert Ok(counter) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  assert set.update_counter(counter, "hits", 1)
+    == Error(set.CounterValueNotInteger)
+  let assert Ok(Nil) = set.close(counter)
+  let assert Ok(reader) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.float)
+  assert set.lookup(reader, "hits") == Ok(1.5)
+  let assert Ok(Nil) = set.close(reader)
+
+  let assert Ok(read_only) =
+    set.open_with_access(
+      path,
+      slate.AutoRepair,
+      slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
+  let assert Error(set.TableError(slate.AccessDenied(_))) =
+    set.update_counter(read_only, "hits", 1)
+  let assert Error(set.TableError(slate.AccessDenied(_))) =
+    set.update_counter(read_only, "missing", 1)
+  let assert Ok(Nil) = set.close(read_only)
+  test_helper.cleanup(path)
+}
+
 // ── Basic increment ─────────────────────────────────────────────────────
 
 pub fn update_counter_basic_test() -> Nil {
@@ -161,11 +193,7 @@ pub fn update_counter_large_increment_test() -> Nil {
 pub fn update_counter_non_integer_value_test() -> Nil {
   let path = "test_counter_nonint.dets"
   let assert Ok(table) =
-    set.open(
-      path,
-      key_decoder: decode.string,
-      value_decoder: test_helper.unsafe_decoder(),
-    )
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
   let assert Ok(Nil) = set.insert(table, "hits", "not_an_int")
   let assert Ok(Nil) = set.close(table)
 
@@ -174,5 +202,9 @@ pub fn update_counter_non_integer_value_test() -> Nil {
   let result = set.update_counter(table2, "hits", 1)
   assert result == Error(set.CounterValueNotInteger)
   let assert Ok(Nil) = set.close(table2)
+  let assert Ok(reader) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.string)
+  assert set.lookup(reader, "hits") == Ok("not_an_int")
+  let assert Ok(Nil) = set.close(reader)
   test_helper.cleanup(path)
 }
