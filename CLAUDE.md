@@ -145,6 +145,7 @@ Managed via mise with `.mise.toml` as the source of truth for local setup and CI
 - Gleam 1.19.1
 - just 1.38.0
 - Node.js 22
+- Rebar3 3.27.0 (for the dotes example's Erlang dependencies)
 - Trellis: `github:tylerbutler/trellis` in `.mise.toml`
 
 The shared `.github/actions/setup-mise` action installs and caches tools.

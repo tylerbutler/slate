@@ -25,6 +25,10 @@ The shared `.github/actions/setup-mise` action installs and caches these tools.
 CI and publish jobs install all configured tools; PR and release jobs install
 only Node.js or Trellis as needed.
 
+Rebar3 builds the Erlang HTTP dependencies in `examples/dotes`. The mise
+configuration includes it so a clean example build does not depend on a
+previously compiled dependency cache.
+
 ## Agent configuration
 
 Edit project skills in `.apm/skills/<name>/SKILL.md` and agent definitions in

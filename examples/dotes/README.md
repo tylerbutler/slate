@@ -4,10 +4,11 @@ A simple note-taking CLI built with [slate](https://github.com/tylerbutler/slate
 
 ## Running
 
-Build Slate's native lock component from the repository root before running
-this example:
+Install the pinned tools, including Rebar3 for the Erlang HTTP dependencies,
+then build Slate's native lock component from the repository root:
 
 ```sh
+mise install
 just native-build
 cd examples/dotes
 ```
