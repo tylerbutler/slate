@@ -4,6 +4,18 @@ A simple note-taking CLI built with [slate](https://github.com/tylerbutler/slate
 
 ## Running
 
+Build Slate's native lock component from the repository root before running
+this example:
+
+```sh
+just native-build
+cd examples/dotes
+```
+
+Run the commands below from `examples/dotes`. Dotes requires the native component
+and a qualified local filesystem. If either is unavailable, startup reports an
+error rather than opening the files without locks.
+
 ### Interactive TUI
 
 Launch the interactive terminal UI:
@@ -83,14 +95,42 @@ dotes uses **four DETS tables**, one for each slate table type:
 
 Data is stored in a `.dotes/` directory in the current working directory.
 
+### Ownership and failure handling
+
+One dotes process owns a data directory at a time. While the web app or TUI is
+running, another CLI, TUI, or web process reports that the store is in use.
+Close the running app before switching interfaces. Multiple browser clients
+can use the same web process.
+
+The store owner acquires exclusive sessions for all four tables and serializes
+complete note operations. Concurrent edits retain each acknowledged body in the
+current note or its history. Deletion removes tags and history before the note,
+so a failed dependent deletion leaves the note available for a retry.
+
+Startup unwinds earlier sessions if a later table cannot open. Shutdown attempts
+cleanup for every session and reports failures. A cleanup failure can retain
+ownership until the VM exits. Do not delete or replace `.slate.lock` sidecars
+while a process can access the store.
+
+These operations do not provide transactions or rollback. A failed operation
+can have written some data; a process failure does not prove that a write failed.
+Do not automatically repeat a write after an unknown outcome. Abrupt VM
+termination can still leave files needing repair.
+
+If tags or history cannot load, the interfaces keep readable note content and
+successful sections visible and show an error for each failed section.
+
 ## Tests
 
-Run `gleam test` from this directory. Tests use Startest, as the slate library does.
-They cover note-specific async results and real loopback WebSocket connections,
-including component startup failure, frame send failure, and process cleanup.
-Test data is created under `build/` and removed after each successful test.
+Run `gleam test` from this directory after the native build. Tests use Unitest,
+as the Slate library does. Keep the default sequential execution.
+They cover independent-VM contention, concurrent mutations, failed startup and
+cleanup, asynchronous results, and real loopback WebSocket connections.
+Tests use isolated directories under `build/` and remove data and sidecars only
+after the owning processes have stopped.
 
-Late edit, tag, and detail-load results cannot replace a different note or screen.
+Late operation results cannot replace a newer draft, request, or screen, including
+a later visit to the same note.
 The web server returns HTTP 500 if the Lustre runtime is unavailable. If a
 WebSocket component cannot start, it logs the failure and closes the connection.
 Failed frame sends stop the WebSocket and shut down its component.

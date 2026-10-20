@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Protected dotes storage with exclusive ownership, serialized note operations, and complete cleanup reporting."

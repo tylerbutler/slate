@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Reported dotes tag and history read failures without hiding readable note content."
