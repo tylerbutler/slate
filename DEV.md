@@ -73,6 +73,20 @@ with typed `gleam_erlang` subjects and monitors. The Erlang bridges retain
 DETS inspection, diagnostics, and exception capture with the original stack.
 Successful callback values stay in the calling process.
 
+`src/slate_dets_lifetime.erl` tracks path/name reservations, pending opens, and
+actual DETS process lifetimes. OTP can remove a table name before its final close
+finishes, so absence from `dets:all()` does not mean the file is safe to reopen.
+The FFI keeps native opens in the caller and uses path-before-mutation lock order
+for explicit closes.
+
+The lifetime service starts as a temporary child of `kernel_safe_sup`. One fixed
+`persistent_term` marker prevents an empty-state restart after service failure.
+New opens then fail with `UnexpectedError`; existing reads and cleanup closes
+remain available. Recover by restarting the VM, not by erasing the marker or
+restarting DETS internals. Start a fresh VM when adopting this implementation
+from older code with active tables. This node-local service does not replace
+exclusive sessions for access from independent VMs.
+
 Crate notices are generated with cargo-about from the complete locked graph,
 including build dependencies, procedural macros, and dependencies outside
 release targets. MIT is selected where the upstream license permits it.
@@ -150,7 +164,8 @@ Repository changes do not connect the Cloudflare project or change live DNS.
 ## Code style
 
 - Format with `just format` — CI enforces formatting.
-- All public functions return `Result` types — never raise exceptions.
+- Return `Result` from fallible operations. Pure classifiers can return plain
+  values. Preserve callback exceptions where the API contract requires them.
 - Prefer exhaustive pattern matching over catch-all `_` patterns.
 - Document public functions with `///` doc comments.
 

@@ -30,21 +30,27 @@ This is a Gleam library (Erlang target only) wrapping Erlang's DETS disk storage
 
 ### FFI layer
 
-All three modules call into a single Erlang FFI file (`src/slate_dets_ffi.erl`). The FFI wraps every `dets:*` call in try-catch and translates Erlang error tuples into atoms that map to the `DetsError` Gleam type in `src/slate.gleam`. When adding new DETS operations, add the Erlang wrapper in `slate_dets_ffi.erl`, then add `@external` bindings in the relevant Gleam module(s).
+All three modules call into a shared Erlang FFI file (`src/slate_dets_ffi.erl`). The FFI translates returned and raised DETS failures into values that match `DetsError` in `src/slate.gleam`. Some error constructors carry context records. When adding a DETS operation, add its Erlang wrapper in `slate_dets_ffi.erl`, then add `@external` bindings in the relevant Gleam modules.
 
 Gleam constructors map to Erlang atoms automatically by convention (e.g., `AutoRepair` → `auto_repair`). The FFI pattern-matches on these atoms.
 
 ### Table naming
 
-DETS table names are the file path converted to an Erlang atom via `binary_to_atom/2`. Each unique path permanently consumes an atom.
+Slate reuses a bounded pool of 4096 internal DETS table-name atoms. Opening new paths does not create an unbounded number of atoms. If no pool slot is available, open returns `TableNamePoolExhausted`.
+
+`slate_dets_lifetime.erl` keeps path/name reservations through pending opens and
+actual DETS process shutdown. A name can disappear from OTP's registry before
+the file finishes closing. Preserve path-before-mutation lock order and native
+opener ownership. If the lifetime service fails, new opens fail closed until
+VM restart; do not erase its marker or restart it with empty state.
 
 ## Conventions
 
-- All public functions return `Result` types — never raise exceptions.
+- Return `Result` from fallible operations. Pure classifiers can return plain values. Preserve callback exceptions where the API contract requires them.
 - Use exhaustive pattern matching; avoid catch-all `_` patterns where practical.
 - Document public functions with `///` doc comments.
 - Format with `gleam format` (enforced in CI).
-- Use `with_table` for short-lived operations to guarantee the table is closed.
+- Use `with_table` for short-lived operations. It attempts to close the table when the callback returns or raises; a forced process kill can prevent cleanup.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) with lowercase subjects. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`. Max 72 char header.
 
 ## Testing patterns
