@@ -63,7 +63,11 @@ do_open(Path, Type, Repair, Access, Unicode) ->
         RepairValue = repair_value(Repair),
         AccessValue = access_value(Access),
         Options = [{file, CanonicalPath}, {type, Type}, {repair, RepairValue}, {access, AccessValue}],
-        case open_table(CanonicalPath, Options, 0) of
+        %% Selection and every retry belong to one same-path critical section.
+        %% A stale free slot must not open a second server for a live file.
+        case coordinated({open, CanonicalPath}, fun() ->
+            open_table(CanonicalPath, Options, 0)
+        end) of
             {ok, Name} ->
                 Reference = case Unicode of true -> {slate_exclusive, Name}; false -> Name end,
                 {ok, Reference};
@@ -76,12 +80,47 @@ do_open(Path, Type, Repair, Access, Unicode) ->
 open_table(_CanonicalPath, _Options, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
     erlang:error(no_available_table_name);
 open_table(CanonicalPath, Options, Attempts) ->
-    Name = table_name_for_path(CanonicalPath),
-    case dets:open_file(Name, Options) of
-        {ok, Name} -> {ok, Name};
+    Candidate = table_name_for_path(CanonicalPath),
+    %% Reserve before starting DETS, so caller death cannot lose the selected
+    %% name while a DETS open/automatic close is still in flight.
+    case slate_dets_lifetime:begin_open(CanonicalPath, Candidate) of
+        busy -> open_table(CanonicalPath, Options, Attempts + 1);
+        {ok, Token, Name, Pids} ->
+            wait_if_closing(Name, Pids),
+            open_reserved(CanonicalPath, Options, Attempts, Token, Name)
+    end.
+
+wait_if_closing(_Name, []) -> ok;
+wait_if_closing(Name, [Pid | Rest]) ->
+    case dets:info(Name, owner) of
+        Pid -> ok;
+        _ ->
+            %% The registered name vanished, not necessarily the writer.
+            %% Keep this operation's reservation until the old PID is gone.
+            Ref = monitor(process, Pid),
+            try
+                receive {'DOWN', Ref, process, Pid, _} -> ok end
+            after
+                demonitor(Ref, [flush])
+            end
+    end,
+    wait_if_closing(Name, Rest).
+
+open_reserved(CanonicalPath, Options, Attempts, Token, Name) ->
+    OpenResult = try dets:open_file(Name, Options)
+    catch
+        Class:Reason:Stack ->
+            ok = slate_dets_lifetime:failed(Token),
+            erlang:raise(Class, Reason, Stack)
+    end,
+    case OpenResult of
+        {ok, Name} ->
+            ok = slate_dets_lifetime:opened(Token, dets:info(Name, owner)),
+            {ok, Name};
         {error, incompatible_arguments} ->
-            %% Selection is not a reservation: a different path can win this
-            %% name before open_file. Only an occupied SAME path is AlreadyOpen.
+            ok = slate_dets_lifetime:failed(Token),
+            %% Slate reserves this name, but an uncoordinated raw DETS opener
+            %% can still win it. Only an occupied SAME path is AlreadyOpen.
             %% If the winner closed before info, retry as well. Re-scan for an
             %% existing same-path table on every retry so shared opens reuse it.
             %% The exclusive caller retains its file lock throughout this call.
@@ -97,7 +136,9 @@ open_table(CanonicalPath, Options, Attempts) ->
                             open_table(CanonicalPath, Options, Attempts + 1)
                     end
             end;
-        {error, Reason} -> {error, Reason}
+        {error, OpenReason} ->
+            ok = slate_dets_lifetime:failed(Token),
+            {error, OpenReason}
     end.
 
 %% Gleam RepairPolicy constructors map to these atoms:
@@ -121,7 +162,13 @@ canonicalize_path(Path) when is_list(Path) ->
 %% may not exist yet).
 normalize_path(AbsolutePath) ->
     Parts = filename:split(AbsolutePath),
-    filename:join(normalize_parts(Parts, [])).
+    %% Keep the root outside the reducible stack. OTP splits Windows UNC
+    %% paths as ["//", Server, Share | Rest]; the share is also an anchor.
+    {Anchor, Rest} = case Parts of
+        ["//", Server, Share | Tail] -> {["//", Server, Share], Tail};
+        [Root | Tail] -> {[Root], Tail}
+    end,
+    filename:join(Anchor ++ normalize_parts(Rest, [])).
 
 normalize_parts([], Acc) -> lists:reverse(Acc);
 normalize_parts(["." | Rest], Acc) -> normalize_parts(Rest, Acc);
@@ -130,9 +177,13 @@ normalize_parts([".." | Rest], []) -> normalize_parts(Rest, []);
 normalize_parts([Part | Rest], Acc) -> normalize_parts(Rest, [Part | Acc]).
 
 table_name_for_path(CanonicalPath) ->
-    case find_open_table_for_path(CanonicalPath) of
+    case slate_dets_lifetime:find(CanonicalPath) of
         {ok, Name} -> Name;
-        error -> allocate_table_name(CanonicalPath)
+        error ->
+            case find_open_table_for_path(CanonicalPath) of
+                {ok, Name} -> Name;
+                error -> allocate_table_name(CanonicalPath)
+            end
     end.
 
 find_open_table_for_path(CanonicalPath) ->
@@ -162,13 +213,17 @@ allocate_table_name(_CanonicalPath, _Start, Attempts) when Attempts >= ?TABLE_NA
 allocate_table_name(CanonicalPath, Start, Attempts) ->
     Index = (Start + Attempts) rem ?TABLE_NAME_POOL_SIZE,
     Name = table_name_atom(Index),
-    case dets:info(Name, filename) of
-        undefined ->
-            Name;
-        OpenPath ->
-            case canonicalize_open_path(OpenPath) of
-                CanonicalPath -> Name;
-                _ -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
+    case slate_dets_lifetime:available(Name, CanonicalPath) of
+        false -> allocate_table_name(CanonicalPath, Start, Attempts + 1);
+        true ->
+            case dets:info(Name, filename) of
+                undefined ->
+                    Name;
+                OpenPath ->
+                    case canonicalize_open_path(OpenPath) of
+                        CanonicalPath -> Name;
+                        _ -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
+                    end
             end
     end.
 
@@ -185,7 +240,48 @@ table_name_atom(Index) ->
 
 %% ── Close / Sync ───────────────────────────────────────────────────────
 
+%% Node-local coordination only, not an OS/file lock. global monitors the
+%% caller and releases on death; trans releases in an after on return/raise.
+%% Infinite retries cannot return 'aborted'. Work stays in the caller so DETS
+%% opener ownership is unchanged. Never nest the same resource (global locks
+%% are not reference-counted), and never run user callbacks under these gates.
+coordinated(Resource, Work) ->
+    global:trans({{?MODULE, Resource}, self()}, Work, [node()]).
+
+mutate(Name, Work) ->
+    coordinated({mutation, table_name(Name)}, Work).
+
 close(Name) ->
+    %% Always path -> mutation, never the reverse. The lifetime reservation
+    %% outlives this caller if it dies while DETS continues flushing the file.
+    Path = try slate_dets_lifetime:path(table_name(Name))
+           catch error:{slate_dets_lifetime_unavailable, _} -> error
+           end,
+    Work = fun() -> mutate(Name, fun() -> close_lifetime(Name) end) end,
+    case Path of
+        {ok, CanonicalPath} -> coordinated({open, CanonicalPath}, Work);
+        %% A lost registry prevents ALL new opens, but must not prevent cleanup.
+        error -> Work()
+    end.
+
+close_lifetime(Name) ->
+    case dets:info(table_name(Name), owner) of
+        undefined -> close_unlocked(Name);
+        Pid ->
+            Ref = monitor(process, Pid),
+            try
+                Result = close_unlocked(Name),
+                case dets:info(table_name(Name), owner) of
+                    Pid -> Result; % Another opener still owns this table.
+                    _ ->
+                        receive {'DOWN', Ref, process, Pid, _} -> Result end
+                end
+            after
+                demonitor(Ref, [flush])
+            end
+    end.
+
+close_unlocked(Name) ->
     try dets:close(table_name(Name)) of
         ok -> {ok, nil};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
@@ -204,6 +300,9 @@ sync(Name) ->
 %% ── Insert ──────────────────────────────────────────────────────────────
 
 insert(Name, Objects) ->
+    mutate(Name, fun() -> insert_unlocked(Name, Objects) end).
+
+insert_unlocked(Name, Objects) ->
     try dets:insert(table_name(Name), Objects) of
         ok -> {ok, nil};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
@@ -212,6 +311,9 @@ insert(Name, Objects) ->
     end.
 
 insert_new(Name, Objects) ->
+    mutate(Name, fun() -> insert_new_unlocked(Name, Objects) end).
+
+insert_new_unlocked(Name, Objects) ->
     try dets:insert_new(table_name(Name), Objects) of
         true -> {ok, nil};
         false -> {error, key_already_present};
@@ -230,6 +332,8 @@ insert_new(Name, Objects) ->
 %% bag deduplication ensures only one copy ends up in the table.
 %% We cannot use dets:insert_new/2 here because it checks by KEY only,
 %% whereas bag insert_new needs to check the exact KEY+VALUE pair.
+%% Keep that documented check/insert race, but route the write through the
+%% mutation gate. Do not acquire that gate around this call to insert/2.
 insert_new_object(Name, Object) ->
     try dets:match_object(table_name(Name), Object) of
         [] ->
@@ -268,6 +372,9 @@ lookup_all(Name, Key) ->
 %% ── Delete ──────────────────────────────────────────────────────────────
 
 delete_key(Name, Key) ->
+    mutate(Name, fun() -> delete_key_unlocked(Name, Key) end).
+
+delete_key_unlocked(Name, Key) ->
     try dets:delete(table_name(Name), Key) of
         ok -> {ok, nil};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
@@ -276,6 +383,9 @@ delete_key(Name, Key) ->
     end.
 
 delete_object(Name, Object) ->
+    mutate(Name, fun() -> delete_object_unlocked(Name, Object) end).
+
+delete_object_unlocked(Name, Object) ->
     try dets:delete_object(table_name(Name), Object) of
         ok -> {ok, nil};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
@@ -284,6 +394,9 @@ delete_object(Name, Object) ->
     end.
 
 delete_all(Name) ->
+    mutate(Name, fun() -> delete_all_unlocked(Name) end).
+
+delete_all_unlocked(Name) ->
     try dets:delete_all_objects(table_name(Name)) of
         ok -> {ok, nil};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
@@ -303,19 +416,21 @@ member(Name, Key) ->
     end.
 
 fold(Name, Callback, Initial) ->
+    AccTag = make_ref(),
     AbortTag = make_ref(),
     CallbackExceptionTag = make_ref(),
-    WrappedCallback = fun(Entry, Acc) ->
+    WrappedCallback = fun(Entry, {AccTag0, Acc}) when AccTag0 =:= AccTag ->
         try Callback(Entry, Acc) of
             {error, _} = Error -> throw({AbortTag, Error});
-            Result -> Result
+            Result -> {AccTag, Result}
         catch
             Class:Reason:Stacktrace ->
                 throw({CallbackExceptionTag, Class, Reason, Stacktrace})
         end
     end,
-    try dets:foldl(WrappedCallback, Initial, table_name(Name)) of
-        Result -> {ok, Result}
+    try dets:foldl(WrappedCallback, {AccTag, Initial}, table_name(Name)) of
+        {AccTag, Result} -> {ok, Result};
+        {error, Reason} -> {error, translate_table_error(Name, Reason)}
     catch
         throw:{AbortTag, Error} -> {ok, Error};
         throw:{CallbackExceptionTag, Class, Reason, Stacktrace} ->
@@ -327,7 +442,8 @@ fold(Name, Callback, Initial) ->
 
 to_list(Name) ->
     try dets:foldl(fun(Object, Acc) -> [Object | Acc] end, [], table_name(Name)) of
-        Result -> {ok, Result}
+        {error, Reason} -> {error, translate_table_error(Name, Reason)};
+        Result when is_list(Result) -> {ok, Result}
     catch
         _:Reason -> {error, translate_table_error(Name, Reason)}
     end.
@@ -380,6 +496,26 @@ is_dets_file(Path) ->
     end.
 
 update_counter(Name, Key, Increment) ->
+    mutate(Name, fun() -> validate_counter(Name, Key, Increment) end).
+
+validate_counter(Name, Key, Increment) ->
+    %% OTP accepts floats and mutates them before returning a float. Check
+    %% first, under the same gate as every Slate writer and close. Retain the
+    %% native atomic increment rather than replacing it with lookup/insert.
+    %% Read-only tables must retain OTP's access/storage-error precedence.
+    case dets:info(table_name(Name), access) of
+        read -> update_counter_unlocked(Name, Key, Increment);
+        _ ->
+            case lookup(Name, Key) of
+                {ok, Value} when is_integer(Value) ->
+                    update_counter_unlocked(Name, Key, Increment);
+                {ok, _} -> {error, ffi_counter_value_not_integer};
+                {error, Reason} ->
+                    {error, update_counter_translated_error(Reason)}
+            end
+    end.
+
+update_counter_unlocked(Name, Key, Increment) ->
     try dets:update_counter(table_name(Name), Key, Increment) of
         NewValue when is_integer(NewValue) -> {ok, NewValue};
         {error, Reason} -> {error, update_counter_table_error(Name, Reason)};
@@ -407,6 +543,8 @@ classify_update_counter_lookup(Name, Key) ->
             {error, update_counter_table_error(Name, update_counter_badarg)};
         [{_, _} | _] ->
             {error, ffi_counter_value_not_integer};
+        {error, Reason} ->
+            {error, update_counter_table_error(Name, Reason)};
         Other ->
             {error, update_counter_table_error(Name, {update_counter_lookup, Other})}
     catch
@@ -455,6 +593,8 @@ translate_error({not_a_dets_file, Path}) ->
     contextual_file_error(not_a_dets_file, Path, not_a_dets_file);
 translate_error({needs_repair, Path}) ->
     contextual_file_error(needs_repair, Path, needs_repair);
+translate_error({slate_dets_lifetime_unavailable, _Reason} = Error) ->
+    unexpected_error(Error);
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);
 translate_error(Reason) ->

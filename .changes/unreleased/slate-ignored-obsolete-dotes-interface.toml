@@ -1,0 +1,6 @@
+package = "slate"
+kind = "Fixed"
+body = """
+Fixed delayed dotes responses replacing a newer screen, erasing a newer draft, or leaving note details out of date.
+
+The TUI and web interface keep your current view and draft when an earlier request finishes. Navigating away does not cancel a write that has already started."""

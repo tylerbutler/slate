@@ -1,8 +1,10 @@
+import dotes/lifecycle
+import dotes/request
 import dotes/store.{type Note, type Revision, type Store}
 import gleam/bytes_tree
 import gleam/erlang/application
 import gleam/erlang/process.{type Selector, type Subject}
-import gleam/http/request.{type Request}
+import gleam/http/request as http_request
 import gleam/http/response.{type Response}
 import gleam/int
 import gleam/io
@@ -20,7 +22,6 @@ import lustre/element/html
 import lustre/event
 import lustre/server_component
 import mist.{type Connection, type ResponseData}
-import slate
 
 // --- Types ---
 
@@ -44,11 +45,13 @@ pub type Status {
 pub type Model {
   Model(
     store: Store,
+    request: request.Id,
     screen: Screen,
     notes: List(#(Int, Note)),
     detail_note: Result(Note, Nil),
-    detail_tags: List(String),
-    detail_history: List(Revision),
+    detail_tags: Result(List(String), store.Error),
+    detail_history: Result(List(Revision), store.Error),
+    detail_loading: Bool,
     title_input: String,
     body_input: String,
     tag_input: String,
@@ -59,12 +62,12 @@ pub type Model {
 /// Input events and note-specific effect results.
 pub type Message {
   // Async results
-  NotesLoaded(Result(List(#(Int, Note)), String))
-  NoteDetailLoaded(Int, Result(#(Note, List(String), List(Revision)), String))
-  NoteCreated(Result(Int, String))
-  NoteUpdated(Int, Result(Nil, String))
-  NoteDeleted(Result(Nil, String))
-  TagToggled(Int, Result(Bool, String))
+  NotesLoaded(request.Id, Result(List(#(Int, Note)), String))
+  NoteDetailLoaded(request.Id, Int, Result(store.Detail, String))
+  NoteCreated(request.Id, Result(Int, String))
+  NoteUpdated(request.Id, Int, Result(Nil, String))
+  NoteDeleted(request.Id, Result(Nil, String))
+  TagToggled(request.Id, Int, Result(Bool, String))
   // Navigation
   GoToList
   GoToCreate
@@ -86,11 +89,13 @@ pub type Message {
 // --- Main ---
 
 pub fn main() -> Nil {
-  let assert Ok(store) = store.open()
+  lifecycle.run(".dotes", start_server)
+}
 
-  let assert Ok(_) =
-    fn(request: Request(Connection)) -> Response(ResponseData) {
-      case request.path_segments(request) {
+fn start_server(store: Store) -> Result(process.Pid, String) {
+  let started =
+    fn(request: http_request.Request(Connection)) -> Response(ResponseData) {
+      case http_request.path_segments(request) {
         [] -> serve_html()
         ["lustre", "runtime.mjs"] -> serve_runtime()
         ["ws"] -> serve_websocket(request, store)
@@ -104,8 +109,13 @@ pub fn main() -> Nil {
     |> mist.port(3000)
     |> mist.start
 
-  io.println("dotes web running at http://localhost:3000")
-  process.sleep_forever()
+  case started {
+    Error(_) -> Error("Cannot start the dotes web server")
+    Ok(server) -> {
+      io.println("dotes web running at http://localhost:3000")
+      Ok(server.pid)
+    }
+  }
 }
 
 // --- HTTP Handlers ---
@@ -190,7 +200,7 @@ pub type SocketInit =
   #(Socket, Option(Selector(SocketMessage)))
 
 fn serve_websocket(
-  request: Request(Connection),
+  request: http_request.Request(Connection),
   store: Store,
 ) -> Response(ResponseData) {
   mist.websocket(
@@ -288,40 +298,47 @@ pub fn init(store: Store) -> #(Model, Effect(Message)) {
   let model =
     Model(
       store: store,
+      request: request.new(),
       screen: NoteList,
       notes: [],
       detail_note: Error(Nil),
-      detail_tags: [],
-      detail_history: [],
+      detail_tags: Ok([]),
+      detail_history: Ok([]),
+      detail_loading: False,
       title_input: "",
       body_input: "",
       tag_input: "",
       status: NoStatus,
     )
-  #(model, load_notes_effect(store))
+  #(model, load_notes_effect(store, model.request))
 }
 
 // --- Effects ---
 
-fn load_notes_effect(store: Store) -> Effect(Message) {
+fn load_notes_effect(store: Store, context: request.Id) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.list_notes(store) {
-      Ok(notes) -> dispatch(NotesLoaded(Ok(notes)))
-      Error(error) -> dispatch(NotesLoaded(Error(slate.error_message(error))))
+      Ok(notes) -> dispatch(NotesLoaded(context, Ok(notes)))
+      Error(error) ->
+        dispatch(NotesLoaded(context, Error(store.error_message(error))))
     }
   })
 }
 
-fn load_detail_effect(store: Store, id: Int) -> Effect(Message) {
+fn load_detail_effect(
+  store: Store,
+  id: Int,
+  context: request.Id,
+) -> Effect(Message) {
   effect.from(fn(dispatch) {
-    case store.get_note(store, id) {
+    case store.get_detail(store, id) {
       Error(error) ->
-        dispatch(NoteDetailLoaded(id, Error(slate.error_message(error))))
-      Ok(note) -> {
-        let tags = store.get_tags(store, id) |> result.unwrap([])
-        let history = store.get_history(store, id) |> result.unwrap([])
-        dispatch(NoteDetailLoaded(id, Ok(#(note, tags, history))))
-      }
+        dispatch(NoteDetailLoaded(
+          context,
+          id,
+          Error(store.error_message(error)),
+        ))
+      Ok(detail) -> dispatch(NoteDetailLoaded(context, id, Ok(detail)))
     }
   })
 }
@@ -330,40 +347,57 @@ fn create_note_effect(
   store: Store,
   title: String,
   body: String,
+  context: request.Id,
 ) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.create_note(store, title: title, body: body) {
-      Ok(id) -> dispatch(NoteCreated(Ok(id)))
-      Error(error) -> dispatch(NoteCreated(Error(slate.error_message(error))))
+      Ok(id) -> dispatch(NoteCreated(context, Ok(id)))
+      Error(error) ->
+        dispatch(NoteCreated(context, Error(store.error_message(error))))
     }
   })
 }
 
-fn update_note_effect(store: Store, id: Int, body: String) -> Effect(Message) {
+fn update_note_effect(
+  store: Store,
+  id: Int,
+  body: String,
+  context: request.Id,
+) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.update_note(store, id: id, body: body) {
-      Ok(Nil) -> dispatch(NoteUpdated(id, Ok(Nil)))
+      Ok(Nil) -> dispatch(NoteUpdated(context, id, Ok(Nil)))
       Error(error) ->
-        dispatch(NoteUpdated(id, Error(slate.error_message(error))))
+        dispatch(NoteUpdated(context, id, Error(store.error_message(error))))
     }
   })
 }
 
-fn toggle_tag_effect(store: Store, id: Int, tag: String) -> Effect(Message) {
+fn toggle_tag_effect(
+  store: Store,
+  id: Int,
+  tag: String,
+  context: request.Id,
+) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.toggle_tag(store, id: id, tag: tag) {
-      Ok(added) -> dispatch(TagToggled(id, Ok(added)))
+      Ok(added) -> dispatch(TagToggled(context, id, Ok(added)))
       Error(error) ->
-        dispatch(TagToggled(id, Error(slate.error_message(error))))
+        dispatch(TagToggled(context, id, Error(store.error_message(error))))
     }
   })
 }
 
-fn delete_note_effect(store: Store, id: Int) -> Effect(Message) {
+fn delete_note_effect(
+  store: Store,
+  id: Int,
+  context: request.Id,
+) -> Effect(Message) {
   effect.from(fn(dispatch) {
     case store.delete_note(store, id) {
-      Ok(Nil) -> dispatch(NoteDeleted(Ok(Nil)))
-      Error(error) -> dispatch(NoteDeleted(Error(slate.error_message(error))))
+      Ok(Nil) -> dispatch(NoteDeleted(context, Ok(Nil)))
+      Error(error) ->
+        dispatch(NoteDeleted(context, Error(store.error_message(error))))
     }
   })
 }
@@ -373,29 +407,106 @@ fn delete_note_effect(store: Store, id: Int) -> Effect(Message) {
 /// Apply an event without running its returned effect.
 pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
   case message {
+    NotesLoaded(context, _)
+    | NoteDetailLoaded(context, _, _)
+    | NoteCreated(context, _)
+    | NoteUpdated(context, _, _)
+    | NoteDeleted(context, _)
+    | TagToggled(context, _, _) ->
+      case context == model.request {
+        False -> #(model, effect.none())
+        True ->
+          update_current(
+            Model(..model, request: request.next(context)),
+            message,
+          )
+      }
+    GoToList
+    | GoToCreate
+    | GoToDetail(_)
+    | GoToEdit(_)
+    | AskDelete(_)
+    | CancelDelete ->
+      update_current(
+        Model(
+          ..model,
+          request: request.navigate(model.request),
+          detail_loading: False,
+        ),
+        message,
+      )
+    TitleChanged(value) ->
+      update_input(model, message, value != model.title_input)
+    BodyChanged(value) ->
+      update_input(model, message, value != model.body_input)
+    TagChanged(value) -> update_input(model, message, value != model.tag_input)
+    SubmitToggleTag(_) if model.tag_input == "" -> #(model, effect.none())
+    SubmitCreate | SubmitEdit(_) | SubmitToggleTag(_) | ConfirmDeleteNote(_) ->
+      update_current(
+        Model(..model, request: request.next(model.request)),
+        message,
+      )
+  }
+}
+
+fn update_input(
+  model: Model,
+  message: Message,
+  changed: Bool,
+) -> #(Model, Effect(Message)) {
+  case changed {
+    False -> #(model, effect.none())
+    True -> {
+      let #(model, _) =
+        update_current(
+          Model(..model, request: request.revise(model.request)),
+          message,
+        )
+      #(model, refresh_detail(model))
+    }
+  }
+}
+
+fn refresh_detail(model: Model) -> Effect(Message) {
+  case model.screen {
+    NoteDetail(id) if model.detail_loading ->
+      load_detail_effect(model.store, id, model.request)
+    NoteList | NoteCreate | NoteEdit(_) | ConfirmDelete(_) | NoteDetail(_) ->
+      effect.none()
+  }
+}
+
+fn update_current(model: Model, message: Message) -> #(Model, Effect(Message)) {
+  case message {
     // Data loaded
-    NotesLoaded(Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
-    NotesLoaded(Error(error_message)) -> #(
+    NotesLoaded(_, Ok(notes)) -> #(Model(..model, notes: notes), effect.none())
+    NotesLoaded(_, Error(error_message)) -> #(
       Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
-    NoteDetailLoaded(id, result) ->
+    NoteDetailLoaded(_, id, result) ->
       case model.screen {
         NoteDetail(current_id) if current_id == id ->
           case result {
-            Ok(#(note, tags, history)) -> #(
+            Ok(store.Detail(note, tags, history)) -> #(
               Model(
                 ..model,
                 detail_note: Ok(note),
                 detail_tags: tags,
                 detail_history: history,
+                detail_loading: False,
               ),
               effect.none(),
             )
             Error(error_message) -> #(
-              Model(..model, status: Failure(error_message), screen: NoteList),
-              load_notes_effect(model.store),
+              Model(
+                ..model,
+                status: Failure(error_message),
+                screen: NoteList,
+                detail_loading: False,
+              ),
+              load_notes_effect(model.store, model.request),
             )
           }
         NoteList
@@ -415,7 +526,7 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         tag_input: "",
         status: NoStatus,
       ),
-      load_notes_effect(model.store),
+      load_notes_effect(model.store, model.request),
     )
     GoToCreate -> #(
       Model(
@@ -432,12 +543,13 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         ..model,
         screen: NoteDetail(id),
         detail_note: Error(Nil),
-        detail_tags: [],
-        detail_history: [],
+        detail_tags: Ok([]),
+        detail_history: Ok([]),
+        detail_loading: True,
         tag_input: "",
         status: NoStatus,
       ),
-      load_detail_effect(model.store, id),
+      load_detail_effect(model.store, id, model.request),
     )
     GoToEdit(id) -> {
       let body = case model.detail_note {
@@ -450,7 +562,10 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
       )
     }
     AskDelete(id) -> #(Model(..model, screen: ConfirmDelete(id)), effect.none())
-    CancelDelete -> #(Model(..model, screen: NoteList), effect.none())
+    CancelDelete -> #(
+      Model(..model, screen: NoteList),
+      load_notes_effect(model.store, model.request),
+    )
 
     // Form input
     TitleChanged(value) -> #(Model(..model, title_input: value), effect.none())
@@ -460,22 +575,30 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
     // Actions
     SubmitCreate -> #(
       model,
-      create_note_effect(model.store, model.title_input, model.body_input),
+      create_note_effect(
+        model.store,
+        model.title_input,
+        model.body_input,
+        model.request,
+      ),
     )
     SubmitEdit(id) -> #(
       model,
-      update_note_effect(model.store, id, model.body_input),
+      update_note_effect(model.store, id, model.body_input, model.request),
     )
     SubmitToggleTag(id) -> {
       case model.tag_input {
         "" -> #(model, effect.none())
-        tag -> #(model, toggle_tag_effect(model.store, id, tag))
+        tag -> #(model, toggle_tag_effect(model.store, id, tag, model.request))
       }
     }
-    ConfirmDeleteNote(id) -> #(model, delete_note_effect(model.store, id))
+    ConfirmDeleteNote(id) -> #(
+      model,
+      delete_note_effect(model.store, id, model.request),
+    )
 
     // Action results
-    NoteCreated(Ok(id)) -> #(
+    NoteCreated(_, Ok(id)) -> #(
       Model(
         ..model,
         screen: NoteList,
@@ -483,14 +606,14 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         body_input: "",
         status: Success("Created note #" <> int.to_string(id)),
       ),
-      load_notes_effect(model.store),
+      load_notes_effect(model.store, model.request),
     )
-    NoteCreated(Error(error_message)) -> #(
+    NoteCreated(_, Error(error_message)) -> #(
       Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
-    NoteUpdated(id, result) ->
+    NoteUpdated(_, id, result) ->
       case model.screen {
         NoteEdit(current_id) if current_id == id ->
           case result {
@@ -499,9 +622,10 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                 ..model,
                 screen: NoteDetail(id),
                 detail_note: Error(Nil),
+                detail_loading: True,
                 status: Success("Note updated"),
               ),
-              load_detail_effect(model.store, id),
+              load_detail_effect(model.store, id, model.request),
             )
             Error(error_message) -> #(
               Model(..model, status: Failure(error_message)),
@@ -515,16 +639,16 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
         | NoteEdit(_) -> #(model, effect.none())
       }
 
-    NoteDeleted(Ok(Nil)) -> #(
+    NoteDeleted(_, Ok(Nil)) -> #(
       Model(..model, screen: NoteList, status: Success("Note deleted")),
-      load_notes_effect(model.store),
+      load_notes_effect(model.store, model.request),
     )
-    NoteDeleted(Error(error_message)) -> #(
+    NoteDeleted(_, Error(error_message)) -> #(
       Model(..model, status: Failure(error_message)),
       effect.none(),
     )
 
-    TagToggled(id, result) ->
+    TagToggled(_, id, result) ->
       case model.screen {
         NoteDetail(current_id) if current_id == id ->
           case result {
@@ -534,13 +658,18 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
                 False -> "Tag removed"
               }
               #(
-                Model(..model, tag_input: "", status: Success(message)),
-                load_detail_effect(model.store, id),
+                Model(
+                  ..model,
+                  tag_input: "",
+                  status: Success(message),
+                  detail_loading: True,
+                ),
+                load_detail_effect(model.store, id, model.request),
               )
             }
             Error(error_message) -> #(
               Model(..model, status: Failure(error_message)),
-              effect.none(),
+              refresh_detail(model),
             )
           }
         NoteList
@@ -554,7 +683,8 @@ pub fn update(model: Model, message: Message) -> #(Model, Effect(Message)) {
 
 // --- View ---
 
-fn view(model: Model) -> Element(Message) {
+/// Render the current browser screen.
+pub fn view(model: Model) -> Element(Message) {
   html.main([attribute.class("container")], [
     case model.screen {
       NoteList -> view_list(model)
@@ -623,8 +753,9 @@ fn view_detail(model: Model, id: Int) -> Element(Message) {
               store.unix_seconds_to_rfc3339(note.created_at),
             ),
             key_value_row("Tags", case model.detail_tags {
-              [] -> "(none)"
-              tags -> string.join(tags, ", ")
+              Ok([]) -> "(none)"
+              Ok(tags) -> string.join(tags, ", ")
+              Error(error) -> "Tags unavailable: " <> store.error_message(error)
             }),
           ]),
           view_history(model.detail_history),
@@ -656,10 +787,16 @@ fn view_detail(model: Model, id: Int) -> Element(Message) {
   ])
 }
 
-fn view_history(revisions: List(Revision)) -> Element(Message) {
+fn view_history(
+  revisions: Result(List(Revision), store.Error),
+) -> Element(Message) {
   case revisions {
-    [] -> element.none()
-    _ ->
+    Error(error) ->
+      html.p([], [
+        html.text("History unavailable: " <> store.error_message(error)),
+      ])
+    Ok([]) -> element.none()
+    Ok(revisions) ->
       html.div([attribute.class("history")], [
         html.h3([], [
           html.text(

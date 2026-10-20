@@ -43,6 +43,7 @@ Configure Trellis in `[tools.trellis]` in the root `gleam.toml`. The root
 src/
 ├── slate.gleam                # Shared types (DetsError, AccessMode, RepairPolicy, TableInfo)
 ├── slate_dets_ffi.erl        # Erlang FFI for DETS operations
+├── slate_dets_lifetime.erl   # Path reservations through DETS process shutdown
 ├── slate_with_table_ffi.erl  # Close-on-exit helper used by with_table
 └── slate/
     ├── set.gleam             # Set tables (unique keys)
@@ -75,6 +76,7 @@ test/
 - **`slate/bag`**: Bag tables — multiple distinct values per key
 - **`slate/duplicate_bag`**: Duplicate bag tables — allows duplicate key-value pairs
 - **`slate_dets_ffi.erl`**: Erlang FFI wrapping `dets:*` calls with try-catch error translation
+- **`slate_dets_lifetime.erl`**: Private VM-wide path/name reservation service. Keep reservations through actual DETS shutdown, including caller death. Service failure blocks new opens until VM restart; do not restart it with empty state.
 - **`slate_with_table_ffi.erl`**: Erlang helper that closes tables when `with_table` callbacks return or raise
 
 ### FFI Pattern
@@ -143,6 +145,7 @@ Managed via mise with `.mise.toml` as the source of truth for local setup and CI
 - Gleam 1.19.1
 - just 1.38.0
 - Node.js 22
+- Rebar3 3.27.0 (for the dotes example's Erlang dependencies)
 - Trellis: `github:tylerbutler/trellis` in `.mise.toml`
 
 The shared `.github/actions/setup-mise` action installs and caches tools.

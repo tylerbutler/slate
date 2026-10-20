@@ -5,9 +5,17 @@
          different_files/0, open_exit/1, close_exit/1, cleanup_failures/0,
          waiting_owner_exit/0, tmpfs_contention/0, unicode_paths/0,
          case_and_short_aliases/0, repair_sidecar/0, release_failures/0,
-         undelivered_cleanup/0, guardian_exit_primary/0, poisoned_path/0]).
+         undelivered_cleanup/0, guardian_exit_primary/0, poisoned_path/0,
+         with_poisoned_path/1, erl_executable/0]).
 
 poisoned_path() ->
+    with_poisoned_path(fun() ->
+        Port = start_vm(),
+        try nil
+        after stop_vm(Port) end
+    end).
+
+with_poisoned_path(Check) ->
     Directory = filename:absname(filename:join("build", "exclusive-vm-poison-" ++
                                 integer_to_list(erlang:unique_integer([positive])))),
     Name = case os:type() of {win32, _} -> "erl.exe"; {unix, _} -> "erl" end,
@@ -21,9 +29,7 @@ poisoned_path() ->
         %% Changes VM-wide PATH: tests must run sequentially; always restore PATH.
         true = os:putenv("PATH", Directory ++ Separator ++ os:getenv("PATH", "")),
         BrokenErl = os:find_executable("erl"),
-        Port = start_vm(),
-        try nil
-        after stop_vm(Port) end
+        Check()
     after
         case SavedPath of
             false -> true = os:unsetenv("PATH");
@@ -454,9 +460,12 @@ with_vms_existing(Path, Check) ->
         after stop_vm(B) end
     after stop_vm(A), cleanup(Path) end.
 
-start_vm() ->
+erl_executable() ->
     %% Windows erl prepends erts/bin to PATH, whose erl.ini may be stale.
-    Erl = os:find_executable("erl", filename:join(code:root_dir(), "bin")),
+    os:find_executable("erl", filename:join(code:root_dir(), "bin")).
+
+start_vm() ->
+    Erl = erl_executable(),
     Ebin = filename:dirname(code:which(slate_exclusive_vm_fixture)),
     Port = open_port({spawn_executable, Erl},
         [binary, exit_status, use_stdio, stderr_to_stdout, {line, 65536},

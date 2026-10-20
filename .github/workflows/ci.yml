@@ -33,6 +33,13 @@ jobs:
       - name: Run tests
         run: just test
 
+      - name: Check dotes example
+        working-directory: examples/dotes
+        run: |
+          gleam format --check src test
+          gleam check
+          gleam test
+
   native:
     name: Native (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
@@ -90,8 +97,8 @@ jobs:
           $drive = (Get-Item .).PSDrive.Name + ":"
           fsutil 8dot3name set $drive 0
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Independent-VM and lifecycle tests
-        run: gleam test -- exclusive
+      - name: Library, independent-VM, and lifecycle tests
+        run: gleam test
       - name: Package and relocation proofs
         run: just native-package-check
       - name: Upload qualified native artifact

@@ -5,6 +5,7 @@ erlang = "27.2.1"
 gleam = "1.19.1"
 just = "1.38.0"
 node = "22"
+rebar = "3.27.0"
 
 [env]
 LC_ALL = "en_US.UTF-8"

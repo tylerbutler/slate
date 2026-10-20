@@ -11,8 +11,94 @@ import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/list
 import slate
+import slate/bag
+import slate/duplicate_bag
 import slate/set
 import test_helper
+
+type Traversal {
+  ToList
+  Fold
+  FoldResults
+}
+
+pub fn set_corrupt_object_traversals_test() -> Nil {
+  use traversal <- list.each([ToList, Fold, FoldResults])
+  use path <- with_temporary_file
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  let assert Ok(Nil) = set.insert(table, "corrupt-object", 42)
+  let assert Ok(Nil) = set.sync(table)
+  let assert Ok(Nil) = corrupt_object(path, "corrupt-object", 42)
+  // Each traversal is the first reader of a fresh corrupt object, not merely
+  // observing a sticky table error caused by an earlier traversal.
+  case traversal {
+    ToList -> traversal_error(set.to_list(table))
+    Fold ->
+      traversal_error(set.fold(table, 0, fn(total, _, value) { total + value }))
+    FoldResults ->
+      traversal_error(set.fold_results(table, 0, fn(total, _) { total + 1 }))
+  }
+  let assert Error(set.TableError(error)) =
+    set.update_counter(table, "corrupt-object", 1)
+  assert slate.error_code(error) == "unexpected_error"
+}
+
+pub fn bag_corrupt_object_traversals_test() -> Nil {
+  use traversal <- list.each([ToList, Fold, FoldResults])
+  use path <- with_temporary_file
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  let assert Ok(Nil) = bag.insert(table, "corrupt-object", 42)
+  let assert Ok(Nil) = bag.sync(table)
+  let assert Ok(Nil) = corrupt_object(path, "corrupt-object", 42)
+  case traversal {
+    ToList -> traversal_error(bag.to_list(table))
+    Fold ->
+      traversal_error(bag.fold(table, 0, fn(total, _, value) { total + value }))
+    FoldResults ->
+      traversal_error(bag.fold_results(table, 0, fn(total, _) { total + 1 }))
+  }
+}
+
+pub fn duplicate_bag_corrupt_object_traversals_test() -> Nil {
+  use traversal <- list.each([ToList, Fold, FoldResults])
+  use path <- with_temporary_file
+  let assert Ok(table) =
+    duplicate_bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+    )
+  let assert Ok(Nil) = duplicate_bag.insert(table, "corrupt-object", 42)
+  let assert Ok(Nil) = duplicate_bag.sync(table)
+  let assert Ok(Nil) = corrupt_object(path, "corrupt-object", 42)
+  case traversal {
+    ToList -> traversal_error(duplicate_bag.to_list(table))
+    Fold ->
+      traversal_error(
+        duplicate_bag.fold(table, 0, fn(total, _, value) { total + value }),
+      )
+    FoldResults ->
+      traversal_error(
+        duplicate_bag.fold_results(table, 0, fn(total, _) { total + 1 }),
+      )
+  }
+}
+
+fn traversal_error(outcome: Result(a, slate.DetsError)) -> Nil {
+  let assert Error(error) = outcome
+  // Exhaustive public dispatch must accept the actual FFI value.
+  assert slate.error_code(error) == "unexpected_error"
+  let assert slate.UnexpectedError(reason) = error
+  assert reason != ""
+}
+
+@external(erlang, "corruption_test_ffi", "with_temporary_file")
+fn with_temporary_file(callback: fn(String) -> a) -> a
+
+@external(erlang, "corruption_test_ffi", "corrupt_object")
+fn corrupt_object(path: String, key: String, value: Int) -> Result(Nil, Nil)
 
 // ── Truncated file with AutoRepair recovers ─────────────────────────────
 // OTP: truncated file triggers repair, data may be partially recovered.

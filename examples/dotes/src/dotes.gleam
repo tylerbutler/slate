@@ -4,7 +4,6 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
-import slate
 
 pub fn main() -> Nil {
   case argv.load().arguments {
@@ -25,11 +24,11 @@ fn with_store(callback: fn(store.Store) -> Nil) -> Nil {
       case store.close(store) {
         Ok(Nil) -> Nil
         Error(error) ->
-          io.println("Error closing store: " <> slate.error_message(error))
+          io.println("Error closing store: " <> store.error_message(error))
       }
     }
     Error(error) ->
-      io.println("Error opening store: " <> slate.error_message(error))
+      io.println("Error opening store: " <> store.error_message(error))
   }
 }
 
@@ -48,14 +47,14 @@ fn command_save(first: String, second: String) -> Nil {
       with_store(fn(store) {
         case store.update_note(store, id: id, body: second) {
           Ok(Nil) -> io.println("✓ Updated note #" <> int.to_string(id))
-          Error(error) -> io.println("Error: " <> slate.error_message(error))
+          Error(error) -> io.println("Error: " <> store.error_message(error))
         }
       })
     Error(_) ->
       with_store(fn(store) {
         case store.create_note(store, title: first, body: second) {
           Ok(id) -> io.println("✓ Created note #" <> int.to_string(id))
-          Error(error) -> io.println("Error: " <> slate.error_message(error))
+          Error(error) -> io.println("Error: " <> store.error_message(error))
         }
       })
   }
@@ -83,7 +82,7 @@ fn command_list() -> Nil {
           )
         })
       }
-      Error(error) -> io.println("Error: " <> slate.error_message(error))
+      Error(error) -> io.println("Error: " <> store.error_message(error))
     }
   })
 }
@@ -91,9 +90,10 @@ fn command_list() -> Nil {
 fn command_show(id_string: String) -> Nil {
   with_id(id_string, fn(id) {
     with_store(fn(store) {
-      case store.get_note(store, id) {
-        Error(error) -> io.println("Error: " <> slate.error_message(error))
-        Ok(note) -> {
+      case store.get_detail(store, id) {
+        Error(error) -> io.println("Error: " <> store.error_message(error))
+        Ok(detail) -> {
+          let note = detail.note
           io.println("Note #" <> int.to_string(id))
           io.println("Title:   " <> note.title)
           io.println("Body:    " <> note.body)
@@ -101,15 +101,14 @@ fn command_show(id_string: String) -> Nil {
             "Created: " <> store.unix_seconds_to_rfc3339(note.created_at),
           )
 
-          // Tags and history are optional display sections — if the
-          // lookups fail, omit the section rather than blocking the note.
-          case store.get_tags(store, id) {
+          case detail.tags {
             Ok([]) -> Nil
             Ok(tags) -> io.println("Tags:    " <> string.join(tags, ", "))
-            Error(_) -> Nil
+            Error(error) ->
+              io.println("Tags unavailable: " <> store.error_message(error))
           }
 
-          case store.get_history(store, id) {
+          case detail.history {
             Ok([]) -> Nil
             Ok(revisions) -> {
               io.println(
@@ -126,7 +125,8 @@ fn command_show(id_string: String) -> Nil {
                 )
               })
             }
-            Error(_) -> Nil
+            Error(error) ->
+              io.println("History unavailable: " <> store.error_message(error))
           }
         }
       }
@@ -146,7 +146,7 @@ fn command_tag(id_string: String, tag: String) -> Nil {
           io.println(
             "✓ Removed tag '" <> tag <> "' from note #" <> int.to_string(id),
           )
-        Error(error) -> io.println("Error: " <> slate.error_message(error))
+        Error(error) -> io.println("Error: " <> store.error_message(error))
       }
     })
   })
@@ -157,7 +157,7 @@ fn command_delete(id_string: String) -> Nil {
     with_store(fn(store) {
       case store.delete_note(store, id) {
         Ok(Nil) -> io.println("✓ Deleted note #" <> int.to_string(id))
-        Error(error) -> io.println("Error: " <> slate.error_message(error))
+        Error(error) -> io.println("Error: " <> store.error_message(error))
       }
     })
   })
