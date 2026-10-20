@@ -1,3 +1,8 @@
 package = "slate"
 kind = "Fixed"
-body = "Protected dotes storage with exclusive ownership, serialized note operations, and complete cleanup reporting."
+body = """
+Prevented lost note revisions when several dotes clients edit notes at the same time.
+
+Dotes permits one CLI, TUI, or web process per data directory. A second process reports that the store is in use. Multiple browser clients can share one web process.
+
+If deleting tags or history fails, the note remains available so you can retry the deletion. Startup and shutdown report storage and cleanup failures. Failed operations can still leave partial changes; dotes does not provide rollback."""

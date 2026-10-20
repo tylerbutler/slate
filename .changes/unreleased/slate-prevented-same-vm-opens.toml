@@ -1,3 +1,8 @@
 package = "slate"
 kind = "Fixed"
-body = "Prevented same-VM opens and closes from overlapping on the same DETS file."
+body = """
+Fixed races between table opens and closes that could lose writes or damage files when several processes used the same table.
+
+This protection applies to Slate operations within one Erlang VM. Use exclusive sessions when separate VMs can access the same file.
+
+Restart the VM when upgrading with active tables. A failure of Slate's table-lifetime service stops new opens with `UnexpectedError`; restart the VM to recover."""

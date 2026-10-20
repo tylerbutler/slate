@@ -1,3 +1,6 @@
 package = "slate"
 kind = "Fixed"
-body = "Preserved absolute roots when normalizing parent path segments."
+body = """
+Fixed opening tables at the wrong location when an absolute path contains `..` segments that go above its root.
+
+Unix roots, Windows drive roots, and UNC share roots remain intact."""

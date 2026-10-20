@@ -1,3 +1,6 @@
 package = "slate"
 kind = "Fixed"
-body = "Reported dotes tag and history read failures without hiding readable note content."
+body = """
+Fixed dotes showing empty tags or history when those sections could not be read.
+
+The CLI, TUI, and web interface show an error for each failed section while keeping the note and readable sections visible."""

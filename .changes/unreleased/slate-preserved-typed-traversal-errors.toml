@@ -1,3 +1,6 @@
 package = "slate"
 kind = "Fixed"
-body = "Preserved typed traversal errors and Result-shaped fold accumulators."
+body = """
+Fixed `fold`, `fold_results`, and `to_list` so callers can handle corrupt-table failures as `DetsError` values.
+
+Fixed `fold_results` stopping after one record when you use an `Error` or nested `Result` as the accumulator."""
