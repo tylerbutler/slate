@@ -200,14 +200,18 @@ reserved(Path) ->
     slate_dets_lifetime:find(slate_dets_ffi:canonicalize_path(Path)) =/= error.
 
 registry_failure() ->
-    Args = ["+S", "2", "+A", "1", "-noshell", "-pa"] ++ code:get_path() ++
-        ["-eval", "close_lifetime_test_ffi:registry_failure_fixture(), halt()."],
-    Port = open_port({spawn_executable, os:find_executable("erl")},
-                     [binary, exit_status, stderr_to_stdout, {args, Args}]),
-    try await_vm(Port, <<>>)
-    after
-        try port_close(Port) catch error:badarg -> ok end
-    end.
+    %% Exercise this launch with a broken erl first on PATH, just like the
+    %% existing exclusive VM fixture. Its scope always restores the environment.
+    exclusive_vm_test_ffi:with_poisoned_path(fun() ->
+        Args = ["+S", "2", "+A", "1", "-noshell", "-pa"] ++ code:get_path() ++
+            ["-eval", "close_lifetime_test_ffi:registry_failure_fixture(), halt()."],
+        Port = open_port({spawn_executable, exclusive_vm_test_ffi:erl_executable()},
+                         [binary, exit_status, stderr_to_stdout, {args, Args}]),
+        try await_vm(Port, <<>>)
+        after
+            try port_close(Port) catch error:badarg -> ok end
+        end
+    end).
 
 await_vm(Port, Output) ->
     receive

@@ -74,8 +74,11 @@ pub fn ordinary_colliding_opens_test() -> Nil {
 /// Unicode filenames and tagged table references.
 pub fn exclusive_unicode_colliding_opens_test() -> Nil {
   with_open_breakpoint(fn(breakpoint) {
+    // OTP 27's Windows filename-list encoder accepts BMP code points only.
+    // U+4E2D is still above Latin-1, so this exercises real Unicode conversion
+    // without making the allocation race depend on supplementary-plane support.
     let #(first_path, second_path) =
-      colliding_paths("test_race_exclusive_caf\u{e9}_\u{1f4be}_", Unicode)
+      colliding_paths("test_race_exclusive_caf\u{e9}_\u{4e2d}_", Unicode)
     let opened = process.new_subject()
     let completed = process.new_subject()
     let first = start_exclusive(first_path, 11, opened, completed)
