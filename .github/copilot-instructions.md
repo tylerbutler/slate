@@ -13,7 +13,7 @@ just ci                  # Full CI: doctor, format-check, check, test, strict bu
 Keep `just` for top-level coordination. Its package recipes call Trellis,
 configured in `[tools.trellis]` in the root `gleam.toml`. Register `slate`
 and `examples/dotes` as members so Trellis updates the example's lockfile.
-Exclude the example from releases and built-in tasks; keep its separate CI checks.
+Exclude the example only from releases; include it in normal workspace tasks.
 
 Unitest discovers public test functions with the `_test` suffix. Run one file
 with `gleam test -- test/set_test.gleam` or one test with

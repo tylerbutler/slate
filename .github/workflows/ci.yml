@@ -33,13 +33,6 @@ jobs:
       - name: Run tests
         run: just test
 
-      - name: Check dotes example
-        working-directory: examples/dotes
-        run: |
-          gleam format --check src test
-          gleam check
-          gleam test
-
   native:
     name: Native (${{ matrix.target }})
     runs-on: ${{ matrix.os }}

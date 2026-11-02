@@ -20,8 +20,7 @@ Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
 `gleam.toml` under `[tools.trellis]`. Register `slate` and `examples/dotes`
 as members so Trellis updates the example's local dependency lockfile.
-Exclude `examples/dotes` from releases and the built-in tasks; CI checks
-the example with its separate build commands.
+Exclude `examples/dotes` only from releases; normal workspace tasks include it.
 Keep tool versions in `.mise.toml` for both local setup and CI.
 The shared `.github/actions/setup-mise` action installs and caches these tools.
 CI and publish jobs install all configured tools; PR and release jobs install

@@ -20,13 +20,6 @@ members = [".", "examples/dotes"]
 
 [tools.trellis.exclude]
 "@release" = ["examples/dotes"]
-build = ["examples/dotes"]
-test = ["examples/dotes"]
-check = ["examples/dotes"]
-format = ["examples/dotes"]
-docs = ["examples/dotes"]
-deps = ["examples/dotes"]
-clean = ["examples/dotes"]
 
 [tools.trellis.publish]
 exact_tag_format = "v{version}"

@@ -36,7 +36,7 @@ just release-pr   # Create or update the release PR (clean checkout required)
 Keep `just` for top-level coordination; its package recipes call Trellis.
 Configure Trellis in `[tools.trellis]` in the root `gleam.toml`. Register
 `slate` and `examples/dotes` as members so Trellis updates the example's lockfile.
-Exclude the example from releases and built-in tasks; keep its separate CI checks.
+Exclude the example only from releases; include it in normal workspace tasks.
 
 ## Project Structure
 
