@@ -1,6 +1,0 @@
-package = "slate"
-kind = "Fixed"
-body = """
-Fixed `update_counter` changing a stored float before reporting an error.
-
-Noninteger counter values remain unchanged when an update is rejected, including when other Slate callers write to the same table."""
