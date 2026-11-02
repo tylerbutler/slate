@@ -106,9 +106,10 @@ clean:
 
 # === CI ===
 
-# Check workspace and changelog configuration
+# Check workspace, changelog configuration, and release regressions
 doctor:
     trellis doctor
+    python test/support/release_test.py
 
 # Run all CI checks (doctor, format, check, test, build)
 ci: doctor format-check check native-check native-licenses-check test build-strict

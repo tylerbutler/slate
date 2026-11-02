@@ -19,7 +19,9 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Check workspace
-        run: trellis doctor --format github
+        run: |
+          trellis doctor --format github
+          python test/support/release_test.py
 
       - name: Check formatting
         run: just format-check
