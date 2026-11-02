@@ -16,7 +16,10 @@ gleam_erlang = ">= 1.0.0 and < 2.0.0"
 unitest = ">= 1.6.1 and < 2.0.0"
 
 [tools.trellis]
-members = ["."]
+members = [".", "examples/dotes"]
+
+[tools.trellis.exclude]
+"@release" = ["examples/dotes"]
 
 [tools.trellis.publish]
 exact_tag_format = "v{version}"

@@ -18,8 +18,9 @@ Elixir or a shell `flock` utility.
 
 Use `just` for top-level coordination. Its package recipes call
 [Trellis](https://trellis.tylerbutler.com/). Configure Trellis in
-`gleam.toml` under `[tools.trellis]`. Only the root `slate` package is a
-member; `examples/dotes` keeps its separate build and release scope.
+`gleam.toml` under `[tools.trellis]`. Register `slate` and `examples/dotes`
+as members so Trellis updates the example's local dependency lockfile.
+Exclude `examples/dotes` only from releases; normal workspace tasks include it.
 Keep tool versions in `.mise.toml` for both local setup and CI.
 The shared `.github/actions/setup-mise` action installs and caches these tools.
 CI and publish jobs install all configured tools; PR and release jobs install
@@ -237,7 +238,10 @@ entries instead of adding them.
 On a push to `main`, CI runs `trellis release pr --base main --branch release/next`.
 Trellis updates the release PR with the version in `gleam.toml`, new sections
 in `.changes/slate/`, and the generated `CHANGELOG.md`. It removes the
-fragments it has consumed.
+fragments it has consumed. It also updates the locked Slate version in
+`examples/dotes/manifest.toml` without downloading or updating Hex dependencies.
+The example's release exclusion keeps its version unchanged and prevents
+example tags or Hex publication.
 
 Merge that PR to create a `v<version>` tag at the merge commit. The tag push
 starts CI, then Trellis creates the GitHub Release from the matching changelog
