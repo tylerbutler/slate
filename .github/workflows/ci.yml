@@ -136,7 +136,7 @@ jobs:
       attestations: read
     name: Complete native Hex package
     needs: native
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
       sbom_id: ${{ steps.sbom.outputs.artifact-id }}

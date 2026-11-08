@@ -289,6 +289,10 @@ after the build succeeds. `just sbom` generates them without a build;
 current lockfiles. CI generates them when it assembles the five-target Hex
 package and uploads the `slate-sbom` artifact.
 
+The assembly/SBOM job uses Ubuntu 24.04 because licence_audit 0.15.0's bundled
+Linux runtime requires glibc 2.36 or later. Native Linux builds and their package
+proofs still use Ubuntu 22.04 (glibc 2.35).
+
 | File | Tool | Coverage |
 |------|------|----------|
 | `build/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
