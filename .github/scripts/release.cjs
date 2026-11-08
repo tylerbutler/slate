@@ -1,7 +1,9 @@
 const BASE = "main";
 const BRANCH = "release/next";
 const STATUS = "trellis/release";
+const QUALIFICATION = "trellis/sbom-qualification";
 const SHA = /^[0-9a-f]{40}$/;
+const DIGEST = /^[0-9a-f]{64}$/;
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 async function optional(request) {
@@ -57,6 +59,46 @@ async function legacyComplete(github, repo, version, fetch) {
   const hex = await response.json();
   if (hex.version !== version) throw new Error("Hex returned a different release version.");
   return true;
+}
+
+function qualificationMarker(statuses, context) {
+  const prefix = `${context.serverUrl || "https://github.com"}/${context.repo.owner}/${context.repo.repo}/actions/runs/`;
+  let canonical;
+  for (const status of statuses.filter(item => item.context === QUALIFICATION)) {
+    const suffix = typeof status.target_url === "string" && status.target_url.startsWith(prefix)
+      ? status.target_url.slice(prefix.length) : "";
+    const ids = suffix.match(/^([1-9]\d*)\/artifacts\/([1-9]\d*)$/);
+    const digest = status.description?.match(/^SBOM sha256:([0-9a-f]{64})$/)?.[1];
+    if (status.state !== "success" || !ids || !digest
+        || !Number.isSafeInteger(Number(ids[1])) || !Number.isSafeInteger(Number(ids[2]))) {
+      throw new Error("Invalid canonical SBOM qualification marker.");
+    }
+    const marker = { run: ids[1], id: ids[2], digest };
+    if (canonical && JSON.stringify(canonical) !== JSON.stringify(marker)) {
+      throw new Error("Conflicting canonical SBOM qualification markers.");
+    }
+    canonical = marker;
+  }
+  return canonical;
+}
+
+async function validateArtifact(github, context, marker) {
+  const artifact = (await github.rest.actions.getArtifact({
+    ...context.repo, artifact_id: Number(marker.id),
+  })).data;
+  if (artifact.id !== Number(marker.id) || artifact.name !== "slate-sbom"
+      || artifact.expired !== false || artifact.digest !== `sha256:${marker.digest}`
+      || artifact.workflow_run?.id !== Number(marker.run)) {
+    throw new Error("Original qualified SBOM artifact is expired or conflicts with its marker.");
+  }
+  const run = (await github.rest.actions.getWorkflowRun({
+    ...context.repo, run_id: Number(marker.run),
+  })).data;
+  if (run.id !== Number(marker.run) || run.path !== ".github/workflows/release.yml"
+      || run.repository?.full_name !== `${context.repo.owner}/${context.repo.repo}`
+      || !["push", "pull_request", "workflow_dispatch"].includes(run.event)) {
+    throw new Error("Canonical SBOM artifact came from an unexpected repository or workflow.");
+  }
 }
 
 async function selectRelease({ github, context, fetch = globalThis.fetch }) {
@@ -144,11 +186,43 @@ async function selectRelease({ github, context, fetch = globalThis.fetch }) {
   if (!requested) {
     throw new Error(`Release PR #${pr.number} is incomplete; recover that PR before preparing another.`);
   }
+  const canonical = qualificationMarker(statuses, context);
+  if (canonical) await validateArtifact(github, context, canonical);
+  else if (tag) throw new Error("Already-tagged recovery is missing original SBOM qualification evidence.");
   await github.rest.repos.createCommitStatus({
     ...repo, sha, context: STATUS, state: "pending",
     description: "Qualifying and publishing the approved release merge",
   });
-  return { publish_sha: sha, version, pr_number: String(pr.number) };
+  return {
+    publish_sha: sha, version, pr_number: String(pr.number),
+    ...(canonical ? { canonical_sbom_id: canonical.id, canonical_sbom_digest: canonical.digest } : {}),
+  };
+}
+
+async function recordQualification({ github, context, sha, id, digest, fetch = globalThis.fetch }) {
+  const selected = await selectRelease({ github, context, fetch });
+  if (selected.publish_sha !== sha) throw new Error("Release selection changed before qualification recording.");
+  if (selected.canonical_sbom_id) {
+    return { id: selected.canonical_sbom_id, digest: selected.canonical_sbom_digest };
+  }
+  if (!/^[1-9]\d*$/.test(id || "") || !Number.isSafeInteger(Number(id))
+      || !DIGEST.test(digest || "") || !Number.isSafeInteger(context.runId) || context.runId < 1) {
+    throw new Error("Invalid qualified SBOM artifact identity.");
+  }
+  const release = await optional(() => github.rest.repos.getReleaseByTag({
+    ...context.repo, tag: `v${selected.version}`,
+  }));
+  const hex = await fetch(`https://hex.pm/api/packages/slate/releases/${selected.version}`);
+  if (release || hex.ok) throw new Error("Publication already started without original SBOM qualification evidence.");
+  if (hex.status !== 404) throw new Error(`Hex qualification check failed: HTTP ${hex.status}.`);
+  const marker = { run: String(context.runId), id, digest };
+  await validateArtifact(github, context, marker);
+  await github.rest.repos.createCommitStatus({
+    ...context.repo, sha, context: QUALIFICATION, state: "success",
+    description: `SBOM sha256:${digest}`,
+    target_url: `${context.serverUrl || "https://github.com"}/${context.repo.owner}/${context.repo.repo}/actions/runs/${marker.run}/artifacts/${id}`,
+  });
+  return { id, digest };
 }
 
 async function recordOutcome({ github, context, sha, qualification, publication }) {
@@ -156,7 +230,7 @@ async function recordOutcome({ github, context, sha, qualification, publication 
   const complete = qualification === "success" && publication === "success";
   await github.rest.repos.createCommitStatus({
     ...context.repo, sha, context: STATUS, state: complete ? "success" : "failure",
-    description: complete ? "Hex publication and tagging complete" : "Recover the original release PR",
+    description: complete ? "Hex, tags, and SBOM attachments complete" : "Recover the original release PR",
   });
 }
 
@@ -166,6 +240,9 @@ async function verifyRelease(options) {
   if (selected.publish_sha !== options.sha) {
     throw new Error("Release selection changed; do not publish or tag.");
   }
+  if (options.requireTag && await tagCommit(options.github, options.context.repo, selected.version) !== options.sha) {
+    throw new Error("Exact remote release tag must resolve to the approved revision.");
+  }
 }
 
-module.exports = { selectRelease, verifyRelease, recordOutcome };
+module.exports = { selectRelease, verifyRelease, recordOutcome, recordQualification, tagCommit };

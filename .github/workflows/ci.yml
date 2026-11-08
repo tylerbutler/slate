@@ -11,6 +11,19 @@ on:
         description: Exact release merge to qualify
         type: string
         required: false
+      canonical_sbom_id:
+        description: Immutable original qualified SBOM artifact (recovery only)
+        type: string
+        default: ""
+      canonical_sbom_digest:
+        description: SHA-256 of the original artifact archive
+        type: string
+        default: ""
+    outputs:
+      sbom_id:
+        value: ${{ jobs.hex-package.outputs.sbom_id }}
+      sbom_digest:
+        value: ${{ jobs.hex-package.outputs.sbom_digest }}
   workflow_dispatch:
 
 permissions:
@@ -41,7 +54,7 @@ jobs:
         run: just check
 
       - name: Build (warnings as errors)
-        run: just build-strict
+        run: trellis run build --strict
 
       - name: Run tests
         run: just test
@@ -117,10 +130,17 @@ jobs:
           if-no-files-found: error
 
   hex-package:
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
     name: Complete native Hex package
     needs: native
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    outputs:
+      sbom_id: ${{ steps.sbom.outputs.artifact-id }}
+      sbom_digest: ${{ steps.sbom.outputs.artifact-digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
         with:
@@ -141,6 +161,42 @@ jobs:
           done
           just native-release-check
           just native-package-check
+      - name: Generate or restore qualified SBOMs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ inputs.revision || github.sha }}
+          SBOM_ID: ${{ inputs.canonical_sbom_id }}
+          SBOM_DIGEST: ${{ inputs.canonical_sbom_digest }}
+        run: |
+          if [[ -z "$SBOM_ID" && -z "$SBOM_DIGEST" ]]; then
+            just sbom
+          else
+            [[ "$SBOM_ID" =~ ^[1-9][0-9]*$ && "$SBOM_DIGEST" =~ ^[0-9a-f]{64}$ && "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            mkdir -p build/sbom
+            gh api "repos/$GH_REPO/actions/artifacts/$SBOM_ID/zip" > build/sbom-original.zip
+            printf '%s  %s\n' "$SBOM_DIGEST" build/sbom-original.zip | sha256sum --check
+            unzip -oq build/sbom-original.zip slate-gleam.cdx.json slate-native.cdx.json -d build/sbom
+            for file in build/sbom/slate-gleam.cdx.json build/sbom/slate-native.cdx.json; do
+              verified=$(gh attestation verify "$file" --repo "$GH_REPO" \
+                --signer-workflow "$GH_REPO/.github/workflows/ci.yml" \
+                --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+                --format json --jq "any(.[]; .verificationResult.statement.predicate.repository == \"$GH_REPO\" and .verificationResult.statement.predicate.revision == \"$RELEASE_SHA\")")
+              if [[ "$verified" != true ]]; then
+                echo "::error::Original SBOM attestation does not match the approved checkout."
+                exit 1
+              fi
+            done
+          fi
+          just sbom-check
+      - name: Upload qualified SBOM working copy
+        id: sbom
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7
+        with:
+          name: slate-sbom
+          path: build/sbom/*.cdx.json
+          if-no-files-found: error
       - name: Upload complete Hex archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7
         with:
@@ -199,6 +255,7 @@ jobs:
           subject-path: |
             build/attestations/slate-native-*/slate_lock.*
             build/attestations/slate-hex-package/slate-*.tar
+            build/attestations/slate-sbom/*.cdx.json
           create-storage-record: false
       # OIDC provenance records the workflow event, not an older recovery checkout.
       - name: Attest source checkout
@@ -207,6 +264,7 @@ jobs:
           subject-path: |
             build/attestations/slate-native-*/slate_lock.*
             build/attestations/slate-hex-package/slate-*.tar
+            build/attestations/slate-sbom/*.cdx.json
           create-storage-record: false
           predicate-type: https://github.com/tylerbutler/slate/attestations/source-checkout/v1
           predicate: |

@@ -41,6 +41,7 @@ jobs:
       contents: read
       pull-requests: read
       statuses: write
+      actions: read
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.merged == true &&
@@ -51,6 +52,8 @@ jobs:
       prepare: ${{ steps.select.outputs.prepare }}
       publish_sha: ${{ steps.select.outputs.publish_sha }}
       version: ${{ steps.select.outputs.version }}
+      canonical_sbom_id: ${{ steps.select.outputs.canonical_sbom_id }}
+      canonical_sbom_digest: ${{ steps.select.outputs.canonical_sbom_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
         with:
@@ -70,17 +73,22 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+      actions: read
     needs: select
     if: needs.select.outputs.publish_sha != ''
     uses: ./.github/workflows/ci.yml
     with:
       revision: ${{ needs.select.outputs.publish_sha }}
+      canonical_sbom_id: ${{ needs.select.outputs.canonical_sbom_id }}
+      canonical_sbom_digest: ${{ needs.select.outputs.canonical_sbom_digest }}
 
   publish:
     permissions:
       contents: write
       pull-requests: read
       statuses: write
+      actions: read
+      attestations: read
     needs: [select, qualify]
     if: needs.select.outputs.publish_sha != ''
     runs-on: ubuntu-22.04
@@ -93,6 +101,44 @@ jobs:
         env:
           RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      - name: Record or retain original SBOM qualification
+        id: canonical
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+          SBOM_ID: ${{ needs.qualify.outputs.sbom_id }}
+          SBOM_DIGEST: ${{ needs.qualify.outputs.sbom_digest }}
+        with:
+          script: |
+            const {recordQualification} = require('./.github/scripts/release.cjs');
+            const result = await recordQualification({
+              github, context, sha: process.env.RELEASE_SHA,
+              id: process.env.SBOM_ID, digest: process.env.SBOM_DIGEST,
+            });
+            core.setOutput('id', result.id);
+            core.setOutput('digest', result.digest);
+      - name: Download and verify original qualified SBOMs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+          SBOM_ID: ${{ steps.canonical.outputs.id }}
+          SBOM_DIGEST: ${{ steps.canonical.outputs.digest }}
+        run: |
+          mkdir -p build/release-sbom
+          gh api "repos/$GH_REPO/actions/artifacts/$SBOM_ID/zip" > build/sbom-original.zip
+          printf '%s  %s\n' "$SBOM_DIGEST" build/sbom-original.zip | sha256sum --check
+          unzip -oq build/sbom-original.zip slate-gleam.cdx.json slate-native.cdx.json -d build/release-sbom
+          for file in build/release-sbom/slate-gleam.cdx.json build/release-sbom/slate-native.cdx.json; do
+            verified=$(gh attestation verify "$file" --repo "$GH_REPO" \
+              --signer-workflow "$GH_REPO/.github/workflows/ci.yml" \
+              --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+              --format json --jq "any(.[]; .verificationResult.statement.predicate.repository == \"$GH_REPO\" and .verificationResult.statement.predicate.revision == \"$RELEASE_SHA\")")
+            if [[ "$verified" != true ]]; then
+              echo "::error::Original SBOM attestation does not match the approved checkout."
+              exit 1
+            fi
+          done
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Collect same-revision native artifacts
@@ -132,6 +178,50 @@ jobs:
         run: trellis tag create --push --github-release
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Verify exact remote tag before attachments
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+        with:
+          script: |
+            const {verifyRelease} = require('./.github/scripts/release.cjs');
+            await verifyRelease({github, context, sha: process.env.RELEASE_SHA, requireTag: true});
+      - name: Reconcile immutable SBOM attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v${{ needs.select.outputs.version }}
+        run: |
+          release_ok=$(gh release view "$RELEASE_TAG" --json isDraft,tagName \
+            --jq ".isDraft == false and .tagName == \"$RELEASE_TAG\"")
+          if [[ "$release_ok" != true ]]; then
+            echo "::error::Expected a published GitHub Release for the exact tag."
+            exit 1
+          fi
+          mkdir -p build/sbom-existing build/sbom-published
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > build/sbom-assets.txt
+          missing=()
+          for name in slate-gleam.cdx.json slate-native.cdx.json; do
+            if grep -Fxq "$name" build/sbom-assets.txt; then
+              gh release download "$RELEASE_TAG" --pattern "$name" --dir build/sbom-existing
+              if ! cmp "build/release-sbom/$name" "build/sbom-existing/$name"; then
+                echo "::error::Published SBOM differs from original qualification: $name"
+                exit 1
+              fi
+            else
+              missing+=("build/release-sbom/$name")
+            fi
+          done
+          if [[ "${#missing[@]}" -gt 0 ]]; then
+            gh release upload "$RELEASE_TAG" "${missing[@]}"
+          fi
+          for name in slate-gleam.cdx.json slate-native.cdx.json; do
+            gh release download "$RELEASE_TAG" --pattern "$name" --dir build/sbom-published
+            if ! cmp "build/release-sbom/$name" "build/sbom-published/$name"; then
+              echo "::error::SBOM attachment verification failed: $name"
+              exit 1
+            fi
+          done
 
   complete:
     permissions:

@@ -1,11 +1,19 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
+const { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } = require("node:fs");
+const { join } = require("node:path");
+const { spawnSync } = require("node:child_process");
 const { test } = require("node:test");
 const { runInNewContext } = require("node:vm");
-const { selectRelease, verifyRelease, recordOutcome } = require("../../.github/scripts/release.cjs");
+const { selectRelease, verifyRelease, recordOutcome, recordQualification, tagCommit } = require("../../.github/scripts/release.cjs");
 
 const SHA = "a".repeat(40);
 const OTHER = "b".repeat(40);
+const DIGEST = "c".repeat(64);
+const marker = {
+  context: "trellis/sbom-qualification", state: "success",
+  description: `SBOM sha256:${DIGEST}`,
+  target_url: "https://github.com/test/slate/actions/runs/42/artifacts/7",
+};
 const repo = { owner: "test", repo: "slate" };
 const pr = {
   number: 1, merged: true, merged_at: "2026-11-01T00:00:00Z", merge_commit_sha: SHA,
@@ -30,6 +38,21 @@ function fixture(options = {}) {
           ? { object: { type: "commit", sha: options.tag } } : missing() }),
         getTag: async () => { throw new Error("Unexpected annotated tag"); },
       },
+      actions: {
+        getArtifact: async ({ artifact_id }) => {
+          assert.equal(artifact_id, 7);
+          if (options.artifactError) throw Object.assign(new Error("Artifact unavailable"), { status: options.artifactError });
+          return { data: {
+            id: 7, name: "slate-sbom", expired: false, digest: `sha256:${DIGEST}`,
+            workflow_run: { id: 42 }, ...options.artifact,
+          } };
+        },
+        getWorkflowRun: async () => ({ data: {
+          id: 42, path: ".github/workflows/release.yml",
+          repository: { full_name: "test/slate" }, event: "workflow_dispatch",
+          ...options.run,
+        } }),
+      },
       repos: {
         compareCommitsWithBasehead: async ({ basehead }) => {
           assert.equal(basehead, `${(options.live || pr).merge_commit_sha}...main`);
@@ -49,7 +72,7 @@ function fixture(options = {}) {
     },
   };
   const context = options.context || {
-    repo, eventName: "pull_request", payload: { action: "closed", pull_request: pr },
+    repo, runId: 42, eventName: "pull_request", payload: { action: "closed", pull_request: pr },
   };
   const fetch = async url => {
     assert.equal(url, "https://hex.pm/api/packages/slate/releases/2.2.2");
@@ -204,7 +227,7 @@ test("annotated tags resolve to the exact commit", async () => {
     assert.equal(tag_sha, OTHER);
     return { data: { object: { type: "commit", sha: SHA } } };
   };
-  assert.equal((await selectRelease(f)).publish_sha, SHA);
+  assert.equal(await tagCommit(f.github, repo, "2.2.2"), SHA);
 });
 
 test("API authentication and malformed manifests are errors, not no-ops", async () => {
@@ -308,4 +331,173 @@ test("build attestations require qualified trusted builds and isolated signing p
     .replace("${{ github.repository }}", "tylerbutler/slate")
     .replace("${{ inputs.revision || github.sha }}", SHA);
   assert.deepEqual(JSON.parse(predicate), { repository: "tylerbutler/slate", revision: SHA });
+});
+
+test("qualification records immutable artifact evidence before first publication", async () => {
+  const f = fixture({ hexError: 404 });
+  assert.deepEqual(await recordQualification({ ...f, sha: SHA, id: "7", digest: DIGEST }),
+    { id: "7", digest: DIGEST });
+  assert.deepEqual(f.writes.at(-1), { ...repo, sha: SHA, ...marker });
+});
+
+test("recovery keeps the original artifact across main advancement and new working-copy uploads", async () => {
+  const f = fixture({
+    context: { ...manual({ operation: "recover", pr_number: "1" }), runId: 99 },
+    tag: SHA, statuses: [marker, { context: "trellis/release", state: "failure" }],
+  });
+  const selected = await selectRelease(f);
+  assert.equal(selected.publish_sha, SHA);
+  assert.equal(selected.canonical_sbom_id, "7");
+  assert.equal(selected.canonical_sbom_digest, DIGEST);
+  assert.deepEqual(await recordQualification({ ...f, sha: SHA, id: "99", digest: "d".repeat(64) }),
+    { id: "7", digest: DIGEST });
+  assert.ok(f.writes.every(write => write.context !== marker.context));
+  await verifyRelease({ ...f, sha: SHA, requireTag: true });
+});
+
+test("missing, expired, corrupt, conflicting, and wrong-workflow original evidence blocks recovery", async () => {
+  for (const [options, pattern] of [
+    [{ tag: SHA }, /missing original/],
+    [{ artifact: { expired: true }, statuses: [marker] }, /expired or conflicts/],
+    [{ artifact: { digest: `sha256:${"d".repeat(64)}` }, statuses: [marker] }, /expired or conflicts/],
+    [{ artifactError: 404, statuses: [marker] }, /unavailable/],
+    [{ artifactError: 403, statuses: [marker] }, /unavailable/],
+    [{ run: { path: ".github/workflows/ci.yml" }, statuses: [marker] }, /unexpected repository or workflow/],
+    [{ run: { repository: { full_name: "fork/slate" } }, statuses: [marker] }, /unexpected repository or workflow/],
+    [{ statuses: [{ ...marker, target_url: "https://evil.example/test/slate/actions/runs/42/artifacts/7" }] }, /Invalid canonical/],
+    [{ statuses: [{ ...marker, description: "unknown" }] }, /Invalid canonical/],
+    [{ statuses: [marker, { ...marker, description: `SBOM sha256:${"d".repeat(64)}` }] }, /Conflicting canonical/],
+  ]) {
+    const f = fixture(options);
+    await assert.rejects(selectRelease(f), pattern);
+    assert.equal(f.writes.length, 0);
+  }
+});
+
+test("published versions without canonical evidence cannot appoint a replacement qualification", async () => {
+  for (const options of [{}, { release: { tag_name: "v2.2.2" }, hexError: 404 }]) {
+    const f = fixture(options);
+    await assert.rejects(recordQualification({ ...f, sha: SHA, id: "7", digest: DIGEST }),
+      /already started without original/);
+    assert.ok(f.writes.every(write => write.context !== marker.context));
+  }
+});
+
+test("attachment verification requires an existing exact remote tag even without pending tag work", async () => {
+  await assert.rejects(verifyRelease({ ...fixture(), sha: SHA, requireTag: true }), /Exact remote release tag/);
+  await assert.rejects(verifyRelease({ ...fixture({ tag: OTHER, statuses: [marker] }), sha: SHA, requireTag: true }),
+    /different revision/);
+  const f = fixture({ statuses: [marker] });
+  f.github.rest.git.getRef = async () => ({ data: { object: { type: "tag", sha: OTHER } } });
+  f.github.rest.git.getTag = async () => ({ data: { object: { type: "commit", sha: SHA } } });
+  await verifyRelease({ ...f, sha: SHA, requireTag: true });
+});
+
+test("SBOM workflow binds original evidence, signs working copies, and completes after immutable attachments", () => {
+  const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+  const release = readFileSync(".github/workflows/release.yml", "utf8");
+  assert.match(ci, /sbom_id: \$\{\{ steps.sbom.outputs.artifact-id \}\}/);
+  assert.match(ci, /sbom_digest: \$\{\{ steps.sbom.outputs.artifact-digest \}\}/);
+  assert.equal((ci.match(/build\/attestations\/slate-sbom\/\*\.cdx\.json/g) || []).length, 2);
+  assert.match(ci, /if \[\[ -z "\$SBOM_ID" && -z "\$SBOM_DIGEST" \]\]; then\n            just sbom\n          else/);
+  for (const workflow of [ci, release]) {
+    assert.ok(workflow.includes('actions/artifacts/$SBOM_ID/zip'));
+    assert.ok(workflow.includes('sha256sum --check'));
+    assert.ok(workflow.includes('verificationResult.statement.predicate.revision'));
+  }
+  assert.ok(release.indexOf("Record or retain original SBOM qualification") < release.indexOf("trellis publish slate"));
+  assert.ok(release.indexOf("trellis tag create") < release.indexOf("requireTag: true"));
+  assert.ok(release.indexOf("requireTag: true") < release.indexOf("Reconcile immutable SBOM attachments"));
+  assert.ok(release.indexOf("SBOM attachment verification failed") < release.indexOf("\n  complete:"));
+  assert.ok(!release.includes("--clobber"));
+  assert.match(release, /gh release upload "\$RELEASE_TAG" "\$\{missing\[@\]\}"/);
+});
+
+test("actual attachment step compares before writes and recovers partial uploads without replacement", () => {
+  const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+  const step = workflow.split("      - name: Reconcile immutable SBOM attachments\n")[1]
+    .split("\n\n  complete:")[0].split("        run: |\n")[1]
+    .split("\n").map(line => line.slice(10)).join("\n");
+  const names = ["slate-gleam.cdx.json", "slate-native.cdx.json"];
+  const originals = Object.fromEntries(names.map(name => [name, `original ${name}\n`]));
+  mkdirSync("build", { recursive: true });
+  const root = mkdtempSync("build/sbom-assets-test-");
+  try {
+    mkdirSync(join(root, "bin"));
+    mkdirSync(join(root, "build/release-sbom"), { recursive: true });
+    for (const name of names) writeFileSync(join(root, "build/release-sbom", name), originals[name]);
+    writeFileSync(join(root, "bin/gh"), `#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const state = JSON.parse(fs.readFileSync(process.env.ASSET_STATE));
+const [kind, operation, tag, ...args] = process.argv.slice(2);
+const save = () => fs.writeFileSync(process.env.ASSET_STATE, JSON.stringify(state));
+if (kind !== "release" || tag !== "v2.2.2") throw new Error("Unexpected command");
+if (args.includes("--clobber")) throw new Error("Replacement forbidden");
+if (operation === "view") {
+  if (state.failView) throw new Error("API unavailable");
+  const fields = args[args.indexOf("--json") + 1];
+  console.log(fields === "assets" ? Object.keys(state.assets).join("\\n") : !state.draft);
+} else if (operation === "download") {
+  const name = args[args.indexOf("--pattern") + 1];
+  const dir = args[args.indexOf("--dir") + 1];
+  if (!(name in state.assets)) throw new Error("Missing asset");
+  fs.writeFileSync(path.join(dir, name),
+    state.corruptDownload ? "corrupt" : state.assets[name]);
+} else if (operation === "upload") {
+  for (const file of args) {
+    state.attempts++;
+    save();
+    if (state.attempts === state.failAt) throw new Error("Upload failed");
+    const name = path.basename(file);
+    if (name in state.assets) throw new Error("Existing asset");
+    state.assets[name] = fs.readFileSync(file, "utf8");
+    state.uploaded.push(name);
+    save();
+  }
+} else throw new Error("Unexpected operation");
+`, { mode: 0o755 });
+    const statePath = join(root, "state.json");
+    const run = state => {
+      writeFileSync(statePath, JSON.stringify(state));
+      for (const dir of ["sbom-existing", "sbom-published"]) {
+        rmSync(join(root, "build", dir), { recursive: true, force: true });
+      }
+      const result = spawnSync("bash", ["-euo", "pipefail", "-c", step], {
+        cwd: root, encoding: "utf8",
+        env: {
+          ...process.env, PATH: `${join(process.cwd(), root, "bin")}:${process.env.PATH}`,
+          ASSET_STATE: join(process.cwd(), statePath),
+          GH_TOKEN: "fixture-token", GH_REPO: "test/slate", RELEASE_TAG: "v2.2.2",
+        },
+      });
+      assert.ifError(result.error);
+      return { result, state: JSON.parse(readFileSync(statePath, "utf8")) };
+    };
+    const initial = assets => ({ assets, uploaded: [], attempts: 0 });
+    for (const assets of [{}, { ...originals }, { [names[0]]: originals[names[0]] }]) {
+      const { result, state } = run(initial(assets));
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(state.assets, originals);
+      assert.equal(state.uploaded.length, names.filter(name => !(name in assets)).length);
+    }
+    const mismatch = { [names[1]]: "different published bytes" };
+    const bad = run(initial(mismatch));
+    assert.notEqual(bad.result.status, 0);
+    assert.deepEqual(bad.state.assets, mismatch);
+    assert.deepEqual(bad.state.uploaded, []);
+    const partial = run({ ...initial({}), failAt: 2 });
+    assert.notEqual(partial.result.status, 0);
+    assert.deepEqual(partial.state.assets, { [names[0]]: originals[names[0]] });
+    const recovered = run({ ...partial.state, failAt: 0 });
+    assert.equal(recovered.result.status, 0, recovered.result.stderr);
+    assert.deepEqual(recovered.state.assets, originals);
+    assert.deepEqual(recovered.state.uploaded, names);
+    for (const fault of [{ failView: true }, { corruptDownload: true }, { draft: true }]) {
+      const { result } = run({ ...initial({}), ...fault });
+      assert.notEqual(result.status, 0);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -18,7 +18,9 @@ gleam docs build         # Generate documentation
 
 ```bash
 just deps         # Download dependencies
-just build        # Build project
+just build        # Build project and generate Gleam/Rust SBOMs
+just sbom         # Generate separate CycloneDX JSON inventories
+just sbom-check   # Check generated inventories against the lockfiles
 just test         # Run tests
 just format       # Format code
 just format-check # Check formatting
@@ -151,6 +153,7 @@ Managed via mise with `.mise.toml` as the source of truth for local setup and CI
 - Node.js 22
 - Rebar3 3.27.0 (for the dotes example's Erlang dependencies)
 - Trellis: `github:tylerbutler/trellis` in `.mise.toml`
+- licence_audit 0.15.0 native tool and Syft 1.57.0 for SBOMs, not runtime dependencies
 
 The shared `.github/actions/setup-mise` action installs and caches tools.
 Do not add a root `.tool-versions` file; Cloudflare Workers Builds detects it
@@ -162,12 +165,16 @@ and can fail before the website build starts.
 - **ci.yml**: Trellis doctor, format check, type check, build, test, docs
 - **pr.yml**: PR title validation (commitlint), Trellis changelog check and preview
 - **release.yml**: Queued native Trellis preparation, exact-merge qualification,
-  Hex publication, then tags/GitHub Release, with revision-bound recovery
+  Hex publication, then tags/GitHub Release and SBOM assets, with revision-bound recovery
   - Trellis titles use `release: slate v<version>`; commitlint accepts `release`.
   - Resume pending intent, skip unchanged content, and continue candidate labels.
     Promote explicitly with `pre=none`; recover incomplete releases by PR number.
   - Preserve five-target native artifacts and consumer proofs. Tag pushes do not
     trigger publication. Do not change secrets/settings or bypass revision checks.
+  - Preserve the original `slate-sbom` artifact ID and ZIP digest in
+    `trellis/sbom-qualification`. Missing or expired evidence blocks recovery.
+    Compare existing assets before uploads, never clobber, and complete only
+    after both original documents match. Keep Hex contents unchanged.
 
 ### Changelog
 

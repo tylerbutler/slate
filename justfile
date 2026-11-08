@@ -50,12 +50,22 @@ native-release-check:
     escript test/support/exclusive-package.escript --release-artifacts
 
 # Build project (Erlang target)
-build:
+build: && sbom
     trellis run build
 
 # Build with warnings as errors
-build-strict:
+build-strict: && sbom
     trellis run build --strict
+
+# Generate separate Gleam and native Rust dependency inventories
+sbom:
+    mkdir -p build/sbom
+    licence_audit sbom --reproducible --output=build/sbom/slate-gleam.cdx.json
+    syft scan dir:priv/slate_lock/source --output cyclonedx-json@1.6=build/sbom/slate-native.cdx.json
+
+# Check generated inventories against the checked-out lockfiles
+sbom-check:
+    node --test test/support/sbom_test.cjs
 
 # === TESTING ===
 
@@ -125,7 +135,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor release-check release-cli-check format-check check native-check native-licenses-check test build-strict
+ci: doctor release-check release-cli-check format-check check native-check native-licenses-check test build-strict sbom-check
 
 # Alias for PR checks
 alias pr := ci

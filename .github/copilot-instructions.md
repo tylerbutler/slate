@@ -83,3 +83,14 @@ Release CI qualifies the exact merge SHA and all five native targets before Hex
 publication, then creates tags/GitHub Releases. Never bypass a failed native proof.
 Use `just release-recover <pr-number>` for incomplete publication; do not tag
 current main as a recovery shortcut or change repository secrets/settings.
+
+`just build` and `just build-strict` generate separate Gleam and Rust CycloneDX
+JSON SBOMs with the pinned native licence_audit and Syft tools. They are
+development tools, not runtime dependencies. `just sbom-check` checks inventory
+and dependency graphs against both lockfiles. Keep SBOMs outside Hex contents.
+Release qualification signs the documents and records the original `slate-sbom`
+artifact ID and ZIP digest in `trellis/sbom-qualification`. Recovery must retain
+that identity and exact approved revision. Missing/expired evidence or differing
+bytes blocks recovery; do not regenerate replacements. Compare both existing
+release assets before uploading only missing assets, without clobbering, and
+record completion only after both final attachments match.

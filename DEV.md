@@ -47,8 +47,10 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Task | Command | Description |
 |------|---------|-------------|
 | Download dependencies | `just deps` | Download project dependencies |
-| Build | `just build` | Build project (Erlang target) |
-| Build strict | `just build-strict` | Build with warnings as errors |
+| Build | `just build` | Build project and generate SBOMs |
+| Build strict | `just build-strict` | Build with warnings as errors and generate SBOMs |
+| SBOM | `just sbom` | Generate separate Gleam and Rust CycloneDX inventories |
+| SBOM check | `just sbom-check` | Compare generated inventories with the checked-out lockfiles |
 | Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
 | Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
 | Notice tools | `just native-license-tools` | Install the pinned cargo-about generator |
@@ -262,7 +264,8 @@ existing tag before publication. It rejects recovery of a superseded release.
 The workflows use `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` to prepare PRs,
 `HEXPM_API_KEY` for Hex, and the workflow token for tags, GitHub Releases, and
 commit statuses. The App needs contents and pull-request write access; the
-workflow needs contents, pull-request, and status write access. These existing
+workflow needs contents, pull-request, and status write access, plus actions
+and attestations read access for original SBOM recovery. These existing
 credentials and access remain prerequisites. No new approval environment is
 required.
 
@@ -278,10 +281,58 @@ target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
 from a different revision or bypass a failed target. Missing runners or failed
 platform proofs block release.
 
+### Software bills of materials
+
+`just build` and `just build-strict` generate two CycloneDX 1.6 JSON documents
+after the build succeeds. `just sbom` generates them without a build;
+`just sbom-check` checks their inventories and dependency graphs against the
+current lockfiles. CI generates them when it assembles the five-target Hex
+package and uploads the `slate-sbom` artifact.
+
+| File | Tool | Coverage |
+|------|------|----------|
+| `build/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
+| `build/sbom/slate-native.cdx.json` | Syft 1.57.0 | The native crate's complete Cargo.lock inventory, including target-specific crates, plus the lockfile hash |
+
+Both tools are pinned development tools in `.mise.toml`; neither adds a runtime
+or Hex dependency. licence_audit has no published Hex package. Its native
+distribution includes OTP and supports Slate's OTP 27 host; the escript requires
+OTP 28. The reproducible Gleam command needs checksum-verified package metadata
+and fails if that metadata is unavailable. It does not scan the dotes example's
+local path dependency. Syft scans only `priv/slate_lock/source`, not a container
+or a vulnerability service. Its inventory does not assert downloaded Rust crate
+hashes; the Cargo.lock hash binds the locked checksums. Its timestamp and serial
+metadata can change between generations.
+
+Release qualification signs both documents. Before Hex publication, the
+coordinator records the original artifact ID and ZIP SHA-256 in the
+`trellis/sbom-qualification` status on the approved merge revision. Recovery
+downloads that exact archive, checks its digest and signed checkout revision,
+and checks both inventories against the original checkout. A same-run working
+copy does not replace the canonical artifact identity. A missing or expired
+archive, conflicting marker, changed bytes, or unavailable attestation blocks
+recovery. Keep the original artifact within GitHub's configured retention period;
+do not substitute regenerated Syft output or appoint a replacement qualification.
+
+After Hex and native tag/release creation, the coordinator verifies the exact
+remote tag even when Trellis has no pending tag work. It compares both existing
+SBOM assets with the original bytes before any upload, uploads only missing
+assets without clobbering, then downloads and compares both final assets before
+recording completion. It leaves Hex contents unchanged. A partial upload can
+leave a visible GitHub Release with incomplete assets; recover the same approved
+revision. Byte mismatches require investigation, not asset replacement.
+
+This interim flow requires GitHub to permit asset additions to a published
+release. If release immutability prevents additions, release remains incomplete;
+Trellis needs draft/upload/finalization support before that policy can work.
+Do not change repository settings as a workaround. Native asset coordination is
+tracked in [tylerbutler/trellis#163](https://github.com/tylerbutler/trellis/issues/163).
+
 ### Build attestations
 
 After all CI jobs pass, trusted main builds and merged-release qualification
-generate attestations for the five native binaries and complete Hex archive.
+generate attestations for the five native binaries, complete Hex archive, and
+both SBOM documents.
 Unmerged PR builds do not run the signing job. Only the signing job receives
 `id-token: write` and `attestations: write`; the release caller grants these
 permissions to the reusable workflow. A signing failure blocks release
@@ -293,7 +344,7 @@ The provenance identifies the workflow event revision. A separate signed
 records `repository` and the exact checkout `revision`, including when recovery
 builds an older release merge.
 
-Verify a downloaded native binary or CI archive with:
+Verify a downloaded native binary, CI archive, or SBOM document with:
 
 ```sh
 gh attestation verify path/to/artifact --repo tylerbutler/slate \
@@ -333,8 +384,9 @@ The `trellis/release` status on the merge revision records pending, failed, or
 completed publication. Pending or failed releases block new preparation.
 Recover with the original PR number, or rerun the original merge workflow.
 Recovery reruns qualification at that revision, skips an already published Hex
-version, and reconciles tags/releases. It records completion only after Hex and
-tagging succeed. Completed recovery requests do not publish or prepare again.
+version, and reconciles tags/releases and the original SBOM assets. It records
+completion only after Hex, tagging, and both matching attachments succeed.
+Completed recovery requests do not publish or prepare again.
 Releases shipped before these statuses existed count as complete only when their
 tag resolves to the merge SHA and both their GitHub Release and Hex version exist.
 API/authentication failures fail the completion check instead of assuming success.
