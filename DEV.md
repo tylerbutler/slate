@@ -63,7 +63,10 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Docs | `just docs` | Build documentation |
 | Changelog entry | `just change Fixed "Fixed a lookup error."` | Create a Trellis TOML fragment |
 | Changelog preview | `just changelog-preview` | Preview the next version without writing files |
-| Release PR | `just release-pr` | Batch entries and create or update the release PR |
+| Release PR | `just release-pr [pre] [version] [replace]` | Request coordinated preparation on main |
+| Release recovery | `just release-recover <pr-number>` | Recover publication at a merged release PR's revision |
+| Release checks | `just release-check` | Check release coordination without remote writes |
+| Native CLI checks | `just release-cli-check` | Exercise the pinned Trellis against local Git and a loopback API |
 | Clean | `just clean` | Remove build artifacts |
 | Workspace health | `just doctor` | Check Trellis configuration and changelog fragments |
 | CI | `just ci` | Run all CI checks (doctor, format, check, test, build) |
@@ -235,18 +238,31 @@ entries instead of adding them.
 
 ### Release flow
 
-On a push to `main`, CI runs `trellis release pr --base main --branch release/next`.
+The release workflow serializes preparation, publication, and recovery in one
+non-cancelling queue. On a push to `main`, it checks the previous release's
+completion before running `trellis release pr --base main --branch release/next`.
 Trellis updates the release PR with the version in `gleam.toml`, new sections
 in `.changes/slate/`, and the generated `CHANGELOG.md`. It removes the
-fragments it has consumed. It also updates the locked Slate version in
+fragments it has consumed. Trellis 1.3 stores pending release intent in
+`.changes/release.toml`. Refreshes resume that intent and skip unchanged content.
+It also updates the locked Slate version in
 `examples/dotes/manifest.toml` without downloading or updating Hex dependencies.
 The example's release exclusion keeps its version unchanged and prevents
 example tags or Hex publication.
 
-Merge that PR to create a `v<version>` tag at the merge commit. The tag push
-starts CI, then Trellis creates the GitHub Release from the matching changelog
-section and publishes to Hex. The workflows use `RELEASE_APP_ID` and
-`RELEASE_APP_PRIVATE_KEY` for PR and tag events, and `HEXPM_API_KEY` for Hex.
+Merge that PR to qualify its exact merge revision through the reusable CI
+workflow. Publication then assembles the qualified native files, publishes Slate
+to Hex, and creates the `v<version>` tag and GitHub Release from the matching
+changelog section. A tag push does not start another publication. The workflow
+validates the current same-repository merged PR, its ancestry on main, and any
+existing tag before publication. It rejects recovery of a superseded release.
+
+The workflows use `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` to prepare PRs,
+`HEXPM_API_KEY` for Hex, and the workflow token for tags, GitHub Releases, and
+commit statuses. The App needs contents and pull-request write access; the
+workflow needs contents, pull-request, and status write access. These existing
+credentials and access remain prerequisites. No new approval environment is
+required.
 
 CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
 macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
@@ -260,9 +276,43 @@ target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
 from a different revision or bypass a failed target. Missing runners or failed
 platform proofs block release.
 
-To update the release PR from a clean local checkout, run `just release-pr`.
-It pushes the release branch and requires GitHub authentication. The old
-`just changelog` merge-only recipe has no Trellis equivalent; use the release
+Use workflow dispatch on `main`, or these authenticated `gh`-backed recipes:
+
+```sh
+just release-pr                    # Resume or prepare; skip unchanged content
+just release-pr rc                 # Start a candidate cycle
+just release-pr none               # Promote the current candidate to final
+just release-pr "" 2.3.0            # Request an exact Slate target
+just release-pr "" 2.3.0 true       # Replace incompatible pending intent explicitly
+just release-recover 123           # Recover merged release PR #123 at its merge SHA
+```
+
+Automatic preparation preserves a pending request and continues the label of a
+committed candidate. It does not promote a candidate; request `pre=none` to do
+that. Each candidate has incremental notes, and promotion rolls up its archived
+fragments. A replacement requires an explicit candidate label or target version
+and disables resume, automatic candidate selection, and unchanged suppression.
+Do not replace an approved candidate with an unrelated target.
+
+The `trellis/release` status on the merge revision records pending, failed, or
+completed publication. Pending or failed releases block new preparation.
+Recover with the original PR number, or rerun the original merge workflow.
+Recovery reruns qualification at that revision, skips an already published Hex
+version, and reconciles tags/releases. It records completion only after Hex and
+tagging succeed. Completed recovery requests do not publish or prepare again.
+Releases shipped before these statuses existed count as complete only when their
+tag resolves to the merge SHA and both their GitHub Release and Hex version exist.
+API/authentication failures fail the completion check instead of assuming success.
+
+Trellis 1.3 can fail a refresh if GitHub's PR head has not caught up with a branch
+push. Do not bypass its revision checks. Once the API shows the current head,
+an explicit replacement with the intended target can refresh the PR again.
+`just release-cli-check` covers healthy refreshes and this stale-head rejection
+against a local API; it does not prove hosted API timing or credential validity.
+Runner loss or cancellation can leave the status pending; use the same recovery
+path. Do not create tags manually to trigger publication.
+
+The old `just changelog` merge-only recipe has no Trellis equivalent; use the release
 PR flow to generate the changelog and bump the version together.
 
 Do not edit `CHANGELOG.md` to add entries. Trellis regenerates it from

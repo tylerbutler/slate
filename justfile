@@ -94,9 +94,23 @@ change kind body:
 changelog-preview:
     trellis version plan
 
-# Create or update the release PR (requires a clean working tree)
-release-pr:
-    trellis release pr --base main --branch release/next
+# Request coordinated release preparation on main
+[positional-arguments]
+release-pr pre="" version="" replace="false":
+    gh workflow run release.yml --ref main -f operation=prepare -f pre="$1" -f version="$2" -f replace="$3"
+
+# Recover a merged release at its original revision
+[positional-arguments]
+release-recover pr:
+    gh workflow run release.yml --ref main -f operation=recover -f pr_number="$1"
+
+# Check release selection, arguments, and workflow dependencies without remote writes
+release-check:
+    node --test test/support/release_test.cjs
+
+# Exercise the pinned native CLI against disposable Git and a loopback GitHub stub
+release-cli-check:
+    node --test test/support/release_cli_test.cjs
 
 # === MAINTENANCE ===
 
@@ -111,7 +125,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor format-check check native-check native-licenses-check test build-strict
+ci: doctor release-check release-cli-check format-check check native-check native-licenses-check test build-strict
 
 # Alias for PR checks
 alias pr := ci

@@ -30,7 +30,10 @@ just main         # Extended checks for main branch
 just clean        # Remove build artifacts
 just doctor       # Check Trellis workspace and changelog invariants
 just changelog-preview # Preview the next version
-just release-pr   # Create or update the release PR (clean checkout required)
+just release-pr   # Request coordinated release preparation on main
+just release-recover <pr> # Recover publication at the original release merge
+just release-check # Check release coordination without remote writes
+just release-cli-check # Check native release CLI against local fixtures
 ```
 
 Keep `just` for top-level coordination; its package recipes call Trellis.
@@ -158,10 +161,13 @@ and can fail before the website build starts.
 ### Workflows
 - **ci.yml**: Trellis doctor, format check, type check, build, test, docs
 - **pr.yml**: PR title validation (commitlint), Trellis changelog check and preview
-- **release.yml**: Trellis versioning and release PR on `release/next`
+- **release.yml**: Queued native Trellis preparation, exact-merge qualification,
+  Hex publication, then tags/GitHub Release, with revision-bound recovery
   - Trellis titles use `release: slate v<version>`; commitlint accepts `release`.
-- **auto-tag.yml**: Trellis tags the release PR's merge commit as `v<version>`
-- **publish.yml**: Run CI, then use Trellis for the GitHub Release and Hex publish
+  - Resume pending intent, skip unchanged content, and continue candidate labels.
+    Promote explicitly with `pre=none`; recover incomplete releases by PR number.
+  - Preserve five-target native artifacts and consumer proofs. Tag pushes do not
+    trigger publication. Do not change secrets/settings or bypass revision checks.
 
 ### Changelog
 

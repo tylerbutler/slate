@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+    inputs:
+      revision:
+        description: Exact release merge to qualify
+        type: string
+        required: false
   workflow_dispatch:
 
 jobs:
@@ -14,12 +19,17 @@ jobs:
     name: Test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
 
       - name: Setup environment
         uses: ./.github/actions/setup
 
       - name: Check workspace
         run: trellis doctor --format github
+
+      - name: Check release coordination
+        run: just release-check && just release-cli-check
 
       - name: Check formatting
         run: just format-check
@@ -58,6 +68,8 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "15.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Setup pinned Rust
@@ -108,6 +120,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Collect same-revision native artifacts
@@ -138,6 +152,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Download complete Hex archive
@@ -157,6 +173,8 @@ jobs:
     name: Docs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
 
       - name: Setup environment
         uses: ./.github/actions/setup
