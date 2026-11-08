@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Changed"
+body = "Release assets now include signed Gleam and Rust CycloneDX SBOMs, with recovery checks that preserve the original qualified bytes. Hex package contents remain unchanged."
