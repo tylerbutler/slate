@@ -184,19 +184,21 @@ jobs:
           tools: github:tylerbutler/trellis
 
       - name: Create or update release PR
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        shell: bash
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        with:
-          script: |
-            const {prepareArgs} = require('./.github/scripts/release.cjs');
-            const inputs = context.eventName === 'workflow_dispatch' ? context.payload.inputs : {};
-            const args = prepareArgs({...inputs, replace: inputs.replace === 'true'});
-            const {stdout} = await exec.getExecOutput('trellis', args);
-            const result = JSON.parse(stdout);
-            if (!['prepared', 'unchanged', 'no_changes'].includes(result.outcome)) {
-              throw new Error('Unexpected Trellis preparation outcome.');
-            }
-            core.info(`Release preparation: ${result.outcome}`);
-            await core.summary.addHeading('Release preparation')
-              .addRaw(result.outcome).write();
+          PRE: ${{ inputs.pre || '' }}
+          VERSION: ${{ inputs.version || '' }}
+          REPLACE: ${{ inputs.replace || false }}
+        run: |
+          args=(release pr --base main --branch release/next)
+          if [[ -n "$PRE" ]]; then args+=(--pre "$PRE"); fi
+          if [[ -n "$VERSION" ]]; then args+=(--set "slate=$VERSION"); fi
+          if [[ "$REPLACE" == "true" ]]; then
+            if [[ -z "$PRE" && -z "$VERSION" ]]; then
+              echo "::error::Replacing release intent requires an explicit pre or version."
+              exit 1
+            fi
+            args+=(--no-resume --no-auto-pre --no-skip-unchanged)
+          fi
+          trellis "${args[@]}"

@@ -1,15 +1,21 @@
 const assert = require("node:assert/strict");
 const { execFile: execFileCallback, execFileSync } = require("node:child_process");
-const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } = require("node:fs");
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } = require("node:fs");
 const { createServer } = require("node:http");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 const { test } = require("node:test");
 const { promisify } = require("node:util");
-const { prepareArgs } = require("../../.github/scripts/release.cjs");
 const execFile = promisify(execFileCallback);
 
 test("shipped Trellis prepares, refreshes, resumes candidates, and promotes without remote writes", async t => {
+  const workflow = readFileSync(".github/workflows/release.yml", "utf8");
+  const step = workflow.split("      - name: Create or update release PR\n")[1];
+  assert.ok(step.includes('trellis "${args[@]}"'));
+  const script = step.split("        run: |\n")[1]
+    .split("\n").map(line => line.slice(10)).join("\n");
+  // Use native JSON only in this fixture to assert preparation outcomes.
+  const fixtureScript = script.replace('trellis "${args[@]}"', 'trellis "${args[@]}" --json');
   const root = mkdtempSync(join(tmpdir(), "slate-release-test-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const checkout = join(root, "checkout");
@@ -75,7 +81,12 @@ test("shipped Trellis prepares, refreshes, resumes candidates, and promotes with
     TRELLIS_NO_UPDATE_CHECK: "1", CI: "true",
   };
   const trellis = async args => (await execFile("trellis", ["-C", checkout, ...args], { env })).stdout;
-  const prepare = async options => JSON.parse(await trellis(prepareArgs(options)));
+  const prepare = async ({ pre = "", version = "", replace = false } = {}) => {
+    const { stdout } = await execFile("bash", ["-e", "-o", "pipefail", "-c", fixtureScript], {
+      cwd: checkout, env: { ...env, PRE: pre, VERSION: version, REPLACE: String(replace) },
+    });
+    return JSON.parse(stdout);
+  };
   const change = async body => {
     await trellis(["changelog", "new", "--kind", "Fixed", "--body", body]);
     git("add", ".");
@@ -88,6 +99,11 @@ test("shipped Trellis prepares, refreshes, resumes candidates, and promotes with
     pending = false;
   };
   assert.equal((await prepare()).outcome, "no_changes");
+  for (const options of [
+    { pre: "--force" }, { pre: "$(touch unexpected)" },
+    { version: "2.3.0; exit 1" }, { version: "02.3.0" }, { replace: true },
+  ]) await assert.rejects(prepare(options));
+  assert.equal(existsSync(join(checkout, "unexpected")), false);
   await change("First fixture change");
   assert.equal((await prepare()).outcome, "prepared");
   assert.equal(titles.at(-1), "release: slate v0.1.1");

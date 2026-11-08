@@ -4,21 +4,6 @@ const STATUS = "trellis/release";
 const SHA = /^[0-9a-f]{40}$/;
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-function prepareArgs({ pre = "", version = "", replace = false } = {}) {
-  if (pre && !/^[A-Za-z][0-9A-Za-z-]*$/.test(pre)) {
-    throw new Error("pre must be a candidate label or none.");
-  }
-  if (version && !VERSION.test(version)) throw new Error("Invalid Slate target version.");
-  if (replace && !pre && !version) {
-    throw new Error("Replacing release intent requires an explicit pre or version.");
-  }
-  const args = ["release", "pr", "--base", BASE, "--branch", BRANCH, "--json"];
-  if (pre) args.push("--pre", pre);
-  if (version) args.push("--set", `slate=${version}`);
-  if (replace) args.push("--no-resume", "--no-auto-pre", "--no-skip-unchanged");
-  return args;
-}
-
 async function optional(request) {
   try {
     return (await request()).data;
@@ -92,7 +77,9 @@ async function selectRelease({ github, context, fetch = globalThis.fetch }) {
     }
     if (!recover) {
       if (inputs.pr_number) throw new Error("A PR number is only used for recovery.");
-      prepareArgs({ ...inputs, replace: inputs.replace === "true" });
+      if (inputs.replace === "true" && !inputs.pre && !inputs.version) {
+        throw new Error("Replacing release intent requires an explicit pre or version.");
+      }
     }
   }
   let requested;
@@ -181,4 +168,4 @@ async function verifyRelease(options) {
   }
 }
 
-module.exports = { prepareArgs, selectRelease, verifyRelease, recordOutcome };
+module.exports = { selectRelease, verifyRelease, recordOutcome };

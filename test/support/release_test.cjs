@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { test } = require("node:test");
-const { prepareArgs, selectRelease, verifyRelease, recordOutcome } = require("../../.github/scripts/release.cjs");
+const { selectRelease, verifyRelease, recordOutcome } = require("../../.github/scripts/release.cjs");
 
 const SHA = "a".repeat(40);
 const OTHER = "b".repeat(40);
@@ -65,20 +65,6 @@ const manual = inputs => ({
   repo, eventName: "workflow_dispatch", ref: "refs/heads/main", payload: { inputs },
 });
 
-test("native preparation uses arrays and preserves default continuation", () => {
-  assert.deepEqual(prepareArgs(), [
-    "release", "pr", "--base", "main", "--branch", "release/next", "--json",
-  ]);
-  assert.deepEqual(prepareArgs({ pre: "none", version: "2.3.0", replace: true }).slice(7), [
-    "--pre", "none", "--set", "slate=2.3.0",
-    "--no-resume", "--no-auto-pre", "--no-skip-unchanged",
-  ]);
-  for (const options of [
-    { pre: "--force" }, { pre: "$(touch bad)" }, { version: "slate=2.3.0" },
-    { version: "2.3.0; echo bad" }, { version: "02.3.0" }, { replace: true },
-  ]) assert.throws(() => prepareArgs(options));
-});
-
 test("merged release reserves its immutable revision before qualification", async () => {
   const f = fixture();
   assert.deepEqual(await selectRelease(f), { publish_sha: SHA, version: "2.2.2", pr_number: "1" });
@@ -123,6 +109,7 @@ test("recovery validates operation, PR identity, and main ancestry", async () =>
     [{ context: manual({ operation: "unknown" }) }, /Invalid operation/],
     [{ context: { ...push, ref: "refs/heads/feature" } }, /from main/],
     [{ context: manual({ operation: "prepare", pr_number: "1" }) }, /only used for recovery/],
+    [{ context: manual({ operation: "prepare", replace: "true" }) }, /requires an explicit/],
     [{ comparison: "diverged" }, /ancestor/],
     [{ live: { ...pr, merge_commit_sha: "main" } }, /current merged PR state/],
     [{ context: manual({ operation: "recover", pr_number: "1" }),

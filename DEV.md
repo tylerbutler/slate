@@ -241,6 +241,8 @@ entries instead of adding them.
 The release workflow serializes preparation, publication, and recovery in one
 non-cancelling queue. On a push to `main`, it checks the previous release's
 completion before running `trellis release pr --base main --branch release/next`.
+Preparation, publication, and tagging call Trellis directly. The GitHub helper
+only selects trusted release revisions and tracks publication/recovery state.
 Trellis updates the release PR with the version in `gleam.toml`, new sections
 in `.changes/slate/`, and the generated `CHANGELOG.md`. It removes the
 fragments it has consumed. Trellis 1.3 stores pending release intent in
