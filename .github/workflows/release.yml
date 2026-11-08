@@ -74,6 +74,8 @@ jobs:
       id-token: write
       attestations: write
       actions: read
+      pull-requests: read
+      statuses: write
     needs: select
     if: needs.select.outputs.publish_sha != ''
     uses: ./.github/workflows/ci.yml
@@ -101,29 +103,13 @@ jobs:
         env:
           RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
         run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
-      - name: Record or retain original SBOM qualification
-        id: canonical
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
-        env:
-          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
-          SBOM_ID: ${{ needs.qualify.outputs.sbom_id }}
-          SBOM_DIGEST: ${{ needs.qualify.outputs.sbom_digest }}
-        with:
-          script: |
-            const {recordQualification} = require('./.github/scripts/release.cjs');
-            const result = await recordQualification({
-              github, context, sha: process.env.RELEASE_SHA,
-              id: process.env.SBOM_ID, digest: process.env.SBOM_DIGEST,
-            });
-            core.setOutput('id', result.id);
-            core.setOutput('digest', result.digest);
       - name: Download and verify original qualified SBOMs
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
-          SBOM_ID: ${{ steps.canonical.outputs.id }}
-          SBOM_DIGEST: ${{ steps.canonical.outputs.digest }}
+          SBOM_ID: ${{ needs.qualify.outputs.sbom_id }}
+          SBOM_DIGEST: ${{ needs.qualify.outputs.sbom_digest }}
         run: |
           mkdir -p build/release-sbom
           gh api "repos/$GH_REPO/actions/artifacts/$SBOM_ID/zip" > build/sbom-original.zip

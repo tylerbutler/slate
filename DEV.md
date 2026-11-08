@@ -304,10 +304,11 @@ or a vulnerability service. Its inventory does not assert downloaded Rust crate
 hashes; the Cargo.lock hash binds the locked checksums. Its timestamp and serial
 metadata can change between generations.
 
-Release qualification signs both documents. Before Hex publication, the
-coordinator records the original artifact ID and ZIP SHA-256 in the
-`trellis/sbom-qualification` status on the approved merge revision. Recovery
-downloads that exact archive, checks its digest and signed checkout revision,
+Release qualification signs both documents. Its final step records the original
+artifact ID and ZIP SHA-256 in the `trellis/sbom-qualification` status on the
+approved merge revision before qualification can succeed or Hex can publish.
+This keeps a cancellation before publication from losing the original identity.
+Recovery downloads that exact archive, checks its digest and signed checkout revision,
 and checks both inventories against the original checkout. A same-run working
 copy does not replace the canonical artifact identity. A missing or expired
 archive, conflicting marker, changed bytes, or unavailable attestation blocks

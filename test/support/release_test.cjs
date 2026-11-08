@@ -264,7 +264,7 @@ test("workflow preserves qualification, artifacts, ordering, and queued coordina
   assert.ok(workflow.indexOf("Recheck trusted release before Hex") < workflow.indexOf("trellis publish slate"));
   assert.ok(workflow.indexOf("Recheck trusted release before tagging") < workflow.indexOf("trellis tag create"));
   assert.match(workflow, /complete:\n    permissions:[\s\S]*?\n    needs: \[select, qualify, publish\]\n    if: always\(\)/);
-  assert.equal((ci.match(/ref: \$\{\{ inputs.revision \|\| github.sha \}\}/g) || []).length, 5);
+  assert.equal((ci.match(/ref: \$\{\{ inputs.revision \|\| github.sha \}\}/g) || []).length, 6);
   for (const target of [
     "x86_64-linux-gnu", "aarch64-linux-gnu", "x86_64-apple-darwin",
     "aarch64-apple-darwin", "x86_64-pc-windows",
@@ -328,6 +328,7 @@ test("build attestations require qualified trusted builds and isolated signing p
   assert.ok(!attest.includes("run-id:"), "attest only artifacts from this run");
   assert.ok(!attest.includes("continue-on-error:"), "signing failure must block qualification");
   const predicate = attest.split("          predicate: |\n")[1]
+    .split("\n      - name:")[0]
     .replace("${{ github.repository }}", "tylerbutler/slate")
     .replace("${{ inputs.revision || github.sha }}", SHA);
   assert.deepEqual(JSON.parse(predicate), { repository: "tylerbutler/slate", revision: SHA });
@@ -405,7 +406,17 @@ test("SBOM workflow binds original evidence, signs working copies, and completes
     assert.ok(workflow.includes('sha256sum --check'));
     assert.ok(workflow.includes('verificationResult.statement.predicate.revision'));
   }
-  assert.ok(release.indexOf("Record or retain original SBOM qualification") < release.indexOf("trellis publish slate"));
+  const attest = ci.split("\n  attest:\n")[1].split("\n  docs:\n")[0];
+  assert.ok(attest.indexOf("Attest source checkout") < attest.indexOf("Record or retain original SBOM qualification"));
+  assert.match(attest, /Record or retain original SBOM qualification\n        if: inputs.revision != ''/);
+  assert.ok(!attest.includes("continue-on-error:"));
+  assert.match(ci, /value: \$\{\{ jobs.attest.outputs.sbom_id \}\}/);
+  assert.match(ci, /value: \$\{\{ jobs.attest.outputs.sbom_digest \}\}/);
+  assert.match(attest, /sbom_id: \$\{\{ steps.canonical.outputs.id \}\}/);
+  assert.match(attest, /sbom_digest: \$\{\{ steps.canonical.outputs.digest \}\}/);
+  assert.ok(!release.includes("recordQualification"), "publication cannot appoint replacement evidence");
+  assert.match(release, /SBOM_ID: \$\{\{ needs.qualify.outputs.sbom_id \}\}/);
+  assert.match(release, /SBOM_DIGEST: \$\{\{ needs.qualify.outputs.sbom_digest \}\}/);
   assert.ok(release.indexOf("trellis tag create") < release.indexOf("requireTag: true"));
   assert.ok(release.indexOf("requireTag: true") < release.indexOf("Reconcile immutable SBOM attachments"));
   assert.ok(release.indexOf("SBOM attachment verification failed") < release.indexOf("\n  complete:"));

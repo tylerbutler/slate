@@ -21,9 +21,9 @@ on:
         default: ""
     outputs:
       sbom_id:
-        value: ${{ jobs.hex-package.outputs.sbom_id }}
+        value: ${{ jobs.attest.outputs.sbom_id }}
       sbom_digest:
-        value: ${{ jobs.hex-package.outputs.sbom_digest }}
+        value: ${{ jobs.attest.outputs.sbom_digest }}
   workflow_dispatch:
 
 permissions:
@@ -242,7 +242,13 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+      actions: read
+      pull-requests: read
+      statuses: write
     runs-on: ubuntu-latest
+    outputs:
+      sbom_id: ${{ steps.canonical.outputs.id }}
+      sbom_digest: ${{ steps.canonical.outputs.digest }}
     steps:
       - name: Download qualified build artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
@@ -272,6 +278,30 @@ jobs:
               "repository": "${{ github.repository }}",
               "revision": "${{ inputs.revision || github.sha }}"
             }
+
+      - name: Checkout release qualification policy
+        if: inputs.revision != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+      - name: Record or retain original SBOM qualification
+        if: inputs.revision != ''
+        id: canonical
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ inputs.revision }}
+          SBOM_ID: ${{ needs.hex-package.outputs.sbom_id }}
+          SBOM_DIGEST: ${{ needs.hex-package.outputs.sbom_digest }}
+        with:
+          script: |
+            const {recordQualification} = require('./.github/scripts/release.cjs');
+            const result = await recordQualification({
+              github, context, sha: process.env.RELEASE_SHA,
+              id: process.env.SBOM_ID, digest: process.env.SBOM_DIGEST,
+            });
+            core.setOutput('id', result.id);
+            core.setOutput('digest', result.digest);
 
   docs:
     runs-on: ubuntu-latest
