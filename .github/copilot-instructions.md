@@ -87,8 +87,12 @@ current main as a recovery shortcut or change repository secrets/settings.
 `just build` and `just build-strict` generate separate Gleam and Rust CycloneDX
 JSON SBOMs with the pinned native licence_audit and Syft tools. They are
 development tools, not runtime dependencies. `just sbom-check` checks inventory
-and dependency graphs against both lockfiles. Keep SBOMs outside Hex contents.
-Release qualification signs the documents and records the original `slate-sbom`
+and dependency graphs against both lockfiles. Include both documents under
+`priv/sbom` in Hex packages. `just sbom-package-check <archive>` compares package
+bytes with the qualified files. Restore canonical bytes before export; compare
+any existing Hex package before proceeding and published bytes before tagging.
+Release qualification creates detached signed GitHub attestations for the
+documents and records the original `slate-sbom`
 artifact ID and ZIP digest in `trellis/sbom-qualification`. Recovery must retain
 that identity and exact approved revision. Missing/expired evidence or differing
 bytes blocks recovery; do not regenerate replacements. Compare both existing

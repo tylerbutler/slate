@@ -424,6 +424,32 @@ test("SBOM workflow binds original evidence, signs working copies, and completes
   assert.match(release, /gh release upload "\$RELEASE_TAG" "\$\{missing\[@\]\}"/);
 });
 
+test("Hex exports and publication use original package SBOMs before completion", () => {
+  const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+  const packageJob = ci.split("\n  hex-package:\n")[1].split("\n  windows-package:")[0];
+  assert.ok(packageJob.indexOf("Generate or restore qualified SBOMs")
+    < packageJob.indexOf("just native-package-check"));
+  assert.match(packageJob, /-d priv\/sbom/);
+  assert.match(packageJob, /path: priv\/sbom\/\*\.cdx\.json/);
+  assert.ok(packageJob.indexOf('just sbom-package-check "$1"')
+    < packageJob.indexOf("Upload complete Hex archive"));
+  const windows = ci.split("\n  windows-package:\n")[1].split("\n  attest:")[0];
+  assert.match(windows, /name: slate-sbom\n          path: priv\/sbom/);
+  assert.match(windows, /just sbom-package-check "\$1"/);
+  const release = readFileSync(".github/workflows/release.yml", "utf8");
+  assert.ok(!release.includes("just sbom\n"), "publisher must not regenerate original bytes");
+  assert.ok(release.indexOf("-d priv/sbom") < release.indexOf("just native-package-check"));
+  assert.ok(release.indexOf('just sbom-package-check "$1"')
+    < release.indexOf("Compare any already-published Hex SBOMs before proceeding"));
+  assert.ok(release.indexOf("Compare any already-published Hex SBOMs before proceeding")
+    < release.indexOf("Publish Slate to Hex"));
+  assert.match(release, /200\) just sbom-package-check build\/slate-published\.tar ;;/);
+  assert.match(release, /404\) rm -f build\/slate-published\.tar ;;/);
+  assert.match(release, /Hex package check failed: HTTP \$status"; exit 1/);
+  assert.ok(release.indexOf("Publish Slate to Hex") < release.indexOf("Verify published Hex SBOM bytes"));
+  assert.ok(release.indexOf("Verify published Hex SBOM bytes") < release.indexOf("trellis tag create"));
+});
+
 test("actual attachment step compares before writes and recovers partial uploads without replacement", () => {
   const workflow = readFileSync(".github/workflows/release.yml", "utf8");
   const step = workflow.split("      - name: Reconcile immutable SBOM attachments\n")[1]
@@ -435,8 +461,8 @@ test("actual attachment step compares before writes and recovers partial uploads
   const root = mkdtempSync("build/sbom-assets-test-");
   try {
     mkdirSync(join(root, "bin"));
-    mkdirSync(join(root, "build/release-sbom"), { recursive: true });
-    for (const name of names) writeFileSync(join(root, "build/release-sbom", name), originals[name]);
+    mkdirSync(join(root, "priv/sbom"), { recursive: true });
+    for (const name of names) writeFileSync(join(root, "priv/sbom", name), originals[name]);
     writeFileSync(join(root, "bin/gh"), `#!/usr/bin/env node
 const fs = require("node:fs");
 const path = require("node:path");

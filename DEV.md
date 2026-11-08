@@ -51,6 +51,7 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Build strict | `just build-strict` | Build with warnings as errors and generate SBOMs |
 | SBOM | `just sbom` | Generate separate Gleam and Rust CycloneDX inventories |
 | SBOM check | `just sbom-check` | Compare generated inventories with the checked-out lockfiles |
+| SBOM package check | `just sbom-package-check path/to/slate-version.tar` | Compare packaged SBOM bytes with the qualified documents |
 | Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
 | Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
 | Notice tools | `just native-license-tools` | Install the pinned cargo-about generator |
@@ -290,8 +291,9 @@ Failed compilation or generation cannot leave an inventory from an earlier run.
 This cleanup applies only to local generation; recovery keeps the original
 qualified SBOM downloads.
 `just sbom-check` checks their inventories and dependency graphs against the
-current lockfiles. CI generates them when it assembles the five-target Hex
-package and uploads the `slate-sbom` artifact.
+current lockfiles. CI generates or restores them before it exports and proves
+the five-target Hex package, then uploads the `slate-sbom` artifact.
+`just clean` also removes generated local documents.
 
 The assembly/SBOM job uses Ubuntu 24.04 because licence_audit 0.15.0's bundled
 Linux runtime requires glibc 2.36 or later. Native Linux builds and their package
@@ -299,8 +301,15 @@ proofs still use Ubuntu 22.04 (glibc 2.35).
 
 | File | Tool | Coverage |
 |------|------|----------|
-| `build/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
-| `build/sbom/slate-native.cdx.json` | Syft 1.57.0 | The native crate's complete Cargo.lock inventory, including target-specific crates, plus the lockfile hash |
+| `priv/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
+| `priv/sbom/slate-native.cdx.json` | Syft 1.57.0 | The native crate's complete Cargo.lock inventory, including target-specific crates, plus the lockfile hash |
+
+Hex packages include both documents alongside the native libraries. CI compares
+the exported package bytes with the qualified documents on Linux and Windows.
+Run `gleam export hex-tarball` followed by
+`just sbom-package-check build/slate-<version>.tar` to check a local export.
+GitHub Release assets keep the filenames `slate-gleam.cdx.json` and
+`slate-native.cdx.json`.
 
 Both tools are pinned development tools in `.mise.toml`; neither adds a runtime
 or Hex dependency. licence_audit has no published Hex package. Its native
@@ -312,8 +321,9 @@ or a vulnerability service. Its inventory does not assert downloaded Rust crate
 hashes; the Cargo.lock hash binds the locked checksums. Its timestamp and serial
 metadata can change between generations.
 
-Release qualification signs both documents. Its final step records the original
-artifact ID and ZIP SHA-256 in the `trellis/sbom-qualification` status on the
+Release qualification creates detached signed GitHub attestations for both
+documents; the JSON files contain no embedded signatures. Its final step records
+the original artifact ID and ZIP SHA-256 in the `trellis/sbom-qualification` status on the
 approved merge revision before qualification can succeed or Hex can publish.
 This keeps a cancellation before publication from losing the original identity.
 Recovery downloads that exact archive, checks its digest and signed checkout revision,
@@ -323,11 +333,17 @@ archive, conflicting marker, changed bytes, or unavailable attestation blocks
 recovery. Keep the original artifact within GitHub's configured retention period;
 do not substitute regenerated Syft output or appoint a replacement qualification.
 
+The publisher restores the original documents into `priv/sbom` before package
+export and publication. It compares SBOM bytes from any already-published Hex
+package before proceeding, including recovery when Trellis skips publication.
+After publication it downloads the Hex archive and compares both documents
+again before tagging. Missing or different packaged bytes block completion.
+
 After Hex and native tag/release creation, the coordinator verifies the exact
 remote tag even when Trellis has no pending tag work. It compares both existing
 SBOM assets with the original bytes before any upload, uploads only missing
 assets without clobbering, then downloads and compares both final assets before
-recording completion. It leaves Hex contents unchanged. A partial upload can
+recording completion. A partial upload can
 leave a visible GitHub Release with incomplete assets; recover the same approved
 revision. Byte mismatches require investigation, not asset replacement.
 

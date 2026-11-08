@@ -59,18 +59,23 @@ build-strict: sbom-clean && sbom
 
 # Generate separate Gleam and native Rust dependency inventories
 sbom: sbom-clean
-    mkdir -p build/sbom
-    licence_audit sbom --reproducible --output=build/sbom/slate-gleam.cdx.json
-    syft scan dir:priv/slate_lock/source --output cyclonedx-json@1.6=build/sbom/slate-native.cdx.json
+    mkdir -p priv/sbom
+    licence_audit sbom --reproducible --output=priv/sbom/slate-gleam.cdx.json
+    syft scan dir:priv/slate_lock/source --output cyclonedx-json@1.6=priv/sbom/slate-native.cdx.json
 
 # Remove local inventories before compilation or generation
 [private]
 sbom-clean:
-    rm -f build/sbom/slate-gleam.cdx.json build/sbom/slate-native.cdx.json
+    rm -f priv/sbom/slate-gleam.cdx.json priv/sbom/slate-native.cdx.json build/sbom/slate-gleam.cdx.json build/sbom/slate-native.cdx.json
 
 # Check generated inventories against the checked-out lockfiles
 sbom-check:
     node --test test/support/sbom_test.cjs test/support/sbom_commands_test.cjs
+
+# Compare both packaged inventories with the original qualified bytes
+[positional-arguments]
+sbom-package-check archive:
+    SBOM_ARCHIVE="$1" node --test test/support/sbom_package_test.cjs
 
 # === TESTING ===
 
@@ -130,7 +135,7 @@ release-cli-check:
 # === MAINTENANCE ===
 
 # Remove build artifacts
-clean:
+clean: sbom-clean
     trellis run clean
 
 # === CI ===

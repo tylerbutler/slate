@@ -1,3 +1,3 @@
 package = "slate"
 kind = "Changed"
-body = "Release assets now include signed Gleam and Rust CycloneDX SBOMs, with recovery checks that preserve the original qualified bytes. Hex package contents remain unchanged."
+body = "Hex packages and GitHub Releases now include signed CycloneDX software bills of materials (SBOMs) for Slate's Gleam and Rust dependencies. Signatures use detached GitHub attestations; recovery preserves the original qualified document bytes."

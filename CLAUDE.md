@@ -21,6 +21,7 @@ just deps         # Download dependencies
 just build        # Build project and generate Gleam/Rust SBOMs
 just sbom         # Generate separate CycloneDX JSON inventories
 just sbom-check   # Check generated inventories against the lockfiles
+just sbom-package-check <archive> # Compare packaged SBOMs with qualified bytes
 just test         # Run tests
 just format       # Format code
 just format-check # Check formatting
@@ -174,7 +175,10 @@ and can fail before the website build starts.
   - Preserve the original `slate-sbom` artifact ID and ZIP digest in
     `trellis/sbom-qualification`. Missing or expired evidence blocks recovery.
     Compare existing assets before uploads, never clobber, and complete only
-    after both original documents match. Keep Hex contents unchanged.
+    after both original documents match. Include both documents under `priv/sbom`
+    in Hex packages. Restore canonical bytes before export, compare any existing
+    Hex package before proceeding, and verify published bytes before tagging.
+    Signatures use detached GitHub attestations, not embedded JSON signatures.
 
 ### Changelog
 

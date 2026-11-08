@@ -4,7 +4,7 @@ const { readFileSync } = require("node:fs");
 const { test } = require("node:test");
 
 function inventory(kind) {
-  const bom = JSON.parse(readFileSync(`build/sbom/slate-${kind}.cdx.json`, "utf8"));
+  const bom = JSON.parse(readFileSync(`priv/sbom/slate-${kind}.cdx.json`, "utf8"));
   assert.equal(bom.bomFormat, "CycloneDX");
   assert.equal(bom.specVersion, "1.6");
   assert.ok(Array.isArray(bom.components));
