@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { test } = require("node:test");
+const { runInNewContext } = require("node:vm");
 const { selectRelease, verifyRelease, recordOutcome } = require("../../.github/scripts/release.cjs");
 
 const SHA = "a".repeat(40);
@@ -255,4 +256,56 @@ test("workflow preserves qualification, artifacts, ordering, and queued coordina
   assert.match(ci, /windows-package:[\s\S]*needs: hex-package/);
   assert.ok(!workflow.includes("run-id:"), "artifacts must come from this workflow run");
   assert.ok(!workflow.includes("tags:"));
+});
+
+test("build attestations require qualified trusted builds and isolated signing permissions", () => {
+  const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+  const release = readFileSync(".github/workflows/release.yml", "utf8");
+  const attest = ci.slice(ci.indexOf("\n  attest:"), ci.indexOf("\n  docs:"));
+  assert.match(attest, /needs: \[test, native, hex-package, windows-package, docs\]/);
+  const condition = attest.match(/    if: >-\n([\s\S]*?)    permissions:/)[1].trim();
+  const merged = {
+    repository: "tylerbutler/slate", event_name: "pull_request", ref: "refs/heads/main",
+    event: { action: "closed", pull_request: {
+      merged: true,
+      head: { ref: "release/next", repo: { full_name: "tylerbutler/slate" } },
+      base: { ref: "main" },
+    } },
+  };
+  const allowed = github => runInNewContext(condition, { github });
+  assert.equal(allowed({ ...merged, event_name: "push" }), true);
+  assert.equal(allowed({ ...merged, event_name: "workflow_dispatch" }), true);
+  assert.equal(allowed(merged), true);
+  for (const event_name of ["push", "workflow_dispatch", "pull_request"]) {
+    assert.equal(allowed({
+      ...merged, event_name, ref: "refs/heads/feature",
+      event: { action: "opened", pull_request: { ...merged.event.pull_request, merged: false } },
+    }), false);
+  }
+  for (const changed of [
+    { merged: false },
+    { head: { ...merged.event.pull_request.head, ref: "feature" } },
+    { head: { ...merged.event.pull_request.head, repo: { full_name: "fork/slate" } } },
+    { base: { ref: "other" } },
+  ]) {
+    assert.equal(allowed({
+      ...merged, event: {
+        action: "closed", pull_request: { ...merged.event.pull_request, ...changed },
+      },
+    }), false);
+  }
+  assert.match(ci.split("jobs:\n")[0], /permissions:\n  contents: read/);
+  assert.equal((ci.match(/id-token: write/g) || []).length, 1);
+  assert.equal((ci.match(/attestations: write/g) || []).length, 1);
+  assert.match(attest, /permissions:\n      contents: read\n      id-token: write\n      attestations: write/);
+  assert.match(release, /qualify:\n    permissions:\n      contents: read\n      id-token: write\n      attestations: write/);
+  assert.equal((attest.match(/actions\/attest@1e69f48acb82d1966a394da916b4c1698aa569d6/g) || []).length, 2);
+  assert.equal((attest.match(/build\/attestations\/slate-native-\*\/slate_lock\.\*/g) || []).length, 2);
+  assert.equal((attest.match(/build\/attestations\/slate-hex-package\/slate-\*\.tar/g) || []).length, 2);
+  assert.ok(!attest.includes("run-id:"), "attest only artifacts from this run");
+  assert.ok(!attest.includes("continue-on-error:"), "signing failure must block qualification");
+  const predicate = attest.split("          predicate: |\n")[1]
+    .replace("${{ github.repository }}", "tylerbutler/slate")
+    .replace("${{ inputs.revision || github.sha }}", SHA);
+  assert.deepEqual(JSON.parse(predicate), { repository: "tylerbutler/slate", revision: SHA });
 });

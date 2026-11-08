@@ -13,6 +13,9 @@ on:
         required: false
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -167,6 +170,50 @@ jobs:
           set -- build/release-package/slate-*.tar
           test "$#" -eq 1
           just native-package-check "$1"
+
+  attest:
+    name: Build attestations
+    needs: [test, native, hex-package, windows-package, docs]
+    if: >-
+      (github.ref == 'refs/heads/main' &&
+       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'release/next' &&
+       github.event.pull_request.base.ref == 'main')
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download qualified build artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
+        with:
+          pattern: slate-*
+          path: build/attestations
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # ratchet:actions/attest@v4.2.2
+        with:
+          subject-path: |
+            build/attestations/slate-native-*/slate_lock.*
+            build/attestations/slate-hex-package/slate-*.tar
+          create-storage-record: false
+      # OIDC provenance records the workflow event, not an older recovery checkout.
+      - name: Attest source checkout
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # ratchet:actions/attest@v4.2.2
+        with:
+          subject-path: |
+            build/attestations/slate-native-*/slate_lock.*
+            build/attestations/slate-hex-package/slate-*.tar
+          create-storage-record: false
+          predicate-type: https://github.com/tylerbutler/slate/attestations/source-checkout/v1
+          predicate: |
+            {
+              "repository": "${{ github.repository }}",
+              "revision": "${{ inputs.revision || github.sha }}"
+            }
 
   docs:
     runs-on: ubuntu-latest

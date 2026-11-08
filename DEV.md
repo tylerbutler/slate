@@ -278,6 +278,39 @@ target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
 from a different revision or bypass a failed target. Missing runners or failed
 platform proofs block release.
 
+### Build attestations
+
+After all CI jobs pass, trusted main builds and merged-release qualification
+generate attestations for the five native binaries and complete Hex archive.
+Unmerged PR builds do not run the signing job. Only the signing job receives
+`id-token: write` and `attestations: write`; the release caller grants these
+permissions to the reusable workflow. A signing failure blocks release
+qualification. Attestations use GitHub OIDC and do not require another secret.
+
+`actions/attest` stores SLSA build provenance in GitHub's attestation service.
+The provenance identifies the workflow event revision. A separate signed
+`https://github.com/tylerbutler/slate/attestations/source-checkout/v1` predicate
+records `repository` and the exact checkout `revision`, including when recovery
+builds an older release merge.
+
+Verify a downloaded native binary or CI archive with:
+
+```sh
+gh attestation verify path/to/artifact --repo tylerbutler/slate \
+  --signer-workflow tylerbutler/slate/.github/workflows/ci.yml
+gh attestation verify path/to/artifact --repo tylerbutler/slate \
+  --signer-workflow tylerbutler/slate/.github/workflows/ci.yml \
+  --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+  --format json
+```
+
+For recovery, also inspect the source-checkout predicate and compare its revision
+with the selected release merge. Do not infer that the workflow event revision is
+the recovery checkout. These attestations cover CI build artifacts; they do not
+assert byte equality with an independently downloaded Hex release archive.
+
+### Release requests and recovery
+
 Use workflow dispatch on `main`, or these authenticated `gh`-backed recipes:
 
 ```sh
