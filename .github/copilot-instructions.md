@@ -75,3 +75,26 @@ Trellis updates the release PR on `release/next`, batches sections under
 `.changes/slate/`, and generates `CHANGELOG.md`. Do not edit the generated
 changelog to add entries. Commitlint accepts Trellis's
 `release: slate v<version>` titles.
+
+Use `just release-pr [pre] [version] [replace]` to request coordinated preparation
+on main. Native resume preserves pending intent; unchanged content is skipped.
+Continue candidate labels automatically, but promote only with `pre=none`.
+Release CI qualifies the exact merge SHA and all five native targets before Hex
+publication, then creates tags/GitHub Releases. Never bypass a failed native proof.
+Use `just release-recover <pr-number>` for incomplete publication; do not tag
+current main as a recovery shortcut or change repository secrets/settings.
+
+`just build` and `just build-strict` generate separate Gleam and Rust CycloneDX
+JSON SBOMs with the pinned native licence_audit and Syft tools. They are
+development tools, not runtime dependencies. `just sbom-check` checks inventory
+and dependency graphs against both lockfiles. Include both documents under
+`priv/sbom` in Hex packages. `just sbom-package-check <archive>` compares package
+bytes with the qualified files. Restore canonical bytes before export; compare
+any existing Hex package before proceeding and published bytes before tagging.
+Release qualification creates detached signed GitHub attestations for the
+documents and records the original `slate-sbom`
+artifact ID and ZIP digest in `trellis/sbom-qualification`. Recovery must retain
+that identity and exact approved revision. Missing/expired evidence or differing
+bytes blocks recovery; do not regenerate replacements. Compare both existing
+release assets before uploading only missing assets, without clobbering, and
+record completion only after both final attachments match.

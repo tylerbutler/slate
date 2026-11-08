@@ -1,20 +1,269 @@
-name: Release PR
+name: Release
 
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Prepare a release PR or recover an incomplete merged release
+        type: choice
+        options: [prepare, recover]
+        default: prepare
+      pre:
+        description: Candidate label (for example rc), none to promote, or empty to resume
+        type: string
+      version:
+        description: Optional exact Slate target version
+        type: string
+      replace:
+        description: Replace incompatible pending intent (requires pre or version)
+        type: boolean
+        default: false
+      pr_number:
+        description: Merged release PR number (recovery only)
+        type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
-  group: release-pr
+  group: trellis-release-${{ github.repository }}
+  queue: max
   cancel-in-progress: false
 
 jobs:
-  release:
+  select:
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+      actions: read
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'release/next')
+    runs-on: ubuntu-latest
+    outputs:
+      prepare: ${{ steps.select.outputs.prepare }}
+      publish_sha: ${{ steps.select.outputs.publish_sha }}
+      version: ${{ steps.select.outputs.version }}
+      canonical_sbom_id: ${{ steps.select.outputs.canonical_sbom_id }}
+      canonical_sbom_digest: ${{ steps.select.outputs.canonical_sbom_digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Select trusted release
+        id: select
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        with:
+          script: |
+            const {selectRelease} = require('./.github/scripts/release.cjs');
+            const outputs = await selectRelease({github, context});
+            for (const [name, value] of Object.entries(outputs)) core.setOutput(name, value);
+
+  qualify:
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      actions: read
+      pull-requests: read
+      statuses: write
+    needs: select
+    if: needs.select.outputs.publish_sha != ''
+    uses: ./.github/workflows/ci.yml
+    with:
+      revision: ${{ needs.select.outputs.publish_sha }}
+      canonical_sbom_id: ${{ needs.select.outputs.canonical_sbom_id }}
+      canonical_sbom_digest: ${{ needs.select.outputs.canonical_sbom_digest }}
+
+  publish:
+    permissions:
+      contents: write
+      pull-requests: read
+      statuses: write
+      actions: read
+      attestations: read
+    needs: [select, qualify]
+    if: needs.select.outputs.publish_sha != ''
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ needs.select.outputs.publish_sha }}
+          fetch-depth: 0
+      - name: Verify release checkout
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+        run: test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+      - name: Download and verify original qualified SBOMs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+          SBOM_ID: ${{ needs.qualify.outputs.sbom_id }}
+          SBOM_DIGEST: ${{ needs.qualify.outputs.sbom_digest }}
+        run: |
+          mkdir -p build priv/sbom
+          gh api "repos/$GH_REPO/actions/artifacts/$SBOM_ID/zip" > build/sbom-original.zip
+          printf '%s  %s\n' "$SBOM_DIGEST" build/sbom-original.zip | sha256sum --check
+          unzip -oq build/sbom-original.zip slate-gleam.cdx.json slate-native.cdx.json -d priv/sbom
+          for file in priv/sbom/slate-gleam.cdx.json priv/sbom/slate-native.cdx.json; do
+            verified=$(gh attestation verify "$file" --repo "$GH_REPO" \
+              --signer-workflow "$GH_REPO/.github/workflows/ci.yml" \
+              --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+              --format json --jq "any(.[]; .verificationResult.statement.predicate.repository == \"$GH_REPO\" and .verificationResult.statement.predicate.revision == \"$RELEASE_SHA\")")
+            if [[ "$verified" != true ]]; then
+              echo "::error::Original SBOM attestation does not match the approved checkout."
+              exit 1
+            fi
+          done
+      - name: Setup environment
+        uses: ./.github/actions/setup
+      - name: Collect same-revision native artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
+        with:
+          pattern: slate-native-*
+          path: build/release-native
+      - name: Assemble complete native package
+        run: |
+          for target in x86_64-linux-gnu aarch64-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows; do
+            mkdir -p "priv/slate_lock/$target"
+            cp "build/release-native/slate-native-$target/"slate_lock.* "priv/slate_lock/$target/"
+          done
+          just native-release-check
+          just native-package-check
+          set -- build/slate-*.tar
+          test "$#" -eq 1
+          just sbom-package-check "$1"
+      - name: Compare any already-published Hex SBOMs before proceeding
+        env:
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        run: |
+          status=$(curl --silent --show-error --location \
+            --output build/slate-published.tar --write-out '%{http_code}' \
+            "https://repo.hex.pm/tarballs/slate-$RELEASE_VERSION.tar")
+          case "$status" in
+            200) just sbom-package-check build/slate-published.tar ;;
+            404) rm -f build/slate-published.tar ;;
+            *) echo "::error::Hex package check failed: HTTP $status"; exit 1 ;;
+          esac
+      - name: Recheck trusted release before Hex
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+        with:
+          script: |
+            const {verifyRelease} = require('./.github/scripts/release.cjs');
+            await verifyRelease({github, context, sha: process.env.RELEASE_SHA});
+      - name: Publish Slate to Hex
+        run: trellis publish slate
+        env:
+          HEXPM_API_KEY: ${{ secrets.HEXPM_API_KEY }}
+      - name: Verify published Hex SBOM bytes
+        env:
+          RELEASE_VERSION: ${{ needs.select.outputs.version }}
+        run: |
+          curl --fail --silent --show-error --location --retry 5 --retry-all-errors \
+            --output build/slate-published.tar \
+            "https://repo.hex.pm/tarballs/slate-$RELEASE_VERSION.tar"
+          just sbom-package-check build/slate-published.tar
+      - name: Recheck trusted release before tagging
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+        with:
+          script: |
+            const {verifyRelease} = require('./.github/scripts/release.cjs');
+            await verifyRelease({github, context, sha: process.env.RELEASE_SHA});
+      - name: Push tag and create GitHub Release
+        run: trellis tag create --push --github-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Verify exact remote tag before attachments
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+        with:
+          script: |
+            const {verifyRelease} = require('./.github/scripts/release.cjs');
+            await verifyRelease({github, context, sha: process.env.RELEASE_SHA, requireTag: true});
+      - name: Reconcile immutable SBOM attachments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: v${{ needs.select.outputs.version }}
+        run: |
+          release_ok=$(gh release view "$RELEASE_TAG" --json isDraft,tagName \
+            --jq ".isDraft == false and .tagName == \"$RELEASE_TAG\"")
+          if [[ "$release_ok" != true ]]; then
+            echo "::error::Expected a published GitHub Release for the exact tag."
+            exit 1
+          fi
+          mkdir -p build/sbom-existing build/sbom-published
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > build/sbom-assets.txt
+          missing=()
+          for name in slate-gleam.cdx.json slate-native.cdx.json; do
+            if grep -Fxq "$name" build/sbom-assets.txt; then
+              gh release download "$RELEASE_TAG" --pattern "$name" --dir build/sbom-existing
+              if ! cmp "priv/sbom/$name" "build/sbom-existing/$name"; then
+                echo "::error::Published SBOM differs from original qualification: $name"
+                exit 1
+              fi
+            else
+              missing+=("priv/sbom/$name")
+            fi
+          done
+          if [[ "${#missing[@]}" -gt 0 ]]; then
+            gh release upload "$RELEASE_TAG" "${missing[@]}"
+          fi
+          for name in slate-gleam.cdx.json slate-native.cdx.json; do
+            gh release download "$RELEASE_TAG" --pattern "$name" --dir build/sbom-published
+            if ! cmp "priv/sbom/$name" "build/sbom-published/$name"; then
+              echo "::error::SBOM attachment verification failed: $name"
+              exit 1
+            fi
+          done
+
+  complete:
+    permissions:
+      contents: read
+      statuses: write
+    needs: [select, qualify, publish]
+    if: always() && needs.select.outputs.publish_sha != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Record release outcome
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ needs.select.outputs.publish_sha }}
+          QUALIFICATION: ${{ needs.qualify.result }}
+          PUBLICATION: ${{ needs.publish.result }}
+        with:
+          script: |
+            const {recordOutcome} = require('./.github/scripts/release.cjs');
+            await recordOutcome({
+              github, context, sha: process.env.RELEASE_SHA,
+              qualification: process.env.QUALIFICATION, publication: process.env.PUBLICATION,
+            });
+
+  prepare:
+    permissions:
+      contents: write
+      pull-requests: write
+    needs: select
+    if: needs.select.outputs.prepare == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Generate app token
@@ -36,6 +285,21 @@ jobs:
           tools: github:tylerbutler/trellis
 
       - name: Create or update release PR
+        shell: bash
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: trellis release pr --base main --branch release/next
+          PRE: ${{ inputs.pre || '' }}
+          VERSION: ${{ inputs.version || '' }}
+          REPLACE: ${{ inputs.replace || false }}
+        run: |
+          args=(release pr --base main --branch release/next)
+          if [[ -n "$PRE" ]]; then args+=(--pre "$PRE"); fi
+          if [[ -n "$VERSION" ]]; then args+=(--set "slate=$VERSION"); fi
+          if [[ "$REPLACE" == "true" ]]; then
+            if [[ -z "$PRE" && -z "$VERSION" ]]; then
+              echo "::error::Replacing release intent requires an explicit pre or version."
+              exit 1
+            fi
+            args+=(--no-resume --no-auto-pre --no-skip-unchanged)
+          fi
+          trellis "${args[@]}"

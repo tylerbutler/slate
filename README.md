@@ -421,6 +421,26 @@ For details on the underlying storage engine, see the [Erlang DETS documentation
 
 See [DEV.md](DEV.md) for setup instructions, build tasks, and contribution guidelines.
 
+## Software bills of materials
+
+Hex packages include CycloneDX 1.6 JSON inventories alongside the native libraries:
+
+- `priv/sbom/slate-gleam.cdx.json`: Slate's locked Gleam dependencies.
+- `priv/sbom/slate-native.cdx.json`: The native library's locked Rust dependencies.
+
+GitHub Releases provide the same documents as `slate-gleam.cdx.json` and
+`slate-native.cdx.json`. Release qualification creates detached signed GitHub
+attestations for these files; the JSON contains no embedded signatures.
+Verify an extracted or downloaded document with:
+
+```sh
+gh attestation verify path/to/slate-gleam.cdx.json --repo tylerbutler/slate \
+  --signer-workflow tylerbutler/slate/.github/workflows/ci.yml
+```
+
+See [DEV.md](DEV.md#software-bills-of-materials) for inventory coverage and
+the original-byte checks used for release recovery.
+
 ## License
 
 MIT

@@ -47,8 +47,11 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Task | Command | Description |
 |------|---------|-------------|
 | Download dependencies | `just deps` | Download project dependencies |
-| Build | `just build` | Build project (Erlang target) |
-| Build strict | `just build-strict` | Build with warnings as errors |
+| Build | `just build` | Build project and generate SBOMs |
+| Build strict | `just build-strict` | Build with warnings as errors and generate SBOMs |
+| SBOM | `just sbom` | Generate separate Gleam and Rust CycloneDX inventories |
+| SBOM check | `just sbom-check` | Compare generated inventories with the checked-out lockfiles |
+| SBOM package check | `just sbom-package-check path/to/slate-version.tar` | Compare packaged SBOM bytes with the qualified documents |
 | Native build | `just native-build` | Build the current supported target into `priv/slate_lock/` |
 | Native check | `just native-check` | Check Rust formatting, clippy, and native unit tests |
 | Notice tools | `just native-license-tools` | Install the pinned cargo-about generator |
@@ -63,7 +66,10 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Docs | `just docs` | Build documentation |
 | Changelog entry | `just change Fixed "Fixed a lookup error."` | Create a Trellis TOML fragment |
 | Changelog preview | `just changelog-preview` | Preview the next version without writing files |
-| Release PR | `just release-pr` | Batch entries and create or update the release PR |
+| Release PR | `just release-pr [pre] [version] [replace]` | Request coordinated preparation on main |
+| Release recovery | `just release-recover <pr-number>` | Recover publication at a merged release PR's revision |
+| Release checks | `just release-check` | Check release coordination without remote writes |
+| Native CLI checks | `just release-cli-check` | Exercise the pinned Trellis against local Git and a loopback API |
 | Clean | `just clean` | Remove build artifacts |
 | Workspace health | `just doctor` | Check Trellis configuration and changelog fragments |
 | CI | `just ci` | Run all CI checks (doctor, format, check, test, build) |
@@ -235,18 +241,34 @@ entries instead of adding them.
 
 ### Release flow
 
-On a push to `main`, CI runs `trellis release pr --base main --branch release/next`.
+The release workflow serializes preparation, publication, and recovery in one
+non-cancelling queue. On a push to `main`, it checks the previous release's
+completion before running `trellis release pr --base main --branch release/next`.
+Preparation, publication, and tagging call Trellis directly. The GitHub helper
+only selects trusted release revisions and tracks publication/recovery state.
 Trellis updates the release PR with the version in `gleam.toml`, new sections
 in `.changes/slate/`, and the generated `CHANGELOG.md`. It removes the
-fragments it has consumed. It also updates the locked Slate version in
+fragments it has consumed. Trellis 1.3 stores pending release intent in
+`.changes/release.toml`. Refreshes resume that intent and skip unchanged content.
+It also updates the locked Slate version in
 `examples/dotes/manifest.toml` without downloading or updating Hex dependencies.
 The example's release exclusion keeps its version unchanged and prevents
 example tags or Hex publication.
 
-Merge that PR to create a `v<version>` tag at the merge commit. The tag push
-starts CI, then Trellis creates the GitHub Release from the matching changelog
-section and publishes to Hex. The workflows use `RELEASE_APP_ID` and
-`RELEASE_APP_PRIVATE_KEY` for PR and tag events, and `HEXPM_API_KEY` for Hex.
+Merge that PR to qualify its exact merge revision through the reusable CI
+workflow. Publication then assembles the qualified native files, publishes Slate
+to Hex, and creates the `v<version>` tag and GitHub Release from the matching
+changelog section. A tag push does not start another publication. The workflow
+validates the current same-repository merged PR, its ancestry on main, and any
+existing tag before publication. It rejects recovery of a superseded release.
+
+The workflows use `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` to prepare PRs,
+`HEXPM_API_KEY` for Hex, and the workflow token for tags, GitHub Releases, and
+commit statuses. The App needs contents and pull-request write access; the
+workflow needs contents, pull-request, and status write access, plus actions
+and attestations read access for original SBOM recovery. These existing
+credentials and access remain prerequisites. No new approval environment is
+required.
 
 CI builds and runs native/session/package proofs on Linux glibc x64 and ARM64,
 macOS x64 and ARM64, and Windows x64. The publish job collects those artifacts
@@ -260,9 +282,149 @@ target; Windows builds use MSVC on Server 2022. Do not publish native artifacts
 from a different revision or bypass a failed target. Missing runners or failed
 platform proofs block release.
 
-To update the release PR from a clean local checkout, run `just release-pr`.
-It pushes the release branch and requires GitHub authentication. The old
-`just changelog` merge-only recipe has no Trellis equivalent; use the release
+### Software bills of materials
+
+`just build` and `just build-strict` remove both local SBOM documents before
+compilation, then generate two CycloneDX 1.6 JSON documents after the build
+succeeds. `just sbom` removes both documents before generation without a build.
+Failed compilation or generation cannot leave an inventory from an earlier run.
+This cleanup applies only to local generation; recovery keeps the original
+qualified SBOM downloads.
+`just sbom-check` checks their inventories and dependency graphs against the
+current lockfiles. CI generates or restores them before it exports and proves
+the five-target Hex package, then uploads the `slate-sbom` artifact.
+`just clean` also removes generated local documents.
+
+The assembly/SBOM job uses Ubuntu 24.04 because licence_audit 0.15.0's bundled
+Linux runtime requires glibc 2.36 or later. Native Linux builds and their package
+proofs still use Ubuntu 22.04 (glibc 2.35).
+
+| File | Tool | Coverage |
+|------|------|----------|
+| `priv/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
+| `priv/sbom/slate-native.cdx.json` | Syft 1.57.0 | The native crate's complete Cargo.lock inventory, including target-specific crates, plus the lockfile hash |
+
+Hex packages include both documents alongside the native libraries. CI compares
+the exported package bytes with the qualified documents on Linux and Windows.
+Run `gleam export hex-tarball` followed by
+`just sbom-package-check build/slate-<version>.tar` to check a local export.
+GitHub Release assets keep the filenames `slate-gleam.cdx.json` and
+`slate-native.cdx.json`.
+
+Both tools are pinned development tools in `.mise.toml`; neither adds a runtime
+or Hex dependency. licence_audit has no published Hex package. Its native
+distribution includes OTP and supports Slate's OTP 27 host; the escript requires
+OTP 28. The reproducible Gleam command needs checksum-verified package metadata
+and fails if that metadata is unavailable. It does not scan the dotes example's
+local path dependency. Syft scans only `priv/slate_lock/source`, not a container
+or a vulnerability service. Its inventory does not assert downloaded Rust crate
+hashes; the Cargo.lock hash binds the locked checksums. Its timestamp and serial
+metadata can change between generations.
+
+Release qualification creates detached signed GitHub attestations for both
+documents; the JSON files contain no embedded signatures. Its final step records
+the original artifact ID and ZIP SHA-256 in the `trellis/sbom-qualification` status on the
+approved merge revision before qualification can succeed or Hex can publish.
+This keeps a cancellation before publication from losing the original identity.
+Recovery downloads that exact archive, checks its digest and signed checkout revision,
+and checks both inventories against the original checkout. A same-run working
+copy does not replace the canonical artifact identity. A missing or expired
+archive, conflicting marker, changed bytes, or unavailable attestation blocks
+recovery. Keep the original artifact within GitHub's configured retention period;
+do not substitute regenerated Syft output or appoint a replacement qualification.
+
+The publisher restores the original documents into `priv/sbom` before package
+export and publication. It compares SBOM bytes from any already-published Hex
+package before proceeding, including recovery when Trellis skips publication.
+After publication it downloads the Hex archive and compares both documents
+again before tagging. Missing or different packaged bytes block completion.
+
+After Hex and native tag/release creation, the coordinator verifies the exact
+remote tag even when Trellis has no pending tag work. It compares both existing
+SBOM assets with the original bytes before any upload, uploads only missing
+assets without clobbering, then downloads and compares both final assets before
+recording completion. A partial upload can
+leave a visible GitHub Release with incomplete assets; recover the same approved
+revision. Byte mismatches require investigation, not asset replacement.
+
+This interim flow requires GitHub to permit asset additions to a published
+release. If release immutability prevents additions, release remains incomplete;
+Trellis needs draft/upload/finalization support before that policy can work.
+Do not change repository settings as a workaround. Native asset coordination is
+tracked in [tylerbutler/trellis#163](https://github.com/tylerbutler/trellis/issues/163).
+
+### Build attestations
+
+After all CI jobs pass, trusted main builds and merged-release qualification
+generate attestations for the five native binaries, complete Hex archive, and
+both SBOM documents.
+Unmerged PR builds do not run the signing job. Only the signing job receives
+`id-token: write` and `attestations: write`; the release caller grants these
+permissions to the reusable workflow. A signing failure blocks release
+qualification. Attestations use GitHub OIDC and do not require another secret.
+
+`actions/attest` stores SLSA build provenance in GitHub's attestation service.
+The provenance identifies the workflow event revision. A separate signed
+`https://github.com/tylerbutler/slate/attestations/source-checkout/v1` predicate
+records `repository` and the exact checkout `revision`, including when recovery
+builds an older release merge.
+
+Verify a downloaded native binary, CI archive, or SBOM document with:
+
+```sh
+gh attestation verify path/to/artifact --repo tylerbutler/slate \
+  --signer-workflow tylerbutler/slate/.github/workflows/ci.yml
+gh attestation verify path/to/artifact --repo tylerbutler/slate \
+  --signer-workflow tylerbutler/slate/.github/workflows/ci.yml \
+  --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+  --format json
+```
+
+For recovery, also inspect the source-checkout predicate and compare its revision
+with the selected release merge. Do not infer that the workflow event revision is
+the recovery checkout. These attestations cover CI build artifacts; they do not
+assert byte equality with an independently downloaded Hex release archive.
+
+### Release requests and recovery
+
+Use workflow dispatch on `main`, or these authenticated `gh`-backed recipes:
+
+```sh
+just release-pr                    # Resume or prepare; skip unchanged content
+just release-pr rc                 # Start a candidate cycle
+just release-pr none               # Promote the current candidate to final
+just release-pr "" 2.3.0            # Request an exact Slate target
+just release-pr "" 2.3.0 true       # Replace incompatible pending intent explicitly
+just release-recover 123           # Recover merged release PR #123 at its merge SHA
+```
+
+Automatic preparation preserves a pending request and continues the label of a
+committed candidate. It does not promote a candidate; request `pre=none` to do
+that. Each candidate has incremental notes, and promotion rolls up its archived
+fragments. A replacement requires an explicit candidate label or target version
+and disables resume, automatic candidate selection, and unchanged suppression.
+Do not replace an approved candidate with an unrelated target.
+
+The `trellis/release` status on the merge revision records pending, failed, or
+completed publication. Pending or failed releases block new preparation.
+Recover with the original PR number, or rerun the original merge workflow.
+Recovery reruns qualification at that revision, skips an already published Hex
+version, and reconciles tags/releases and the original SBOM assets. It records
+completion only after Hex, tagging, and both matching attachments succeed.
+Completed recovery requests do not publish or prepare again.
+Releases shipped before these statuses existed count as complete only when their
+tag resolves to the merge SHA and both their GitHub Release and Hex version exist.
+API/authentication failures fail the completion check instead of assuming success.
+
+Trellis 1.3 can fail a refresh if GitHub's PR head has not caught up with a branch
+push. Do not bypass its revision checks. Once the API shows the current head,
+an explicit replacement with the intended target can refresh the PR again.
+`just release-cli-check` covers healthy refreshes and this stale-head rejection
+against a local API; it does not prove hosted API timing or credential validity.
+Runner loss or cancellation can leave the status pending; use the same recovery
+path. Do not create tags manually to trigger publication.
+
+The old `just changelog` merge-only recipe has no Trellis equivalent; use the release
 PR flow to generate the changelog and bump the version together.
 
 Do not edit `CHANGELOG.md` to add entries. Trellis regenerates it from

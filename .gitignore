@@ -2,6 +2,7 @@
 *.beam
 *.ez
 /build
+/priv/sbom/
 erl_crash.dump
 /priv/slate_lock/*/slate_lock.so
 /priv/slate_lock/*/slate_lock.dll

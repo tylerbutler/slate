@@ -50,12 +50,32 @@ native-release-check:
     escript test/support/exclusive-package.escript --release-artifacts
 
 # Build project (Erlang target)
-build:
+build: sbom-clean && sbom
     trellis run build
 
 # Build with warnings as errors
-build-strict:
+build-strict: sbom-clean && sbom
     trellis run build --strict
+
+# Generate separate Gleam and native Rust dependency inventories
+sbom: sbom-clean
+    mkdir -p priv/sbom
+    licence_audit sbom --reproducible --output=priv/sbom/slate-gleam.cdx.json
+    syft scan dir:priv/slate_lock/source --output cyclonedx-json@1.6=priv/sbom/slate-native.cdx.json
+
+# Remove local inventories before compilation or generation
+[private]
+sbom-clean:
+    rm -f priv/sbom/slate-gleam.cdx.json priv/sbom/slate-native.cdx.json build/sbom/slate-gleam.cdx.json build/sbom/slate-native.cdx.json
+
+# Check generated inventories against the checked-out lockfiles
+sbom-check:
+    node --test test/support/sbom_test.cjs test/support/sbom_commands_test.cjs
+
+# Compare both packaged inventories with the original qualified bytes
+[positional-arguments]
+sbom-package-check archive:
+    SBOM_ARCHIVE="$1" node --test test/support/sbom_package_test.cjs
 
 # === TESTING ===
 
@@ -94,14 +114,28 @@ change kind body:
 changelog-preview:
     trellis version plan
 
-# Create or update the release PR (requires a clean working tree)
-release-pr:
-    trellis release pr --base main --branch release/next
+# Request coordinated release preparation on main
+[positional-arguments]
+release-pr pre="" version="" replace="false":
+    gh workflow run release.yml --ref main -f operation=prepare -f pre="$1" -f version="$2" -f replace="$3"
+
+# Recover a merged release at its original revision
+[positional-arguments]
+release-recover pr:
+    gh workflow run release.yml --ref main -f operation=recover -f pr_number="$1"
+
+# Check release selection, arguments, and workflow dependencies without remote writes
+release-check:
+    node --test test/support/release_test.cjs
+
+# Exercise the pinned native CLI against disposable Git and a loopback GitHub stub
+release-cli-check:
+    node --test test/support/release_cli_test.cjs
 
 # === MAINTENANCE ===
 
 # Remove build artifacts
-clean:
+clean: sbom-clean
     trellis run clean
 
 # === CI ===
@@ -111,7 +145,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor format-check check native-check native-licenses-check test build-strict
+ci: doctor release-check release-cli-check format-check check native-check native-licenses-check test build-strict sbom-check
 
 # Alias for PR checks
 alias pr := ci

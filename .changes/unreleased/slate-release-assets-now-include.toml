@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Changed"
+body = "Hex packages and GitHub Releases now include signed CycloneDX software bills of materials (SBOMs) for Slate's Gleam and Rust dependencies. Signatures use detached GitHub attestations; recovery preserves the original qualified document bytes."

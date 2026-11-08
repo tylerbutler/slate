@@ -6,7 +6,28 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+    inputs:
+      revision:
+        description: Exact release merge to qualify
+        type: string
+        required: false
+      canonical_sbom_id:
+        description: Immutable original qualified SBOM artifact (recovery only)
+        type: string
+        default: ""
+      canonical_sbom_digest:
+        description: SHA-256 of the original artifact archive
+        type: string
+        default: ""
+    outputs:
+      sbom_id:
+        value: ${{ jobs.attest.outputs.sbom_id }}
+      sbom_digest:
+        value: ${{ jobs.attest.outputs.sbom_digest }}
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -14,12 +35,17 @@ jobs:
     name: Test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
 
       - name: Setup environment
         uses: ./.github/actions/setup
 
       - name: Check workspace
         run: trellis doctor --format github
+
+      - name: Check release coordination
+        run: just release-check && just release-cli-check
 
       - name: Check formatting
         run: just format-check
@@ -28,7 +54,7 @@ jobs:
         run: just check
 
       - name: Build (warnings as errors)
-        run: just build-strict
+        run: trellis run build --strict
 
       - name: Run tests
         run: just test
@@ -58,6 +84,8 @@ jobs:
       MACOSX_DEPLOYMENT_TARGET: "15.0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Setup pinned Rust
@@ -102,12 +130,21 @@ jobs:
           if-no-files-found: error
 
   hex-package:
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
     name: Complete native Hex package
     needs: native
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
+    outputs:
+      sbom_id: ${{ steps.sbom.outputs.artifact-id }}
+      sbom_digest: ${{ steps.sbom.outputs.artifact-digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Collect same-revision native artifacts
@@ -115,7 +152,7 @@ jobs:
         with:
           pattern: slate-native-*
           path: build/release-native
-      - name: Assemble and prove complete native package
+      - name: Assemble complete native package
         shell: bash
         run: |
           for target in x86_64-linux-gnu aarch64-linux-gnu x86_64-apple-darwin aarch64-apple-darwin x86_64-pc-windows; do
@@ -123,7 +160,49 @@ jobs:
             cp "build/release-native/slate-native-$target/"slate_lock.* "priv/slate_lock/$target/"
           done
           just native-release-check
+      - name: Generate or restore qualified SBOMs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ inputs.revision || github.sha }}
+          SBOM_ID: ${{ inputs.canonical_sbom_id }}
+          SBOM_DIGEST: ${{ inputs.canonical_sbom_digest }}
+        run: |
+          if [[ -z "$SBOM_ID" && -z "$SBOM_DIGEST" ]]; then
+            just sbom
+          else
+            [[ "$SBOM_ID" =~ ^[1-9][0-9]*$ && "$SBOM_DIGEST" =~ ^[0-9a-f]{64}$ && "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            mkdir -p priv/sbom
+            gh api "repos/$GH_REPO/actions/artifacts/$SBOM_ID/zip" > build/sbom-original.zip
+            printf '%s  %s\n' "$SBOM_DIGEST" build/sbom-original.zip | sha256sum --check
+            unzip -oq build/sbom-original.zip slate-gleam.cdx.json slate-native.cdx.json -d priv/sbom
+            for file in priv/sbom/slate-gleam.cdx.json priv/sbom/slate-native.cdx.json; do
+              verified=$(gh attestation verify "$file" --repo "$GH_REPO" \
+                --signer-workflow "$GH_REPO/.github/workflows/ci.yml" \
+                --predicate-type https://github.com/tylerbutler/slate/attestations/source-checkout/v1 \
+                --format json --jq "any(.[]; .verificationResult.statement.predicate.repository == \"$GH_REPO\" and .verificationResult.statement.predicate.revision == \"$RELEASE_SHA\")")
+              if [[ "$verified" != true ]]; then
+                echo "::error::Original SBOM attestation does not match the approved checkout."
+                exit 1
+              fi
+            done
+          fi
+          just sbom-check
+      - name: Prove complete native package and original SBOM bytes
+        shell: bash
+        run: |
           just native-package-check
+          set -- build/slate-*.tar
+          test "$#" -eq 1
+          just sbom-package-check "$1"
+      - name: Upload qualified SBOM working copy
+        id: sbom
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7
+        with:
+          name: slate-sbom
+          path: priv/sbom/*.cdx.json
+          if-no-files-found: error
       - name: Upload complete Hex archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7
         with:
@@ -138,6 +217,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
       - name: Setup environment
         uses: ./.github/actions/setup
       - name: Download complete Hex archive
@@ -151,12 +232,101 @@ jobs:
           set -- build/release-package/slate-*.tar
           test "$#" -eq 1
           just native-package-check "$1"
+      - name: Download original SBOM working copy
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
+        with:
+          name: slate-sbom
+          path: priv/sbom
+      - name: Verify Windows package SBOM bytes
+        shell: bash
+        run: |
+          set -- build/release-package/slate-*.tar
+          test "$#" -eq 1
+          just sbom-package-check "$1"
+
+  attest:
+    name: Build attestations
+    needs: [test, native, hex-package, windows-package, docs]
+    if: >-
+      (github.ref == 'refs/heads/main' &&
+       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.head.ref == 'release/next' &&
+       github.event.pull_request.base.ref == 'main')
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      actions: read
+      pull-requests: read
+      statuses: write
+    runs-on: ubuntu-latest
+    outputs:
+      sbom_id: ${{ steps.canonical.outputs.id }}
+      sbom_digest: ${{ steps.canonical.outputs.digest }}
+    steps:
+      - name: Download qualified build artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # ratchet:actions/download-artifact@v8
+        with:
+          pattern: slate-*
+          path: build/attestations
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # ratchet:actions/attest@v4.2.2
+        with:
+          subject-path: |
+            build/attestations/slate-native-*/slate_lock.*
+            build/attestations/slate-hex-package/slate-*.tar
+            build/attestations/slate-sbom/*.cdx.json
+          create-storage-record: false
+      # OIDC provenance records the workflow event, not an older recovery checkout.
+      - name: Attest source checkout
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # ratchet:actions/attest@v4.2.2
+        with:
+          subject-path: |
+            build/attestations/slate-native-*/slate_lock.*
+            build/attestations/slate-hex-package/slate-*.tar
+            build/attestations/slate-sbom/*.cdx.json
+          create-storage-record: false
+          predicate-type: https://github.com/tylerbutler/slate/attestations/source-checkout/v1
+          predicate: |
+            {
+              "repository": "${{ github.repository }}",
+              "revision": "${{ inputs.revision || github.sha }}"
+            }
+
+      - name: Checkout release qualification policy
+        if: inputs.revision != ''
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+          persist-credentials: false
+      - name: Record or retain original SBOM qualification
+        if: inputs.revision != ''
+        id: canonical
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9
+        env:
+          RELEASE_SHA: ${{ inputs.revision }}
+          SBOM_ID: ${{ needs.hex-package.outputs.sbom_id }}
+          SBOM_DIGEST: ${{ needs.hex-package.outputs.sbom_digest }}
+        with:
+          script: |
+            const {recordQualification} = require('./.github/scripts/release.cjs');
+            const result = await recordQualification({
+              github, context, sha: process.env.RELEASE_SHA,
+              id: process.env.SBOM_ID, digest: process.env.SBOM_DIGEST,
+            });
+            core.setOutput('id', result.id);
+            core.setOutput('digest', result.digest);
 
   docs:
     runs-on: ubuntu-latest
     name: Docs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
 
       - name: Setup environment
         uses: ./.github/actions/setup
