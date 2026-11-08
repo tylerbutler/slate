@@ -283,8 +283,12 @@ platform proofs block release.
 
 ### Software bills of materials
 
-`just build` and `just build-strict` generate two CycloneDX 1.6 JSON documents
-after the build succeeds. `just sbom` generates them without a build;
+`just build` and `just build-strict` remove both local SBOM documents before
+compilation, then generate two CycloneDX 1.6 JSON documents after the build
+succeeds. `just sbom` removes both documents before generation without a build.
+Failed compilation or generation cannot leave an inventory from an earlier run.
+This cleanup applies only to local generation; recovery keeps the original
+qualified SBOM downloads.
 `just sbom-check` checks their inventories and dependency graphs against the
 current lockfiles. CI generates them when it assembles the five-target Hex
 package and uploads the `slate-sbom` artifact.

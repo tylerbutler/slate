@@ -50,22 +50,27 @@ native-release-check:
     escript test/support/exclusive-package.escript --release-artifacts
 
 # Build project (Erlang target)
-build: && sbom
+build: sbom-clean && sbom
     trellis run build
 
 # Build with warnings as errors
-build-strict: && sbom
+build-strict: sbom-clean && sbom
     trellis run build --strict
 
 # Generate separate Gleam and native Rust dependency inventories
-sbom:
+sbom: sbom-clean
     mkdir -p build/sbom
     licence_audit sbom --reproducible --output=build/sbom/slate-gleam.cdx.json
     syft scan dir:priv/slate_lock/source --output cyclonedx-json@1.6=build/sbom/slate-native.cdx.json
 
+# Remove local inventories before compilation or generation
+[private]
+sbom-clean:
+    rm -f build/sbom/slate-gleam.cdx.json build/sbom/slate-native.cdx.json
+
 # Check generated inventories against the checked-out lockfiles
 sbom-check:
-    node --test test/support/sbom_test.cjs
+    node --test test/support/sbom_test.cjs test/support/sbom_commands_test.cjs
 
 # === TESTING ===
 
