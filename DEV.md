@@ -132,9 +132,8 @@ Network or input failures return a non-zero exit code.
 These tasks cover the root `manifest.toml`, including development dependencies.
 They do not scan the dotes example, Rust crates, or website packages. OSV queries
 require network access; licence reports can reuse cached Hex metadata.
-The existing policy allows Apache-2.0 and MIT. It does not approve BSD-3-Clause
-for `tobble` and `string_width`, so the check fails until a maintainer resolves
-those findings. This setup leaves policy and CI enforcement unchanged.
+The policy allows Apache-2.0, MIT, and BSD-3-Clause, including the BSD-3-Clause
+licences for `tobble` and `string_width`. CI enforcement remains unchanged.
 
 ## Website
 
