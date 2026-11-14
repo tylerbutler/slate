@@ -50,5 +50,5 @@ kinds = [
   { label = "Security", bump = "patch" },
 ]
 [tools.licence_audit]
-allow = ["Apache-2.0", "MIT"]
+allow = ["Apache-2.0", "MIT", "BSD-3-Clause"]
 deny = []

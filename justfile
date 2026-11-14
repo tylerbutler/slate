@@ -85,6 +85,18 @@ test: native-build
 
 # === CODE QUALITY ===
 
+# Report locked Gleam dependency licences against the existing policy
+audit-licences:
+    licence_audit
+
+# Report known vulnerabilities for locked Gleam dependencies
+audit-vulns:
+    licence_audit vulns
+
+# Enforce the existing licence policy and vulnerability threshold
+audit-check:
+    licence_audit check --vulns
+
 # Format source code
 format:
     trellis run format

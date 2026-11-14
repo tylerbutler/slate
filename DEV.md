@@ -63,6 +63,9 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Format | `just format` | Format source code |
 | Format check | `just format-check` | Check formatting without changes |
 | Type check | `just check` | Type check without building |
+| Licence report | `just audit-licences` | Report locked Gleam dependency licences against the policy |
+| Vulnerability report | `just audit-vulns` | Report known vulnerabilities through OSV.dev |
+| Audit check | `just audit-check` | Enforce the licence policy and vulnerability threshold |
 | Docs | `just docs` | Build documentation |
 | Changelog entry | `just change Fixed "Fixed a lookup error."` | Create a Trellis TOML fragment |
 | Changelog preview | `just changelog-preview` | Preview the next version without writing files |
@@ -113,6 +116,24 @@ and `python priv/slate_lock/source/collect_licenses.py --refresh-rust`.
 Normal builds and Hex consumers do not need cargo-about.
 Notice refresh removes obsolete files from the generated `licenses/`
 directory. Check mode rejects extra files without changing them.
+
+## Dependency audits
+
+Use the mise-pinned native licence_audit 1.0.0-rc.2 for local audits and SBOM
+generation. This prerelease includes its own Erlang runtime and leaves Slate's
+OTP version and Gleam dependencies unchanged.
+
+Run `just audit-licences` to preview the `[tools.licence_audit]` policy in
+`gleam.toml`, or `just audit-vulns` to query OSV.dev. These reports do not fail
+on findings. Run `just audit-check` to enforce both the licence policy and the
+default vulnerability threshold (high; unknown severity does not block).
+Network or input failures return a non-zero exit code.
+
+These tasks cover the root `manifest.toml`, including development dependencies.
+They do not scan the dotes example, Rust crates, or website packages. OSV queries
+require network access; licence reports can reuse cached Hex metadata.
+The policy allows Apache-2.0, MIT, and BSD-3-Clause, including the BSD-3-Clause
+licences for `tobble` and `string_width`. CI enforcement remains unchanged.
 
 ## Website
 
@@ -295,13 +316,13 @@ current lockfiles. CI generates or restores them before it exports and proves
 the five-target Hex package, then uploads the `slate-sbom` artifact.
 `just clean` also removes generated local documents.
 
-The assembly/SBOM job uses Ubuntu 24.04 because licence_audit 0.15.0's bundled
+The assembly/SBOM job uses Ubuntu 24.04 because licence_audit's bundled
 Linux runtime requires glibc 2.36 or later. Native Linux builds and their package
 proofs still use Ubuntu 22.04 (glibc 2.35).
 
 | File | Tool | Coverage |
 |------|------|----------|
-| `priv/sbom/slate-gleam.cdx.json` | licence_audit 0.15.0 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
+| `priv/sbom/slate-gleam.cdx.json` | licence_audit 1.0.0-rc.2 | Root Slate's locked Gleam dependencies, with Hex archive hashes and required/optional runtime/development scopes |
 | `priv/sbom/slate-native.cdx.json` | Syft 1.57.0 | The native crate's complete Cargo.lock inventory, including target-specific crates, plus the lockfile hash |
 
 Hex packages include both documents alongside the native libraries. CI compares
@@ -312,7 +333,7 @@ GitHub Release assets keep the filenames `slate-gleam.cdx.json` and
 `slate-native.cdx.json`.
 
 Both tools are pinned development tools in `.mise.toml`; neither adds a runtime
-or Hex dependency. licence_audit has no published Hex package. Its native
+or Hex dependency. Slate uses licence_audit's native
 distribution includes OTP and supports Slate's OTP 27 host; the escript requires
 OTP 28. The reproducible Gleam command needs checksum-verified package metadata
 and fails if that metadata is unavailable. It does not scan the dotes example's
