@@ -1,0 +1,110 @@
+schema = "trellis.release_intent/1"
+base = "main"
+branch = "release/next"
+base_commit = "8ee56701de90c6bcb4fe9f926a4a8e915c033e6f"
+
+[intent]
+bump = []
+set = []
+
+[packages.slate]
+path = "./gleam.toml"
+current = "2.2.1"
+next = "2.2.2"
+
+[inputs]
+".changes/unreleased/slate-release-assets-now-include.toml" = "72cd308202e31e952741443a63834a74418e8100"
+"@release_config" = """
+members = [".", "examples/dotes"]
+
+[changelog]
+change_format = "#### {{ body }}"
+header_format = "# Changelog"
+version_format = "## {{ version }} - {{ date }}"
+
+[[changelog.kinds]]
+bump = "major"
+label = "Breaking"
+
+[[changelog.kinds]]
+bump = "minor"
+label = "Added"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Changed"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Deprecated"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Fixed"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Performance"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Removed"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Reverted"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Dependencies"
+
+[[changelog.kinds]]
+bump = "patch"
+label = "Security"
+
+[exclude]
+"@release" = ["examples/dotes"]
+
+[publish]
+exact_tag_format = "v{version}"
+
+[publish.lifecycle]
+default = "hex"
+"""
+"gleam.toml" = "af7152f1bad3e974ab4e08c518f3f77e8a4b495d"
+"priv/slate_lock/README.md" = "014dd8de59001b9ed38a02d72ea0b220d9d00ef9"
+"priv/slate_lock/licenses/THIRD_PARTY_NOTICES.txt" = "cf756ec4788c64d26adbf9035cbe4b1300e0c528"
+"priv/slate_lock/licenses/manifest.json" = "4bec20169f7f63925ddfe1f8fda6057df90dddea"
+"priv/slate_lock/licenses/rust/Apache-2.0.txt" = "137069b823873b8bcf42979bcf8e9371052d26a2"
+"priv/slate_lock/licenses/rust/BSD-2-Clause.txt" = "5f662b354cd40cd5339d5aa05d74b15405138230"
+"priv/slate_lock/licenses/rust/CC-BY-SA-4.0.txt" = "7d4f96c54aa155a17387e64501c50b6a0469932c"
+"priv/slate_lock/licenses/rust/COPYRIGHT-library.html" = "b228c89888f0a81a91f93155e5abda393027d8cf"
+"priv/slate_lock/licenses/rust/GCC-exception-3.1.txt" = "eecede4d0707e2b8ff69c24c5c0160f00ada80e9"
+"priv/slate_lock/licenses/rust/GPL-2.0-only.txt" = "492485e09b411a53771ce08b50cfc4cb1bf4edde"
+"priv/slate_lock/licenses/rust/GPL-3.0-or-later.txt" = "37b6b8e91b85e34ac07f77bb6d5d9f90626f8d60"
+"priv/slate_lock/licenses/rust/ISC.txt" = "6f41c8c63b96e0460597a8dc1255d9c7a65482fa"
+"priv/slate_lock/licenses/rust/LLVM-exception.txt" = "fa4b725a0ee50ef723ce5292865e54de7b0bfca4"
+"priv/slate_lock/licenses/rust/MIT.txt" = "2071b23b0e08594ea6bc99ac71129ef992abf498"
+"priv/slate_lock/licenses/rust/NCSA.txt" = "bb193323bf615d67c591d677636dfdcfba6ec7ff"
+"priv/slate_lock/licenses/rust/OFL-1.1.txt" = "6fe84ee21ebe5d2b54dc63b53b4d5c404c083409"
+"priv/slate_lock/licenses/rust/Unicode-3.0.txt" = "ee8e69b233293872fcb4d6d4930ec196b63626e7"
+"priv/slate_lock/source/Cargo.lock" = "9fc5da553c674535df67a60d0636aa90fc43e0e1"
+"priv/slate_lock/source/Cargo.toml" = "d962de0a57853621bf2fdfe8f659fd4bb95a99ae"
+"priv/slate_lock/source/about.hbs" = "d44c84c63ddeb4eab2099820846aeeb6403c9853"
+"priv/slate_lock/source/about.toml" = "bf0a2ed9a211ee921c83fb2deb1527bab54fd398"
+"priv/slate_lock/source/build.escript" = "ecf8682db48ad245dd396316654edcb8b6e422cf"
+"priv/slate_lock/source/collect_licenses.py" = "ecb0104686879977e1f086307c7e66836fb1b707"
+"priv/slate_lock/source/rust-toolchain.toml" = "bc438a267934402c7a18edf121940a5a1e4c5ca4"
+"priv/slate_lock/source/src/lib.rs" = "3b0f0aadf88d6dd9834f8f5e0a8e5a1dc5b1bc28"
+"src/slate.gleam" = "81252153a9ed548693c1017bd82fa87c65360da1"
+"src/slate/bag.gleam" = "57fe89320930fae1069b9ba2cb62a42e7df50ea7"
+"src/slate/duplicate_bag.gleam" = "79ead6b9677d12abd4bb6fc600de3d625bd24a89"
+"src/slate/exclusive.gleam" = "8b0a3f66bc2cc39750e2deaafd64a4b3bf12e11f"
+"src/slate/internal.gleam" = "f673ae39ca2fea348172638ce45a24250becedc6"
+"src/slate/internal/exclusive_session.gleam" = "6cc136fae31b2c6d62f26567195e918ae57e07ff"
+"src/slate/set.gleam" = "4464bc8faaec194b39b2243991b86e16f3106dd4"
+"src/slate_dets_ffi.erl" = "79ee5a93eabe154b7b33e902a924cafb1af33dab"
+"src/slate_dets_lifetime.erl" = "a80b6e12bb69a66f1f047739df52602bdb69c943"
+"src/slate_exclusive_table_ffi.erl" = "d6744b6138c83c1422d8dd598590dc7ad9b8ff08"
+"src/slate_lock_nif.erl" = "bc4349748f48ed76b8baa6dfad40dcc73df5b5d4"
+"src/slate_with_table_ffi.erl" = "eebbbcfece7092fd7ba944f3d7bd94198d0ff005"
