@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.2 - 2026-11-14
+
+### Changed
+
+#### Hex packages and GitHub Releases now include signed CycloneDX software bills of materials (SBOMs) for Slate's Gleam and Rust dependencies. Signatures use detached GitHub attestations; recovery preserves the original qualified document bytes.
+
 ## 2.2.1 - 2026-11-02
 
 ### Fixed
