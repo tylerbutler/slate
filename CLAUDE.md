@@ -154,7 +154,7 @@ Managed via mise with `.mise.toml` as the source of truth for local setup and CI
 - Node.js 22
 - Rebar3 3.27.0 (for the dotes example's Erlang dependencies)
 - Trellis: `github:tylerbutler/trellis` in `.mise.toml`
-- licence_audit 0.15.0 native tool and Syft 1.57.0 for SBOMs, not runtime dependencies
+- licence_audit 1.0.0-rc.2 native tool and Syft 1.57.0 for SBOMs, not runtime dependencies
 
 The shared `.github/actions/setup-mise` action installs and caches tools.
 Do not add a root `.tool-versions` file; Cloudflare Workers Builds detects it
