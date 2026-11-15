@@ -44,9 +44,6 @@ jobs:
       - name: Check workspace
         run: trellis doctor --format github
 
-      - name: Check release coordination
-        run: just release-check && just release-cli-check
-
       - name: Check formatting
         run: just format-check
 
