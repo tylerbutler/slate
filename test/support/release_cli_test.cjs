@@ -135,7 +135,7 @@ test("shipped Trellis prepares, refreshes, resumes candidates, and promotes with
   staleHead = remoteHead();
   await change("Refresh after delayed API change");
   const previousTitleCount = titles.length;
-  await assert.rejects(prepare(), /release PR changed during preparation/);
+  await assert.rejects(prepare(), /PR finalization remains incomplete/);
   assert.equal(titles.length, previousTitleCount, "failed trust checks must not edit the PR");
   staleHead = undefined;
   assert.equal((await prepare({ version: "0.1.3", replace: true })).outcome, "prepared",
