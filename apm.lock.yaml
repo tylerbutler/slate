@@ -1,5 +1,5 @@
 lockfile_version: '1'
-apm_version: 0.33.0
+apm_version: 0.35.1
 dependencies:
 - repo_url: tylerbutler/agent-marketplace
   name: gleam
@@ -108,7 +108,7 @@ dependencies:
   name: ponytail
   host: github.com
   resolved_commit: 09c434ab73ca43761c5d8b0c5d341926c2fba710
-  version: 09c434a
+  version: 96608e0
   depth: 2
   resolved_by: tylerbutler/apm-base
   package_type: marketplace_plugin
@@ -665,6 +665,24 @@ deployments:
   content_hash: sha256:c788a282fc75b981b421dfdad5d84ea7f83f946c126daa39cfc7d3f97845e193
 - kind: project-relative
   target: copilot
+  value: .agents/skills/changelog-entry
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/changelog-entry/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - .
+  active_owner: .
+  content_hash: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
+- kind: project-relative
+  target: copilot
   value: .agents/skills/gleam-reference-docs
   runtime: null
   scope: project
@@ -1041,24 +1059,6 @@ deployments:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
   content_hash: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
-- kind: project-relative
-  target: legacy
-  value: .agents/skills/changelog-entry
-  runtime: null
-  scope: project
-  owners:
-  - .
-  active_owner: .
-  content_hash: null
-- kind: project-relative
-  target: legacy
-  value: .agents/skills/changelog-entry/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - .
-  active_owner: .
-  content_hash: sha256:235e05bb166c9db30696553e884306836c97b6570a02df1ad9f2512eeb15283a
 local_deployed_files:
 - .agents/skills/changelog-entry
 - .agents/skills/changelog-entry/SKILL.md
