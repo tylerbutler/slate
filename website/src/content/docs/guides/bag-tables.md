@@ -7,9 +7,18 @@ Bag tables store multiple distinct values for the same key. An entry is one key-
 
 Bag tables are provided by the `slate/bag` module and correspond to the `bag` table type in Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html).
 
+<a id="when-to-use-bag-tables"></a>
+
+Use a bag to associate an item with tags or categories, build secondary indexes,
+or group values such as user roles or post comments under one key.
+The examples below group colors and foods. Run the snippets in order within
+one function, keeping the handle open until the closing step.
+The final options section shows separate ways to reopen the saved file.
+
 ## Opening and closing
 
-Create the parent directory before opening the table. `open` uses `AutoRepair` and `ReadWrite`.
+Create the parent directory before opening the table. Use a new file path if
+`data/tags.dets` already contains data. `open` uses `AutoRepair` and `ReadWrite`.
 
 ```gleam
 import gleam/dynamic/decode
@@ -18,15 +27,15 @@ import slate/bag
 
 let assert Ok(table) = bag.open("data/tags.dets",
   key_decoder: decode.string, value_decoder: decode.string)
-
-// ... use the table ...
-
-let assert Ok(Nil) = bag.close(table)
 ```
 
-For short-lived operations, use [`with_table`](/advanced/with-table/) to close the table when the callback returns.
+Keep `table` for the following operations. For short-lived application tasks,
+use [`with_table`](/advanced/with-table/) to attempt cleanup when the callback returns.
 
 ## Inserting data
+
+Add colors under one key. Inserting red twice keeps one copy, so repeated
+tag assignments do not create duplicate entries:
 
 ```gleam
 // Insert multiple distinct values for one key
@@ -59,6 +68,8 @@ Concurrent calls can both return `Ok(Nil)` for the same pair. The table still st
 
 ## Looking up data
 
+Read the colors you assigned. The earlier `insert_new` added green to red and blue.
+
 On success, `lookup` returns `Ok(values)`, where `values` is a list of all values for the key. The order is unspecified; do not assume insertion order.
 
 ```gleam
@@ -74,6 +85,8 @@ let assert Ok(True) = bag.member(table, key: "color")
 
 ## Deleting data
 
+Remove the color group, then recreate it to show how to remove just one color:
+
 ```gleam
 // Delete all values for a key
 let assert Ok(Nil) = bag.delete_key(table, key: "color")
@@ -83,12 +96,11 @@ let assert Ok(Nil) = bag.insert(table, "color", "red")
 let assert Ok(Nil) = bag.insert(table, "color", "blue")
 let assert Ok(Nil) = bag.delete_object(table, key: "color", value: "red")
 let assert Ok(["blue"]) = bag.lookup(table, key: "color")
-
-// Clear all entries
-let assert Ok(Nil) = bag.delete_all(table)
 ```
 
 ## Iterating over entries
+
+Blue and the food entries remain. Count their entries rather than their distinct keys:
 
 ```gleam
 // Get all entries in an unspecified order (loads the entire table into memory)
@@ -124,6 +136,17 @@ let assert Ok(info) = bag.info(table)
 `file_path` uses the normalized path from `open`; it does not resolve symlinks.
 For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
+## Closing the table
+
+Close the handle after these operations to flush pending writes:
+
+```gleam
+let assert Ok(Nil) = bag.close(table)
+```
+
+To discard all entries, call `bag.delete_all(table)` before closing.
+Closing alone preserves the data for the next open.
+
 ## Opening with options
 
 ### Repair policy
@@ -136,6 +159,7 @@ import gleam/dynamic/decode
 
 let assert Ok(table) = bag.open_with(path: "data/tags.dets", repair: AutoRepair,
   key_decoder: decode.string, value_decoder: decode.string)
+let assert Ok(Nil) = bag.close(table)
 ```
 
 ### Access mode
@@ -149,13 +173,5 @@ import gleam/dynamic/decode
 let assert Ok(table) = bag.open_with_access(path: "data/tags.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
+let assert Ok(Nil) = bag.close(table)
 ```
-
-## When to use bag tables
-
-Use bag tables to associate multiple distinct values with one key:
-
-- Map an item to several tags or categories.
-- Build secondary indexes over your data.
-- Associate a user with several roles, or a post with several comments.
-- Group related values under one key.

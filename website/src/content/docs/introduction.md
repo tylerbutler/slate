@@ -21,8 +21,6 @@ You provide key and value decoders when opening a table. Reads return a decode e
 
 Use `with_table` for short-lived access. It opens a table, runs your callback, and attempts to close the table before returning. Exceptions raised by your callback propagate to the caller. See the [table cleanup guide](/advanced/with-table/) for error handling.
 
-slate follows the documented [Semantic Versioning policy](/advanced/stability/).
-
 ## Gleam idioms in the examples
 
 If you are coming from Erlang or Elixir, two patterns appear frequently:
@@ -30,7 +28,7 @@ If you are coming from Erlang or Elixir, two patterns appear frequently:
 - `use table <- set.with_table(...)` is callback shorthand. The remainder of the block becomes the callback that receives `table`.
 - `decode.string`, `decode.int`, and other decoders describe the types slate should accept when reading Erlang terms from disk.
 
-The [quick start](/quick-start/) shows how to use both patterns to read and write data.
+The [quick start](/quick-start/) uses both patterns to store users' ages, print a value, and read it again in a new BEAM VM.
 
 ## Choose a table type
 
