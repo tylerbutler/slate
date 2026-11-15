@@ -53,7 +53,7 @@ test("failed local generation removes stale inventories and preserves original e
       });
 
       assert.notEqual(result.status, 0);
-      assert.match(result.stderr, /Recipe `sbom` failed/);
+      assert.match(result.stderr, /recipe `sbom` failed/i);
       assert.equal(existsSync(join(directory, "slate-native.cdx.json")), false);
       assert.equal(existsSync(join(directory, "slate-gleam.cdx.json")),
         failedTool === "syft");

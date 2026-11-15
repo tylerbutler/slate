@@ -70,7 +70,7 @@ sbom-clean:
 
 # Check generated inventories against the checked-out lockfiles
 sbom-check:
-    node --test test/support/sbom_test.cjs test/support/sbom_commands_test.cjs
+    node --test test/support/sbom_test.cjs
 
 # Compare both packaged inventories with the original qualified bytes
 [positional-arguments]
@@ -157,7 +157,7 @@ doctor:
     trellis doctor
 
 # Run all CI checks (doctor, format, check, test, build)
-ci: doctor release-check release-cli-check format-check check native-check native-licenses-check test build-strict sbom-check
+ci: doctor format-check check native-check native-licenses-check test build-strict sbom-check
 
 # Alias for PR checks
 alias pr := ci

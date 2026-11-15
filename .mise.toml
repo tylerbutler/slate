@@ -1,12 +1,12 @@
 [tools]
-"github:tylerbutler/trellis" = "1.3.0"
+"github:tylerbutler/trellis" = "1.5.0"
 "github:tylerbutler/licence_audit" = { version = "1.0.0-rc.2", matching_regex = '-(aarch64|x86_64)-(linux-(glibc|musl)|macos|windows)\.(tar\.gz|zip)$' }
-"github:anchore/syft" = "1.57.0"
-erlang = "27.2.1"
-gleam = "1.19.1"
-just = "1.38.0"
-node = "22"
-rebar = "3.27.0"
+"github:anchore/syft" = "1.57.1"
+erlang = "29.1.2"
+gleam = "1.19.2"
+just = "1.59.0"
+node = "26"
+rebar = "3.28.0"
 
 [env]
 LC_ALL = "en_US.UTF-8"
