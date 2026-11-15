@@ -7,9 +7,14 @@ Set tables store one value per key. An entry is one key-value pair. If you inser
 
 Set tables are provided by the `slate/set` module and correspond to the `set` table type in Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html).
 
+The examples below manage users' ages in one table. Run the snippets in order
+within one function, keeping the handle open until the closing step.
+The final options section shows separate ways to reopen the saved file.
+
 ## Opening and closing
 
-Create the parent directory before opening the table. `open` uses `AutoRepair` and `ReadWrite`.
+Create the parent directory before opening the table. Use a new file path if
+`data/users.dets` already contains data. `open` uses `AutoRepair` and `ReadWrite`.
 
 ```gleam
 import gleam/dynamic/decode
@@ -18,15 +23,15 @@ import slate/set
 
 let assert Ok(table) = set.open("data/users.dets",
   key_decoder: decode.string, value_decoder: decode.int)
-
-// ... use the table ...
-
-let assert Ok(Nil) = set.close(table)
 ```
 
-For short-lived operations, use [`with_table`](/advanced/with-table/) to close the table when the callback returns.
+Keep `table` for the following operations. For short-lived application tasks,
+use [`with_table`](/advanced/with-table/) to attempt cleanup when the callback returns.
 
 ## Inserting data
+
+Store Alice's age, then add the other users. The batch insert also replaces
+Alice's existing value:
 
 ```gleam
 // Insert a single key-value pair (overwrites if key exists)
@@ -55,6 +60,8 @@ Set and bag tables provide `insert_new`, with different duplicate rules. A set r
 
 ## Looking up data
 
+Read Alice's age and check whether a user exists before you need their value:
+
 ```gleam
 // Get the value for a key (returns Error(NotFound) if missing)
 let assert Ok(42) = set.lookup(table, key: "alice")
@@ -67,18 +74,19 @@ let assert Ok(False) = set.member(table, key: "unknown")
 
 ## Deleting data
 
+Remove Alice by key and Bob only if his stored age still matches:
+
 ```gleam
 // Delete a single key
 let assert Ok(Nil) = set.delete_key(table, key: "alice")
 
 // Delete only if both the key and value match
 let assert Ok(Nil) = set.delete_object(table, key: "bob", value: 37)
-
-// Clear all entries
-let assert Ok(Nil) = set.delete_all(table)
 ```
 
 ## Iterating over entries
+
+Carol and Charlie remain in the table. Fold over their ages or count their entries:
 
 ```gleam
 // Get all entries in an unspecified order (loads the entire table into memory)
@@ -95,6 +103,7 @@ let assert Ok(count) = set.size(table)
 
 ## Atomic counters
 
+You can also store a page-view counter in this integer-valued table.
 Set tables support atomic counter increments for integer values:
 
 ```gleam
@@ -130,6 +139,17 @@ let assert Ok(info) = set.info(table)
 `file_path` uses the normalized path from `open`; it does not resolve symlinks.
 For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
+## Closing the table
+
+Close the handle after these operations to flush pending writes:
+
+```gleam
+let assert Ok(Nil) = set.close(table)
+```
+
+To discard all entries, call `set.delete_all(table)` before closing.
+Closing alone preserves the data for the next open.
+
 ## Opening with options
 
 ### Repair policy
@@ -155,6 +175,12 @@ let assert Ok(table) = set.open_with(path: "data/users.dets", repair: NoRepair,
   key_decoder: decode.string, value_decoder: decode.int)
 ```
 
+Close the handle from whichever call you choose when you finish:
+
+```gleam
+let assert Ok(Nil) = set.close(table)
+```
+
 ### Access mode
 
 Use `ReadOnly` to prevent writes through the table handle. The file must exist.
@@ -166,6 +192,7 @@ import gleam/dynamic/decode
 let assert Ok(table) = set.open_with_access(path: "data/users.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.int)
-let assert Ok(42) = set.lookup(table, key: "alice")
-// set.insert(table, "alice", 99) would return Error(AccessDenied(context))
+let assert Ok(42) = set.lookup(table, key: "checkpoint")
+// set.insert(table, "checkpoint", 99) would return Error(AccessDenied(context))
+let assert Ok(Nil) = set.close(table)
 ```

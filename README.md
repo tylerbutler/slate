@@ -7,7 +7,9 @@
 
 Type-safe Gleam wrapper for Erlang [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html) (Disk Erlang Term Storage).
 
-DETS stores key-value pairs in files. Stored data persists across node restarts. An abnormal node shutdown can lose pending writes and leave the file needing repair. DETS is built into OTP. No separate database service is required.
+DETS is built into OTP, so you can store key-value pairs in files without running
+a separate database service. Data persists across node restarts, but an abnormal
+shutdown can lose pending writes and leave the file needing repair.
 
 > [!IMPORTANT]
 > **Erlang target only.** slate does not support the JavaScript target.
@@ -30,10 +32,8 @@ Use DETS when you need persistent key lookup without SQL or distributed storage.
 gleam add slate
 ```
 
-Exclusive sessions use a native component included in Hex releases. They require
-OTP 26+ and a supported OS, architecture, and local filesystem. Source checkouts
-need Rust/Cargo 1.91 and `just native-build`. Unlocked APIs do not load native code.
-See [native delivery and escripts](https://slate.tylerbutler.com/installation/#exclusive-session-native-component).
+slate requires Gleam 1.14+ and OTP 26+. For native components, source builds,
+and escript delivery, see the [installation guide](https://slate.tylerbutler.com/installation/).
 
 ## Usage
 
@@ -46,131 +46,45 @@ mkdir -p data
 
 ### Set tables (one value per key)
 
+Use a set to store users' ages. `with_table` opens the file, runs your callback,
+and attempts to close the table before returning:
+
 ```gleam
 import gleam/dynamic/decode
+import gleam/result
+import slate
 import slate/set
 
-pub fn main() {
-  // Open or create a table
-  let assert Ok(users) = set.open("data/users.dets",
-    key_decoder: decode.string, value_decoder: decode.int)
-
-  // Insert key-value pairs
-  let assert Ok(Nil) = set.insert(users, "alice", 42)
-  let assert Ok(Nil) = set.insert(users, "bob", 37)
-
-  // Look up values
-  let assert Ok(age) = set.lookup(users, key: "alice")
-  // age == 42
-
-  // Check membership
-  let assert Ok(True) = set.member(users, key: "alice")
-  let assert Ok(False) = set.member(users, key: "charlie")
-
-  // Always close when done
-  let assert Ok(Nil) = set.close(users)
+pub fn main() -> Result(Int, slate.DetsError) {
+  use users <- set.with_table(
+    "data/users.dets",
+    repair: slate.AutoRepair,
+    access: slate.ReadWrite,
+    key_decoder: decode.string,
+    value_decoder: decode.int,
+  )
+  use Nil <- result.try(set.insert(users, "alice", 42))
+  use Nil <- result.try(set.insert(users, "bob", 37))
+  set.lookup(users, key: "alice")
 }
 ```
 
-<a id="safe-table-lifecycle-with-with_table"></a>
+`main` returns `Ok(42)` only if the inserts, lookup, and close succeed.
+Gleam's `use` syntax passes the rest of the block as a callback; `result.try`
+returns early if an insert fails. `gleam run` does not print the return value.
+The [quick start](https://slate.tylerbutler.com/quick-start/) adds visible output
+and shows how to read the saved value in a new VM.
 
-### Open and close tables with `with_table`
-
-```gleam
-import gleam/dynamic/decode
-import slate
-import slate/set
-
-pub fn main() {
-  // Attempt to close the table after the callback returns
-  let assert Ok(Nil) = set.with_table("data/config.dets",
-    repair: slate.AutoRepair, access: slate.ReadWrite,
-    key_decoder: decode.string, value_decoder: decode.string,
-    callback: fn(table) {
-      set.insert(table, "theme", "dark")
-    })
-}
-```
-
-Use `with_table` for short-lived operations. Select the repair policy and access
-mode for each call. The callback must return a `Result`. If the callback succeeds
-but closing fails, the helper returns the close error. If both fail, it returns
-the callback error. If the callback raises, the helper attempts cleanup before
-re-raising the exception. A forced process termination can prevent helper cleanup.
-
-DETS tracks the processes that open a table and normally closes it when the last
-user closes it or exits. An abnormal node shutdown can leave the file needing
-repair.
-
-For read-only access without automatic repair:
-
-```gleam
-import gleam/dynamic/decode
-import slate
-import slate/set
-
-use table <- set.with_table(
-  path: "data/config.dets", repair: slate.NoRepair, access: slate.ReadOnly,
-  key_decoder: decode.string, value_decoder: decode.string)
-set.lookup(table, key: "theme")
-```
-
-`ReadOnly` requires an existing file. This helper is available in all three
-table modules.
-
-**Migrating from 1.x:** `with_table` now requires `repair` and `access`.
-Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to keep the previous
-behavior. Cleanup and error handling are unchanged.
-
-### Exclusive sessions across CLI processes
-
-Use `with_exclusive_table` when independent BEAM VMs share a DETS file. The helper
-acquires an OS lock before opening or repairing DETS, then closes DETS before
-releasing ownership:
-
-```gleam
-import gleam/dynamic/decode
-import slate
-import slate/exclusive
-import slate/set
-
-use table <- set.with_exclusive_table(
-  path: "data/cache.dets",
-  repair: slate.AutoRepair,
-  access: slate.ReadWrite,
-  wait: exclusive.WaitUpTo(1000),
-  key_decoder: decode.string,
-  value_decoder: decode.string,
-)
-set.insert(table, "theme", "dark")
-```
-
-Use `Immediate` for a single attempt. A contender receives
-`AcquisitionFailed(Busy)` or `AcquisitionFailed(TimedOut)` before DETS opens or
-the callback runs. The acquisition deadline does not cancel an acquired session.
-
-For CLI caching, take a locked read session, fetch missing metadata without a
-table or lock, then take a new locked write session. Insert into the current
-table rather than replacing it with an earlier snapshot. Different-key writes
-accumulate; same-key set inserts keep last-write-wins behavior. Keep freshness
-checks and read-modify-write operations inside one callback.
-
-All clients, including readers, must participate. Unlocked APIs, raw DETS, and
-older Slate versions ignore this advisory protocol. Keep table handles and all
-table work inside the callback. Do not reopen or close the table yourself.
-Callback errors do not undo writes. `CleanupFailed` preserves primary and cleanup
-failures; unsafe cleanup can retain ownership until the VM exits.
-
-The persistent `<resolved-path>.slate.lock` sidecar records lock identity, not
-ownership. Do not delete or replace it while clients can start sessions.
-Symlinks resolve to the same lock; hard-linked data and unsafe sidecars return
-typed errors. Keep paths in a trusted, stable directory.
-
-The helper is available for all three table types. See the
-[exclusive-session guide](https://slate.tylerbutler.com/advanced/exclusive-sessions/)
-for errors, recovery, filesystem limits, and measured open/close costs.
+> [!WARNING]
+> If independent BEAM VMs share a file, use exclusive sessions for every read
+> and write. The unlocked examples here do not coordinate across VMs;
+> simultaneous access can lose writes or damage the file. See
+> [exclusive sessions](https://slate.tylerbutler.com/advanced/exclusive-sessions/).
 
 ### Bag tables (multiple values per key)
+
+Use a bag when one key has several distinct values, such as colors or tags.
+Inserting the same pair again keeps one copy:
 
 ```gleam
 import gleam/dynamic/decode
@@ -192,6 +106,9 @@ pub fn main() {
 
 ### Duplicate bag tables
 
+Use a duplicate bag when each occurrence must remain separate. Two inserts
+of the same click produce two entries:
+
 ```gleam
 import gleam/dynamic/decode
 import slate/duplicate_bag
@@ -212,6 +129,8 @@ pub fn main() {
 
 ### Data persists across restarts
 
+Close the table after writing, then reopen the same file to read the saved value:
+
 ```gleam
 import gleam/dynamic/decode
 import slate/set
@@ -230,6 +149,69 @@ pub fn read() {
   let assert Ok(Nil) = set.close(table)
 }
 ```
+
+Call `write` before `read`. To prove persistence across VMs with runnable commands
+and printed output, follow the [quick start](https://slate.tylerbutler.com/quick-start/).
+
+<a id="safe-table-lifecycle-with-with_table"></a>
+
+### Open and close tables with `with_table`
+
+The set example uses `with_table` for short-lived operations. Select the repair
+policy and access mode for each call. The callback must return a `Result`.
+If the callback succeeds but closing fails, the helper returns the close error.
+If both fail, it returns the callback error. If the callback raises, the helper
+attempts cleanup before re-raising the exception. A forced process termination
+can prevent helper cleanup.
+
+DETS tracks the processes that open a table and normally closes it when the last
+user closes it or exits. An abnormal node shutdown can leave the file needing
+repair.
+
+To read the users file without automatic repair:
+
+```gleam
+import gleam/dynamic/decode
+import slate
+import slate/set
+
+use users <- set.with_table(
+  path: "data/users.dets", repair: slate.NoRepair, access: slate.ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.int)
+set.lookup(users, key: "alice")
+```
+
+`ReadOnly` requires an existing file. This helper is available in all three
+table modules. For long-lived tables, manage `open` and `close` yourself.
+See the [table cleanup guide](https://slate.tylerbutler.com/advanced/with-table/).
+
+**Migrating from 1.x:** `with_table` requires `repair` and `access`.
+Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to keep the previous
+behavior. Cleanup and error handling are unchanged.
+
+### Exclusive sessions across CLI processes
+
+Use `with_exclusive_table` when independent BEAM VMs share a DETS file.
+It acquires an OS lock before opening or repairing DETS, runs your callback,
+then closes DETS before releasing ownership. All clients must participate,
+including readers; unlocked APIs, raw DETS, and older Slate versions ignore
+the advisory lock.
+
+Keep the handle and all table work inside the callback. Do not reopen or close
+the table yourself. Callback errors do not undo writes, and unsafe cleanup can
+retain ownership until the VM exits. Keep paths in a trusted, stable directory.
+Do not delete or replace the persistent `<resolved-path>.slate.lock` sidecar
+while clients can start sessions.
+
+Exclusive sessions use a native component included in Hex releases. They require
+a supported OS, architecture, and local filesystem. Source checkouts need
+Rust/Cargo 1.91 and `just native-build`; unlocked APIs do not load native code.
+See [native delivery and escripts](https://slate.tylerbutler.com/installation/#exclusive-session-native-component).
+
+The helper is available for all three table types. Follow the
+[exclusive-session guide](https://slate.tylerbutler.com/advanced/exclusive-sessions/)
+for a CLI cache pattern, acquisition waits, errors, recovery, path restrictions,
+and measured open/close costs.
 
 ### Error handling
 
