@@ -1,7 +1,6 @@
 //// Deterministic allocation races through the public Gleam APIs.
-//// Both callers select the same free pool slot, then the first opens while
-//// the second is stopped at the real DETS call. Tables stay open until results
-//// and independent contents have been checked.
+//// Shared admission covers discovery through post-open identity publication.
+//// Tables stay open until results and independent contents have been checked.
 
 import gleam/dict
 import gleam/dynamic/decode
@@ -32,7 +31,7 @@ type Opened {
   Opened(path: String, table: set.Set(String, Int))
 }
 
-/// Ordinary opens must reallocate when another path wins their selected name.
+/// A colliding ordinary open waits for identity publication before selection.
 pub fn ordinary_colliding_opens_test() -> Nil {
   with_open_breakpoint(fn(breakpoint) {
     let #(first_path, second_path) =
@@ -42,10 +41,11 @@ pub fn ordinary_colliding_opens_test() -> Nil {
     let first = start_ordinary(first_path, 11, opened, completed)
     let first_opener = await_paused(breakpoint, [], 1000)
     let second = start_ordinary(second_path, 22, opened, completed)
-    let second_opener = await_paused(breakpoint, [first_opener], 1000)
+    await_coordination(second.pid)
 
     let assert Ok(Nil) = continue_open(first_opener)
     let first_result = process.receive(opened, 5000)
+    let second_opener = await_paused(breakpoint, [], 1000)
     let assert Ok(Nil) = continue_open(second_opener)
     // The retry passes the same breakpoint; disable it before waiting.
     disable_open_breakpoint(breakpoint)
@@ -84,10 +84,11 @@ pub fn exclusive_unicode_colliding_opens_test() -> Nil {
     let first = start_exclusive(first_path, 11, opened, completed)
     let first_opener = await_paused(breakpoint, [], 1000)
     let second = start_exclusive(second_path, 22, opened, completed)
-    let second_opener = await_paused(breakpoint, [first_opener], 1000)
+    await_exclusive_coordination(second.pid)
 
     let assert Ok(Nil) = continue_open(first_opener)
     let first_result = process.receive(opened, 5000)
+    let second_opener = await_paused(breakpoint, [], 1000)
     let assert Ok(Nil) = continue_open(second_opener)
     disable_open_breakpoint(breakpoint)
     let second_result = process.receive(opened, 1000)
@@ -123,13 +124,14 @@ pub fn duplicate_same_path_collision_interleaving_test() -> Nil {
     let foreign = start_ordinary(foreign_path, 11, opened, completed)
     let foreign_opener = await_paused(breakpoint, [], 1000)
     let first = start_ordinary(shared_path, 22, opened, completed)
-    let first_opener = await_paused(breakpoint, [foreign_opener], 1000)
-    let second = start_ordinary(alias_path, 22, opened, completed)
-    await_coordination(second.pid)
-    assert list.length(paused_openers(breakpoint)) == 2
-
+    await_coordination(first.pid)
     let assert Ok(Nil) = continue_open(foreign_opener)
     let foreign_result = process.receive(opened, 5000)
+    let first_opener = await_paused(breakpoint, [], 1000)
+    let second = start_ordinary(alias_path, 22, opened, completed)
+    await_coordination(second.pid)
+    assert list.length(paused_openers(breakpoint)) == 1
+
     disable_open_breakpoint(breakpoint)
     let assert Ok(Nil) = continue_open(first_opener)
     let first_result = process.receive(opened, 5000)
@@ -170,7 +172,10 @@ pub fn conflicting_options_after_collision_test() -> Nil {
     let foreign = start_ordinary(foreign_path, 11, opened, completed)
     let foreign_opener = await_paused(breakpoint, [], 1000)
     let shared = start_ordinary(shared_path, 22, opened, completed)
-    let shared_opener = await_paused(breakpoint, [foreign_opener], 1000)
+    await_coordination(shared.pid)
+    let assert Ok(Nil) = continue_open(foreign_opener)
+    let foreign_result = process.receive(opened, 5000)
+    let shared_opener = await_paused(breakpoint, [], 1000)
     let reader =
       process.spawn_unlinked(fn() {
         let result =
@@ -185,10 +190,8 @@ pub fn conflicting_options_after_collision_test() -> Nil {
         process.send(conflicts, result)
       })
     await_coordination(reader)
-    assert list.length(paused_openers(breakpoint)) == 2
+    assert list.length(paused_openers(breakpoint)) == 1
 
-    let assert Ok(Nil) = continue_open(foreign_opener)
-    let foreign_result = process.receive(opened, 5000)
     disable_open_breakpoint(breakpoint)
     let assert Ok(Nil) = continue_open(shared_opener)
     let shared_result = process.receive(opened, 5000)
@@ -225,7 +228,7 @@ pub fn conflicting_options_after_collision_test() -> Nil {
   })
 }
 
-/// The winner can close after a reservation conflict, before reallocation.
+/// The previous collision winner can close after the next caller selects.
 pub fn collision_winner_closes_before_inspection_test() -> Nil {
   with_open_breakpoint(fn(breakpoint) {
     let #(first_path, second_path) =
@@ -235,15 +238,13 @@ pub fn collision_winner_closes_before_inspection_test() -> Nil {
     let first = start_ordinary(first_path, 11, opened, completed)
     let first_opener = await_paused(breakpoint, [], 1000)
     let second = start_ordinary(second_path, 22, opened, completed)
-    let second_opener = await_paused(breakpoint, [first_opener], 1000)
+    await_coordination(second.pid)
     let assert Ok(Nil) = continue_open(first_opener)
     let first_result = process.receive(opened, 5000)
-    let collision_breakpoint = collision_check_breakpoint(breakpoint)
-    let assert Ok(Nil) = continue_open(second_opener)
-    await_paused(collision_breakpoint, [], 1000)
+    let second_opener = await_paused(breakpoint, [], 1000)
     process.send(first.commands, Nil)
     let first_done = process.receive(completed, 5000)
-    disable_open_breakpoint(collision_breakpoint)
+    disable_open_breakpoint(breakpoint)
     let assert Ok(Nil) = continue_open(second_opener)
     let second_result = process.receive(opened, 5000)
     process.send(second.commands, Nil)
@@ -283,8 +284,7 @@ pub fn ordinary_worker_failure_is_isolated_test() -> Nil {
   assert test_helper.is_table_open(path) == False
 }
 
-/// A selected N for P; B opens Q in N; C must wait for A, not open P in N+1.
-/// Freeing N before resuming A must still produce just one live P server.
+/// A selected N for P. Neither Q nor another P alias may overtake admission.
 pub fn stale_slot_freed_before_same_path_resumes_test() -> Nil {
   with_open_breakpoint(fn(breakpoint) {
     let #(shared_path, foreign_path) =
@@ -293,24 +293,23 @@ pub fn stale_slot_freed_before_same_path_resumes_test() -> Nil {
     let completed = process.new_subject()
     let first = start_ordinary(shared_path, 22, opened, completed)
     let first_opener = await_paused(breakpoint, [], 1000)
-    let foreign = start_ordinary(foreign_path, 11, opened, completed)
-    let foreign_opener = await_paused(breakpoint, [first_opener], 1000)
-    let assert Ok(Nil) = continue_open(foreign_opener)
-    let assert Ok(Ok(_)) = process.receive(opened, 5000)
+    let foreign_opened = process.new_subject()
+    let foreign = start_ordinary(foreign_path, 11, foreign_opened, completed)
+    await_coordination(foreign.pid)
 
     let second =
       start_ordinary("./unused/../" <> shared_path, 22, opened, completed)
     await_coordination(second.pid)
     assert paused_openers(breakpoint) == [first_opener]
     assert process.receive(opened, 0) == Error(Nil)
-    process.send(foreign.commands, Nil)
-    assert process.receive(completed, 5000) == Ok(Ok(Nil))
-    await_worker(foreign)
-
     disable_open_breakpoint(breakpoint)
     let assert Ok(Nil) = continue_open(first_opener)
     let assert Ok(Ok(Opened(_, first_table))) = process.receive(opened, 5000)
     let assert Ok(Ok(Opened(_, second_table))) = process.receive(opened, 5000)
+    let assert Ok(Ok(_)) = process.receive(foreign_opened, 5000)
+    process.send(foreign.commands, Nil)
+    assert process.receive(completed, 5000) == Ok(Ok(Nil))
+    await_worker(foreign)
     assert table_pid(first_table) == table_pid(second_table)
     let assert Ok(Nil) = set.insert(first_table, "shared", 123)
     assert set.lookup(second_table, "shared") == Ok(123)
@@ -531,9 +530,6 @@ fn continue_open(pid: Pid) -> Result(Nil, Nil)
 
 @external(erlang, "table_name_race_test_ffi", "disable_open_breakpoint")
 fn disable_open_breakpoint(breakpoint: OpenBreakpoint) -> Nil
-
-@external(erlang, "table_name_race_test_ffi", "collision_check_breakpoint")
-fn collision_check_breakpoint(breakpoint: OpenBreakpoint) -> OpenBreakpoint
 
 @external(erlang, "table_name_race_test_ffi", "await_coordination")
 fn await_coordination(pid: Pid) -> Nil

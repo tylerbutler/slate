@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Prevented independent DETS writers through file aliases on Unix and macOS. Ordinary opens now share verified file identities, including hard links, and retain reservations through repair and shutdown. Windows hard-linked table files remain unsupported; Windows case and symlink aliases remain identity-unprotected."

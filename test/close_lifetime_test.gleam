@@ -3,8 +3,11 @@
 
 import gleam/dynamic/decode
 import gleam/erlang/process.{type Monitor, type Pid, type Subject}
+import gleam/io
 import gleam/list
+import slate
 import slate/set
+import test_helper
 
 type SuspendedTable
 
@@ -21,19 +24,124 @@ type Worker(a) {
 }
 
 pub fn displaced_table_close_and_reopen_test() -> Nil {
-  check_close_lifetime(Orderly)
+  check_close_lifetime(Orderly, False)
 }
 
 pub fn displaced_table_killed_closer_test() -> Nil {
-  check_close_lifetime(KilledCloser)
+  check_close_lifetime(KilledCloser, False)
 }
 
 pub fn displaced_table_ordinary_owner_death_test() -> Nil {
-  check_close_lifetime(OwnerDeath)
+  check_close_lifetime(OwnerDeath, False)
+}
+
+pub fn hard_link_close_and_reopen_test() -> Nil {
+  check_close_lifetime(Orderly, True)
+}
+
+pub fn hard_link_killed_closer_test() -> Nil {
+  check_close_lifetime(KilledCloser, True)
+}
+
+pub fn hard_link_owner_death_test() -> Nil {
+  check_close_lifetime(OwnerDeath, True)
+}
+
+pub fn final_close_after_discovery_test() -> Nil {
+  check_final_close_after_discovery(False)
+}
+
+pub fn hard_link_final_close_after_discovery_test() -> Nil {
+  check_final_close_after_discovery(True)
+}
+
+fn check_final_close_after_discovery(alias: Bool) -> Nil {
+  use _, path <- with_collision_paths
+  let assert Ok(original) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  let assert Ok(Nil) = set.insert(original, "base", 1)
+  use reopen_path <- with_optional_alias(path, alias)
+  with_discovered_path_breakpoint(fn(breakpoint) {
+    let next =
+      start(fn() {
+        let assert Ok(table) =
+          set.open(
+            reopen_path,
+            key_decoder: decode.string,
+            value_decoder: decode.int,
+          )
+        let assert Ok(1) = set.lookup(table, "base")
+        let assert Ok(Nil) = set.insert(table, "base", 2)
+        set.close(table)
+      })
+    // find succeeded, but path has not run. Final close must remove the
+    // reservation before the opener resumes, including the registry's DOWN.
+    await_paused(breakpoint, next.pid, 1000)
+    let assert Ok(Nil) = set.close(original)
+    await_released(path)
+    assert !reserved(reopen_path)
+    disable_breakpoint(breakpoint)
+    let assert Ok(Nil) = continue_open(next.pid)
+    assert finish(next) == Ok(Nil)
+  })
+  await_released(path)
+  let assert Ok(reopened) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  assert set.lookup(reopened, "base") == Ok(2)
+  let assert Ok(Nil) = set.close(reopened)
+  await_released(path)
 }
 
 pub fn registry_loss_fails_closed_but_allows_cleanup_test() -> Nil {
   registry_failure()
+}
+
+pub fn publication_failure_releases_caller_ownership_test() -> Nil {
+  registry_publication_failure()
+}
+
+// Run only in the isolated VM: this must leave its lifetime service failed.
+pub fn publication_failure_fixture() -> Nil {
+  use path <- with_temporary_file
+  with_opened_breakpoint(fn(breakpoint) {
+    let result = process.new_subject()
+    let ready = process.new_subject()
+    let opener =
+      process.spawn_unlinked(fn() {
+        let commands = process.new_subject()
+        process.send(ready, commands)
+        process.send(
+          result,
+          set.open(path, key_decoder: decode.string, value_decoder: decode.int),
+        )
+        let assert Ok(Nil) = process.receive(commands, 5000)
+        Nil
+      })
+    let opener_monitor = process.monitor(opener)
+    let assert Ok(commands) = process.receive(ready, 5000)
+    await_paused(breakpoint, opener, 1000)
+    let registry = registry_pid()
+    let registry_monitor = process.monitor(registry)
+    process.kill(registry)
+    let assert Ok(process.ProcessDown(_, _, process.Killed)) =
+      process.new_selector()
+      |> process.select_specific_monitor(registry_monitor, fn(down) { down })
+      |> process.selector_receive(5000)
+    process.demonitor_process(registry_monitor)
+    disable_breakpoint(breakpoint)
+    let assert Ok(Nil) = continue_open(opener)
+    let assert Ok(Error(slate.UnexpectedError(_))) =
+      process.receive(result, 5000)
+    assert !test_helper.is_table_open(path)
+    process.send(commands, Nil)
+    let assert Ok(process.ProcessDown(_, _, process.Normal)) =
+      process.new_selector()
+      |> process.select_specific_monitor(opener_monitor, fn(down) { down })
+      |> process.selector_receive(5000)
+    process.demonitor_process(opener_monitor)
+    Nil
+  })
+  io.println("publication_failure_ok")
 }
 
 pub fn death_before_native_open_releases_reservation_test() -> Nil {
@@ -162,7 +270,7 @@ pub fn owner_exit_after_abandoned_open_fence_test() -> Nil {
   await_released(path)
 }
 
-pub fn stale_shared_opener_fence_preserves_replacement_lifetime_test() -> Nil {
+pub fn abandoned_shared_open_fences_before_replacement_test() -> Nil {
   use foreign_path, path <- with_collision_paths
   let assert Ok(foreign) =
     set.open(
@@ -190,6 +298,14 @@ pub fn stale_shared_opener_fence_preserves_replacement_lifetime_test() -> Nil {
       let fence = await_fence(fence_breakpoint, 1000)
       let assert Ok(Nil) = set.close(original)
       assert !process.is_alive(original_pid)
+      let abandoned =
+        start(fn() {
+          set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+        })
+      await_identity_publication(abandoned.pid)
+      process.kill(abandoned.pid)
+      assert await_down(abandoned) == process.Killed
+      await_waiter_removed(abandoned.pid)
       let opened = process.new_subject()
       let replacement =
         start(fn() {
@@ -206,6 +322,12 @@ pub fn stale_shared_opener_fence_preserves_replacement_lifetime_test() -> Nil {
           let assert Ok(Nil) = process.receive(close_now, 10_000)
           set.close(table)
         })
+      // Admission must wait for the abandoned open's post-open identity.
+      // A replacement can no longer overtake this stale fence result.
+      await_identity_publication(replacement.pid)
+      assert process.receive(opened, 0) == Error(Nil)
+      disable_breakpoint(fence_breakpoint)
+      let assert Ok(Nil) = continue_open(fence)
       let assert Ok(#(table, close_now)) = process.receive(opened, 5000)
       let replacement_pid = track_table(table)
       assert !different_names(original, table)
@@ -213,9 +335,6 @@ pub fn stale_shared_opener_fence_preserves_replacement_lifetime_test() -> Nil {
       assert process.is_alive(replacement_pid)
       assert registry_tracks(table)
 
-      // Deliver the old, now-dead PID after the replacement is registered.
-      disable_breakpoint(fence_breakpoint)
-      let assert Ok(Nil) = continue_open(fence)
       await_fence_completion(path)
       assert registry_tracks(table)
         as "stale fence discarded the replacement monitor"
@@ -259,7 +378,7 @@ pub fn stale_shared_opener_fence_preserves_replacement_lifetime_test() -> Nil {
   await_released(path)
 }
 
-fn check_close_lifetime(mode: CloseMode) -> Nil {
+fn check_close_lifetime(mode: CloseMode, alias: Bool) -> Nil {
   use foreign_path, shared_path <- with_collision_paths
   let assert Ok(foreign) =
     set.open(
@@ -291,6 +410,7 @@ fn check_close_lifetime(mode: CloseMode) -> Nil {
   let assert Ok(Nil) = set.close(foreign)
   await_released(foreign_path)
 
+  use reopen_path <- with_optional_alias(shared_path, alias)
   with_suspended_table(old_table, fn(suspended) {
     case mode {
       Orderly | KilledCloser -> process.send(close_now, Nil)
@@ -323,7 +443,7 @@ fn check_close_lifetime(mode: CloseMode) -> Nil {
       start(fn() {
         let assert Ok(table) =
           set.open(
-            shared_path,
+            reopen_path,
             key_decoder: decode.string,
             value_decoder: decode.int,
           )
@@ -336,6 +456,7 @@ fn check_close_lifetime(mode: CloseMode) -> Nil {
       KilledCloser | OwnerDeath -> await_old_server_monitor(suspended, next.pid)
     }
     assert process.receive(next.result, 0) == Error(Nil)
+    assert reserved(reopen_path)
     resume(suspended)
     case mode {
       Orderly -> {
@@ -412,6 +533,13 @@ fn await_fence(breakpoint: Breakpoint, remaining: Int) -> Pid {
 @external(erlang, "close_lifetime_test_ffi", "with_collision_paths")
 fn with_collision_paths(callback: fn(String, String) -> a) -> a
 
+@external(erlang, "close_lifetime_test_ffi", "with_optional_alias")
+fn with_optional_alias(
+  path: String,
+  alias: Bool,
+  callback: fn(String) -> Nil,
+) -> Nil
+
 @external(erlang, "close_lifetime_test_ffi", "with_suspended_table")
 fn with_suspended_table(
   table: set.Set(String, Int),
@@ -426,6 +554,12 @@ fn await_unregistered(table: SuspendedTable) -> Nil
 
 @external(erlang, "close_lifetime_test_ffi", "await_queued_open")
 fn await_queued_open(table: SuspendedTable, opener: Pid) -> Nil
+
+@external(erlang, "close_lifetime_test_ffi", "await_identity_publication")
+fn await_identity_publication(opener: Pid) -> Nil
+
+@external(erlang, "close_lifetime_test_ffi", "await_waiter_removed")
+fn await_waiter_removed(opener: Pid) -> Nil
 
 @external(erlang, "close_lifetime_test_ffi", "await_queued_fence")
 fn await_queued_fence(table: SuspendedTable, worker: Pid) -> Nil
@@ -454,11 +588,23 @@ fn reserved(path: String) -> Bool
 @external(erlang, "close_lifetime_test_ffi", "registry_failure")
 fn registry_failure() -> Nil
 
+@external(erlang, "close_lifetime_test_ffi", "registry_publication_failure")
+fn registry_publication_failure() -> Nil
+
+@external(erlang, "close_lifetime_test_ffi", "registry_pid")
+fn registry_pid() -> Pid
+
+@external(erlang, "corruption_test_ffi", "with_temporary_file")
+fn with_temporary_file(callback: fn(String) -> Nil) -> Nil
+
 @external(erlang, "table_name_race_test_ffi", "with_opened_breakpoint")
 fn with_opened_breakpoint(callback: fn(Breakpoint) -> a) -> a
 
 @external(erlang, "table_name_race_test_ffi", "with_native_open_breakpoint")
 fn with_native_open_breakpoint(callback: fn(Breakpoint) -> a) -> a
+
+@external(erlang, "table_name_race_test_ffi", "with_discovered_path_breakpoint")
+fn with_discovered_path_breakpoint(callback: fn(Breakpoint) -> a) -> a
 
 @external(erlang, "table_name_race_test_ffi", "with_lifetime_fence_breakpoint")
 fn with_lifetime_fence_breakpoint(callback: fn(Breakpoint) -> a) -> a

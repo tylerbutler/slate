@@ -1,4 +1,5 @@
 -module(slate_dets_ffi).
+-include_lib("kernel/include/file.hrl").
 -export([
     open_set/2, open_bag/2, open_duplicate_bag/2,
     open_set_with_access/3, open_bag_with_access/3, open_duplicate_bag_with_access/3,
@@ -8,7 +9,7 @@
     member/2, sync/1, fold/3, to_list/1,
     info_size/1, info_file_size/1, info_path/1, table_name/1,
     is_dets_file/1, update_counter/3,
-    canonicalize_path/1, translate_error/1
+    canonicalize_path/1, file_identity/1, same_file/2, translate_error/1
 ]).
 
 -define(TABLE_NAME_POOL_SIZE, 4096).
@@ -59,14 +60,20 @@ do_open(Path, Type, Repair, Access) ->
 
 do_open(Path, Type, Repair, Access, Unicode) ->
     try
-        CanonicalPath = canonicalize_path(Path),
         RepairValue = repair_value(Repair),
         AccessValue = access_value(Access),
-        Options = [{file, CanonicalPath}, {type, Type}, {repair, RepairValue}, {access, AccessValue}],
-        %% Selection and every retry belong to one same-path critical section.
-        %% A stale free slot must not open a second server for a live file.
-        case coordinated({open, CanonicalPath}, fun() ->
-            open_table(CanonicalPath, Options, 0)
+        %% Missing aliases have no inode yet, and repair can replace an inode.
+        %% Serialize admission, including identity discovery and publication.
+        %% Work still runs in the caller: DETS ownership must not move.
+        case coordinated(open_admission, fun() ->
+            ok = slate_dets_lifetime:await_idle(),
+            CanonicalPath = canonicalize_path(Path),
+            GatePath = open_gate_path(CanonicalPath),
+            Options = [{file, CanonicalPath}, {type, Type},
+                       {repair, RepairValue}, {access, AccessValue}],
+            coordinated({open, GatePath}, fun() ->
+                open_table(CanonicalPath, Options, 0)
+            end)
         end) of
             {ok, Name} ->
                 Reference = case Unicode of true -> {slate_exclusive, Name}; false -> Name end,
@@ -77,17 +84,68 @@ do_open(Path, Type, Repair, Access, Unicode) ->
         _:CatchReason -> {error, translate_encoded_error(Unicode, CatchReason)}
     end.
 
+open_gate_path(CanonicalPath) ->
+    case slate_dets_lifetime:find(CanonicalPath) of
+        {ok, Existing} ->
+            case slate_dets_lifetime:path(Existing) of
+                {ok, ReservedPath} -> ReservedPath;
+                %% Final close can prune after discovery, before path lookup.
+                %% Re-discover under admission; no new opener can race us.
+                error -> open_gate_path(CanonicalPath)
+            end;
+        error -> CanonicalPath
+    end.
+
 open_table(_CanonicalPath, _Options, Attempts) when Attempts >= ?TABLE_NAME_POOL_SIZE ->
     erlang:error(no_available_table_name);
 open_table(CanonicalPath, Options, Attempts) ->
     Candidate = table_name_for_path(CanonicalPath),
+    %% Raw DETS tables can use a different spelling of the same inode.
+    %% Shared dets:open_file requires the original filename in its options.
+    SelectedPath = case dets:info(Candidate, filename) of
+        undefined -> CanonicalPath;
+        Filename ->
+            OpenPath = canonicalize_open_path(Filename),
+            case same_file(OpenPath, CanonicalPath) of
+                true -> OpenPath;
+                false -> CanonicalPath
+            end
+    end,
     %% Reserve before starting DETS, so caller death cannot lose the selected
     %% name while a DETS open/automatic close is still in flight.
-    case slate_dets_lifetime:begin_open(CanonicalPath, Candidate) of
+    case slate_dets_lifetime:begin_open(SelectedPath, Candidate) of
         busy -> open_table(CanonicalPath, Options, Attempts + 1);
         {ok, Token, Name, Pids} ->
-            wait_if_closing(Name, Pids),
-            open_reserved(CanonicalPath, Options, Attempts, Token, Name)
+            Prepared = try reserved_options(CanonicalPath, Options, Name, Pids)
+            catch
+                Class:Reason:Stack ->
+                    ok = slate_dets_lifetime:failed(Token),
+                    erlang:raise(Class, Reason, Stack)
+            end,
+            case Prepared of
+                {ok, OpenOptions} ->
+                    open_reserved(CanonicalPath, OpenOptions, Attempts, Token, Name);
+                {error, PreparationReason} ->
+                    ok = slate_dets_lifetime:failed(Token),
+                    {error, PreparationReason}
+            end
+    end.
+
+reserved_options(CanonicalPath, Options, Name, Pids) ->
+    wait_if_closing(Name, Pids),
+    {ok, ReservedPath} = slate_dets_lifetime:path(Name),
+    %% An old hard link after repair is reserved, but no longer points at this
+    %% writer's file. Do not attach it to the new inode or open another writer.
+    case same_file(CanonicalPath, ReservedPath) of
+        true ->
+            %% DETS compares option filenames, not file identity. Raw clients
+            %% may have opened a symlink/noncanonical spelling.
+            OpenFilename = case dets:info(Name, filename) of
+                undefined -> ReservedPath;
+                ExistingFilename -> ExistingFilename
+            end,
+            {ok, lists:keyreplace(file, 1, Options, {file, OpenFilename})};
+        false -> {error, {incompatible_arguments, CanonicalPath}}
     end.
 
 wait_if_closing(_Name, []) -> ok;
@@ -115,7 +173,16 @@ open_reserved(CanonicalPath, Options, Attempts, Token, Name) ->
     end,
     case OpenResult of
         {ok, Name} ->
-            ok = slate_dets_lifetime:opened(Token, dets:info(Name, owner)),
+            try
+                ok = slate_dets_lifetime:opened(Token, dets:info(Name, owner))
+            catch
+                PublishClass:PublishReason:PublishStack ->
+                    %% Publication failure must not leave this caller owning
+                    %% a successful DETS open for which it received no handle.
+                    %% The failed registry still blocks every later admission.
+                    _ = mutate(Name, fun() -> close_lifetime(Name) end),
+                    erlang:raise(PublishClass, PublishReason, PublishStack)
+            end,
             {ok, Name};
         {error, incompatible_arguments} ->
             ok = slate_dets_lifetime:failed(Token),
@@ -128,8 +195,8 @@ open_reserved(CanonicalPath, Options, Attempts, Token, Name) ->
                 undefined ->
                     open_table(CanonicalPath, Options, Attempts + 1);
                 OpenPath ->
-                    case canonicalize_open_path(OpenPath) of
-                        CanonicalPath ->
+                    case same_file(canonicalize_open_path(OpenPath), CanonicalPath) of
+                        true ->
                             %% OTP omits the filename for conflicting options.
                             {error, {incompatible_arguments, CanonicalPath}};
                         _ ->
@@ -153,11 +220,61 @@ access_value(read_write) -> read_write;
 access_value(read_only) -> read.
 
 canonicalize_path(Path) when is_binary(Path) ->
-    normalize_path(filename:absname(binary_to_list(Path)));
+    canonicalize_path(binary_to_list(Path));
 canonicalize_path(Path) when is_list(Path) ->
-    normalize_path(filename:absname(Path)).
+    Absolute = filename:absname(Path),
+    case os:type() of
+        {unix, _} -> resolve_parts(filename:split(Absolute), "/", 0);
+        {win32, _} -> normalize_path(Absolute)
+    end.
 
-%% Collapse "." and ".." segments so that "./foo.dets" and "../cwd/foo.dets"
+%% Resolve links BEFORE reducing "..". No case folding: the filesystem, not
+%% a string transform, decides whether case variants refer to the same file.
+resolve_parts([], Resolved, _Links) -> Resolved;
+resolve_parts(["/" | Rest], _Resolved, Links) -> resolve_parts(Rest, "/", Links);
+resolve_parts(["." | Rest], Resolved, Links) -> resolve_parts(Rest, Resolved, Links);
+resolve_parts([".." | Rest], Resolved, Links) ->
+    resolve_parts(Rest, filename:dirname(Resolved), Links);
+resolve_parts([Part | Rest], Resolved, Links) ->
+    Next = filename:join(Resolved, Part),
+    case file:read_link(Next) of
+        {ok, _Target} when Links >= 40 -> error({file_error, Next, eloop});
+        {ok, Target} ->
+            Absolute = filename:absname(Target, Resolved),
+            resolve_parts(filename:split(Absolute) ++ Rest, "/", Links + 1);
+        {error, Reason} when Reason =:= einval; Reason =:= enoent ->
+            resolve_parts(Rest, Next, Links);
+        {error, Reason} -> error({file_error, Next, Reason})
+    end.
+
+%% Private Erlang contract: none means absent, or Windows (deliberately still
+%% path-only). Never treat OTP's zero/unknown inode as a verified identity.
+%% These observations are not an OS lock against raw clients/external mutation.
+file_identity(Path) ->
+    case os:type() of
+        {win32, _} -> none;
+        {unix, _} ->
+            case file:read_file_info(Path) of
+                {ok, #file_info{inode = Inode, major_device = Major, minor_device = Minor}}
+                  when is_integer(Inode), Inode > 0,
+                       is_integer(Major), Major >= 0,
+                       is_integer(Minor), Minor >= 0 ->
+                    {unix, Major, Minor, Inode};
+                {ok, _} -> error({unverified_file_identity, Path});
+                {error, enoent} -> none;
+                {error, Reason} -> error({file_error, Path, Reason})
+            end
+    end.
+
+same_file(Path, Path) -> true;
+same_file(First, Second) ->
+    case file_identity(First) of
+        none -> false;
+        Identity -> Identity =:= file_identity(Second)
+    end.
+
+%% Legacy Windows path-only fallback. Collapse "." and ".." segments so that
+%% "./foo.dets" and "../cwd/foo.dets"
 %% resolve to the same canonical path.  Does NOT follow symlinks (the file
 %% may not exist yet).
 normalize_path(AbsolutePath) ->
@@ -196,9 +313,9 @@ find_open_table_for_path([Name | Rest], CanonicalPath) ->
         undefined ->
             find_open_table_for_path(Rest, CanonicalPath);
         OpenPath ->
-            case canonicalize_open_path(OpenPath) of
-                CanonicalPath -> {ok, Name};
-                _ -> find_open_table_for_path(Rest, CanonicalPath)
+            case same_file(canonicalize_open_path(OpenPath), CanonicalPath) of
+                true -> {ok, Name};
+                false -> find_open_table_for_path(Rest, CanonicalPath)
             end
     end.
 
@@ -220,9 +337,9 @@ allocate_table_name(CanonicalPath, Start, Attempts) ->
                 undefined ->
                     Name;
                 OpenPath ->
-                    case canonicalize_open_path(OpenPath) of
-                        CanonicalPath -> Name;
-                        _ -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
+                    case same_file(canonicalize_open_path(OpenPath), CanonicalPath) of
+                        true -> Name;
+                        false -> allocate_table_name(CanonicalPath, Start, Attempts + 1)
                     end
             end
     end.

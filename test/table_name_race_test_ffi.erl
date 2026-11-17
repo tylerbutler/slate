@@ -4,7 +4,8 @@
          await_coordination/1, table_pid/1, with_counter_breakpoint/1,
          with_insert_breakpoint/1, await_exclusive_coordination/1,
          with_opened_breakpoint/1, with_native_open_breakpoint/1,
-         with_lifetime_fence_breakpoint/1, with_fence_result_breakpoint/1]).
+         with_lifetime_fence_breakpoint/1, with_fence_result_breakpoint/1,
+         with_discovered_path_breakpoint/1]).
 
 await_exclusive_coordination(Owner) ->
     await_exclusive_coordination(Owner, erlang:monotonic_time(millisecond) + 5000).
@@ -47,7 +48,7 @@ table_pid({_Type, Reference, _KeyDecoder, _ValueDecoder}) ->
 %% to hold callers AFTER selection and BEFORE the lifetime reservation.
 %% No production instrumentation or fake DETS responses are involved.
 with_open_breakpoint(Callback) ->
-    with_breakpoint(<<"case slate_dets_lifetime:begin_open(CanonicalPath, Candidate) of">>, Callback).
+    with_breakpoint(<<"case slate_dets_lifetime:begin_open(SelectedPath, Candidate) of">>, Callback).
 
 with_counter_breakpoint(Callback) ->
     with_breakpoint(<<"try dets:update_counter(table_name(Name), Key, Increment) of">>, Callback).
@@ -60,6 +61,9 @@ with_opened_breakpoint(Callback) ->
 
 with_native_open_breakpoint(Callback) ->
     with_breakpoint(<<"OpenResult = try dets:open_file(Name, Options)">>, Callback).
+
+with_discovered_path_breakpoint(Callback) ->
+    with_breakpoint(<<"slate_dets_lifetime:path(Existing)">>, Callback).
 
 with_lifetime_fence_breakpoint(Callback) ->
     with_breakpoint(slate_dets_lifetime,
