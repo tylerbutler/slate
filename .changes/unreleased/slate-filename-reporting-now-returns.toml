@@ -1,3 +1,9 @@
 package = "slate"
 kind = "Fixed"
-body = "Filename reporting now returns valid UTF-8 paths and preserves file error categories in Unicode working directories."
+body = """
+Filename reporting returns valid UTF-8 paths and preserves file error categories in Unicode working directories.
+
+This fixes reporting only. Input-path decoding and existing filenames are
+unchanged: ordinary opens can still select the wrong file for a non-ASCII path.
+Do not assume that reopening a reported non-ASCII filename selects the same
+file."""
