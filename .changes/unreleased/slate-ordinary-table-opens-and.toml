@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Ordinary table opens and is_dets_file now use the requested Unicode filename. There is no fallback to the old byte-interpreted name; see docs/unicode-filename-migration.md before upgrading applications with non-ASCII paths."

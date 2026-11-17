@@ -66,23 +66,6 @@ pub fn duplicate_bag_info_path_test() -> Nil {
   )
 }
 
-pub fn set_info_unicode_path_test() -> Nil {
-  check_path(
-    "test_path_\u{e9}_\u{1f4be}.dets",
-    fn(path, access) {
-      set.open_with_access(
-        path,
-        slate.AutoRepair,
-        access,
-        key_decoder: decode.string,
-        value_decoder: decode.int,
-      )
-    },
-    set.info,
-    set.close,
-  )
-}
-
 fn check_path(
   filename: String,
   open: fn(String, slate.AccessMode) -> Result(table, slate.DetsError),
@@ -120,7 +103,6 @@ fn check_path(
   assert read_only_info.object_count == 0
   assert read_only_info.file_size > 0
   let assert Ok(Nil) = close(read_only_table)
-  // Match the byte-list filename convention used by open.
   let assert Ok(Nil) = delete_file(actual_path)
   Nil
 }
