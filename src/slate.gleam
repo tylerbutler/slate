@@ -75,7 +75,8 @@ pub type DetsError {
   NotFound
   /// Table file or a parent directory does not exist
   FileNotFound(FileErrorContext)
-  /// Table is already open with a different configuration
+  /// Table is open with incompatible options, or an older hard-link identity
+  /// remains reserved after repair until the table finishes closing.
   AlreadyOpen(FileErrorContext)
   /// The table does not exist (not open)
   TableDoesNotExist
@@ -122,8 +123,10 @@ pub type RepairPolicy {
 /// `file_size` is the size of the table file in bytes.
 /// `object_count` is the number of stored entries, not the number of distinct
 /// keys. In a duplicate bag, each copy of a key-value pair counts as an entry.
-/// `file_path` is the absolute path used by `open`, with `.` and `..`
-/// segments normalized. Symlinks are not resolved.
+/// `file_path` is the absolute filename used by the shared DETS table.
+/// On Unix, including macOS, slate resolves symlinks before reducing `..`.
+/// Hard-link and case aliases can report the first opener's filename.
+/// Ordinary Windows opens normalize path segments but do not resolve aliases.
 pub type TableInfo {
   TableInfo(file_size: Int, object_count: Int, file_path: String)
 }

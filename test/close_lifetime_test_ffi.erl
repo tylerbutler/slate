@@ -5,7 +5,37 @@
          registry_failure/0, registry_failure_fixture/0, track_worker/1,
          await_old_server_monitor/2, with_delayed_owner_exit/2,
          await_queued_fence/2, track_table/1, await_fence_completion/1,
-         registry_tracks/1]).
+         registry_tracks/1, await_identity_publication/1, with_optional_alias/3,
+         registry_publication_failure/0, registry_pid/0, await_waiter_removed/1]).
+
+registry_pid() ->
+    Pid = whereis(slate_dets_lifetime),
+    true = is_pid(Pid),
+    Pid.
+
+with_optional_alias(Path, false, Callback) -> Callback(Path);
+with_optional_alias(Path, true, Callback) ->
+    case os:type() of
+        {win32, _} -> nil; % No Windows identity guarantee.
+        {unix, _} ->
+            Alias = <<Path/binary, ".alias">>,
+            ok = file:make_link(Path, Alias),
+            try Callback(Alias)
+            after _ = file:delete(Alias)
+            end
+    end.
+
+await_identity_publication(Opener) ->
+    await(fun() ->
+        {state, _, _, _, _, Waiters} = sys:get_state(slate_dets_lifetime),
+        lists:any(fun({Pid, _}) -> Pid =:= Opener end, maps:values(Waiters))
+    end).
+
+await_waiter_removed(Opener) ->
+    await(fun() ->
+        {state, _, _, _, _, Waiters} = sys:get_state(slate_dets_lifetime),
+        not lists:any(fun({Pid, _}) -> Pid =:= Opener end, maps:values(Waiters))
+    end).
 
 with_collision_paths(Callback) ->
     Prefix = "test_close_lifetime_" ++
@@ -65,7 +95,7 @@ await_table_down(Pid) ->
 await_fence_completion(Path) ->
     Canonical = slate_dets_ffi:canonicalize_path(Path),
     await(fun() ->
-        {state, _Paths, _Names, Openings, _Monitors} = sys:get_state(slate_dets_lifetime),
+        {state, _Paths, _Names, Openings, _Monitors, _Waiters} = sys:get_state(slate_dets_lifetime),
         not lists:any(fun
             ({opening, OpenPath, _, _, _, _}) -> OpenPath =:= Canonical
         end, maps:values(Openings))
@@ -124,7 +154,7 @@ await_queued_open({suspended_table, Name, OldPid}, Opener) ->
     %% is behind the old close for the SAME name, not merely unscheduled.
     await(fun() ->
         {state, _Store, _Parent, Pending} = sys:get_state(dets),
-        lists:any(fun
+        Queued = lists:any(fun
             ({pending, Tab, _, Pid, _, internal_close, Clients})
               when Tab =:= Name, Pid =:= OldPid ->
                 lists:any(fun
@@ -133,7 +163,12 @@ await_queued_open({suspended_table, Name, OldPid}, Opener) ->
                     (_) -> false
                 end, Clients);
             (_) -> false
-        end, Pending)
+        end, Pending),
+        %% An abandoned open now keeps node-wide admission closed until its
+        %% fence publishes the post-open identity. The next caller must wait
+        %% here rather than issuing another DETS request with unknown identity.
+        {state, _, _, _, _, Waiters} = sys:get_state(slate_dets_lifetime),
+        Queued orelse lists:any(fun({Pid, _}) -> Pid =:= Opener end, maps:values(Waiters))
     end).
 
 await_queued_fence({suspended_table, Name, OldPid}, Worker) ->
@@ -200,24 +235,33 @@ reserved(Path) ->
     slate_dets_lifetime:find(slate_dets_ffi:canonicalize_path(Path)) =/= error.
 
 registry_failure() ->
+    run_fixture("close_lifetime_test_ffi:registry_failure_fixture()",
+                <<"registry_fail_closed_ok">>).
+
+registry_publication_failure() ->
+    run_fixture("close_lifetime_test:publication_failure_fixture()",
+                <<"publication_failure_ok">>).
+
+run_fixture(Expression, Marker) ->
     %% Exercise this launch with a broken erl first on PATH, just like the
     %% existing exclusive VM fixture. Its scope always restores the environment.
     exclusive_vm_test_ffi:with_poisoned_path(fun() ->
         Args = ["+S", "2", "+A", "1", "-noshell", "-pa"] ++ code:get_path() ++
-            ["-eval", "close_lifetime_test_ffi:registry_failure_fixture(), halt()."],
+            ["-eval", "spawn(fun() -> timer:sleep(10000), halt(99) end), " ++
+                      Expression ++ ", halt()."],
         Port = open_port({spawn_executable, exclusive_vm_test_ffi:erl_executable()},
                          [binary, exit_status, stderr_to_stdout, {args, Args}]),
-        try await_vm(Port, <<>>)
+        try await_vm(Port, <<>>, Marker)
         after
             try port_close(Port) catch error:badarg -> ok end
         end
     end).
 
-await_vm(Port, Output) ->
+await_vm(Port, Output, Marker) ->
     receive
-        {Port, {data, Data}} -> await_vm(Port, <<Output/binary, Data/binary>>);
+        {Port, {data, Data}} -> await_vm(Port, <<Output/binary, Data/binary>>, Marker);
         {Port, {exit_status, 0}} ->
-            true = binary:match(Output, <<"registry_fail_closed_ok">>) =/= nomatch,
+            true = binary:match(Output, Marker) =/= nomatch,
             nil;
         {Port, {exit_status, Code}} -> error({registry_fixture_failed, Code, Output})
     after 15000 -> error(registry_fixture_timeout)

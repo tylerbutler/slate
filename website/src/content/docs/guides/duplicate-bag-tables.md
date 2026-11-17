@@ -122,7 +122,10 @@ let assert Ok(info) = duplicate_bag.info(table)
 // info.file_path - absolute path of the table file
 ```
 
-`file_path` uses the normalized path from `open`; it does not resolve symlinks.
+`file_path` is the absolute filename used by the shared DETS table. On Unix,
+including macOS, slate resolves symlinks; aliases can report the first opener's
+filename. Ordinary Windows opens remain path-only. See
+[file aliases and platform limits](/advanced/limitations/#file-aliases).
 For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
 ## Closing the table
