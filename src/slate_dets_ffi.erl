@@ -4,7 +4,7 @@
     open_set_with_access/3, open_bag_with_access/3, open_duplicate_bag_with_access/3,
     open_exclusive_set/3, open_exclusive_bag/3, open_exclusive_duplicate_bag/3,
     close/1, insert/2, insert_new/2, insert_new_object/2,
-    lookup/2, lookup_all/2, delete_key/2, delete_object/2, delete_all/1,
+    lookup/2, lookup_all/2, decode_pair/1, delete_key/2, delete_object/2, delete_all/1,
     member/2, sync/1, fold/3, to_list/1,
     info_size/1, info_file_size/1, info_path/1, table_name/1,
     is_dets_file/1, update_counter/3,
@@ -12,6 +12,11 @@
 ]).
 
 -define(TABLE_NAME_POOL_SIZE, 4096).
+
+%% Primitive decoder boundary: the error payload is the typed placeholder
+%% required by gleam/dynamic/decode.new_primitive_decoder, not decoded data.
+decode_pair({Key, Value}) -> {ok, {Key, Value}};
+decode_pair(_) -> {error, {nil, nil}}.
 
 %% ── Open ────────────────────────────────────────────────────────────────
 
@@ -349,22 +354,21 @@ insert_new_object(Name, Object) ->
 
 %% ── Lookup ──────────────────────────────────────────────────────────────
 
-%% For set tables: returns single value or not_found.
+%% For set tables: returns the whole object for Gleam decoding or not_found.
 lookup(Name, Key) ->
     try dets:lookup(table_name(Name), Key) of
         [] -> {error, not_found};
-        [{_, Value} | _] -> {ok, Value};
+        [Object | _] -> {ok, Object};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
     catch
         _:Reason -> {error, translate_table_error(Name, Reason)}
     end.
 
-%% For bag/duplicate_bag tables: returns list of values.
+%% For bag/duplicate_bag tables: preserve every whole object for Gleam decoding.
 lookup_all(Name, Key) ->
     try dets:lookup(table_name(Name), Key) of
         Results when is_list(Results) ->
-            Values = [Value || {_, Value} <- Results],
-            {ok, Values};
+            {ok, Results};
         {error, Reason} -> {error, translate_table_error(Name, Reason)}
     catch
         _:Reason -> {error, translate_table_error(Name, Reason)}
@@ -501,14 +505,15 @@ update_counter(Name, Key, Increment) ->
 
 validate_counter(Name, Key, Increment) ->
     %% OTP accepts floats and mutates them before returning a float. Check
-    %% first, under the same gate as every Slate writer and close. Retain the
-    %% native atomic increment rather than replacing it with lookup/insert.
+    %% first, requiring an exact key/value pair, under the same gate as every
+    %% Slate writer and close. Retain the native atomic increment rather than
+    %% replacing it with lookup/insert.
     %% Read-only tables must retain OTP's access/storage-error precedence.
     case dets:info(table_name(Name), access) of
         read -> update_counter_unlocked(Name, Key, Increment);
         _ ->
             case lookup(Name, Key) of
-                {ok, Value} when is_integer(Value) ->
+                {ok, {_, Value}} when is_integer(Value) ->
                     update_counter_unlocked(Name, Key, Increment);
                 {ok, _} -> {error, ffi_counter_value_not_integer};
                 {error, Reason} ->

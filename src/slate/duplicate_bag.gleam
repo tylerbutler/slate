@@ -225,18 +225,16 @@ fn ffi_open_exclusive(
 ///
 /// Returns `Ok([])` if the key does not exist. This differs from
 /// `set.lookup`, which returns `Error(NotFound)` for missing keys.
-/// Returns `Error(DecodeErrors(_))` if any stored value does not match the
-/// expected type.
+/// Returns `Error(DecodeErrors(_))` if any stored object is not an exact
+/// key-value pair or its key or value does not match the supplied decoders.
 pub fn lookup(
   from table: DuplicateBag(k, v),
   key key: k,
 ) -> Result(List(v), DetsError) {
   case ffi_lookup_all(table.reference, key) {
-    Ok(dynamic_values) ->
-      list.try_map(dynamic_values, fn(dynamic_value) {
-        decode.run(dynamic_value, table.value_decoder)
-        |> result.map_error(slate.DecodeErrors)
-      })
+    Ok(entries) ->
+      internal.decode_entries(entries, table.key_decoder, table.value_decoder)
+      |> result.map(fn(pairs) { list.map(pairs, fn(pair) { pair.1 }) })
     Error(error) -> Error(error)
   }
 }
