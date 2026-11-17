@@ -365,6 +365,10 @@ pub fn insert_list(
 /// already in the table. Use `insert` when you do not need duplicate
 /// detection.
 ///
+/// Keys and values are compared exactly, including nested terms. Atoms such
+/// as `'_'` and `'$1'` are literal data, not match patterns. Integer and float
+/// values are distinct.
+///
 /// Concurrent calls can both return `Ok(Nil)` for the same pair.
 /// The table still stores one copy. To ensure only one caller reports a new
 /// insertion, serialize writes through an owner process.
