@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Concurrent table writers now wait in a monitored FIFO queue instead of randomized lock retries, which removes retry delays and prevents returning writers from passing queued callers."

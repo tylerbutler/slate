@@ -36,6 +36,43 @@ pub fn concurrent_integer_increments_test() -> Nil {
   test_helper.cleanup(path)
 }
 
+pub fn queued_writers_keep_order_after_waiter_death_test() -> Nil {
+  let path = "test_mutation_queue_order.dets"
+  let assert Ok(table) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  let assert Ok(Nil) = set.insert(table, "hits", 0)
+  with_counter_breakpoint(fn(breakpoint) {
+    let holder =
+      start(fn() {
+        let result = set.update_counter(table, "hits", 1)
+        // A returning holder must queue behind writers that already waited.
+        let assert Ok(Nil) = set.insert(table, "hits", 100)
+        result
+      })
+    await_paused(breakpoint, holder.pid, 1000)
+    let first = start(fn() { set.insert(table, "hits", 40) })
+    await_coordination(first.pid)
+    let cancelled = start(fn() { set.delete_all(table) })
+    await_coordination(cancelled.pid)
+    let last = start(fn() { set.update_counter(table, "hits", 2) })
+    await_coordination(last.pid)
+    process.kill(cancelled.pid)
+    assert await_down(cancelled) == process.Killed
+    disable_breakpoint(breakpoint)
+    let assert Ok(Nil) = continue_worker(holder.pid)
+    assert finish(first) == Ok(Nil)
+    assert finish(last) == Ok(42)
+    assert finish(holder) == Ok(1)
+  })
+  assert set.lookup(table, "hits") == Ok(100)
+  let assert Ok(Nil) = set.close(table)
+  let assert Ok(reopened) =
+    set.open(path, key_decoder: decode.string, value_decoder: decode.int)
+  assert set.lookup(reopened, "hits") == Ok(100)
+  let assert Ok(Nil) = set.close(reopened)
+  test_helper.cleanup(path)
+}
+
 pub fn all_set_mutations_wait_for_counter_test() -> Nil {
   let operations = [
     #(fn(table) { set.insert(table, "hits", 9) }, Ok(Nil)),
