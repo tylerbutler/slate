@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Filename reporting now returns valid UTF-8 paths and preserves file error categories in Unicode working directories."

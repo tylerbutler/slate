@@ -1,7 +1,9 @@
 import file_error_test_helper
+import gleam/bit_array
 import gleam/dynamic/decode
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/string
 import slate
 import slate/bag
 import slate/duplicate_bag
@@ -47,6 +49,25 @@ pub fn file_error_context_rename_retains_both_paths_test() -> Nil {
       None,
       "{file_error,{\"old.dets\",\"new.dets\"},eacces}",
     )
+}
+
+pub fn file_error_context_unicode_rename_retains_both_paths_test() -> Nil {
+  let assert slate.AccessDenied(context) = unicode_rename_error()
+  assert context
+    == slate.FileErrorContext(
+      None,
+      "{file_error,{\"café.dets\",\"résumé.dets\"},eacces}",
+    )
+  assert bit_array.is_utf8(bit_array.from_string(context.reason))
+}
+
+pub fn file_error_context_invalid_filename_is_not_success_test() -> Nil {
+  invalid_filename_errors()
+  |> list.each(fn(error) {
+    let assert slate.UnexpectedError(detail) = error
+    assert string.starts_with(detail, "{filename_encoding,")
+    assert bit_array.is_utf8(bit_array.from_string(detail))
+  })
 }
 
 pub fn file_error_context_missing_parent_test() -> Nil {
@@ -346,3 +367,9 @@ fn unknown_error() -> slate.DetsError
 
 @external(erlang, "file_error_test_ffi", "rename_error")
 fn rename_error() -> slate.DetsError
+
+@external(erlang, "file_error_test_ffi", "unicode_rename_error")
+fn unicode_rename_error() -> slate.DetsError
+
+@external(erlang, "file_error_test_ffi", "invalid_filename_errors")
+fn invalid_filename_errors() -> List(slate.DetsError)
