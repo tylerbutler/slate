@@ -1,5 +1,7 @@
 import file_error_test_helper
+import gleam/dynamic
 import gleam/dynamic/decode
+import gleam/erlang/atom
 import gleam/int
 import gleam/list
 import gleam/string
@@ -40,6 +42,130 @@ pub fn bag_no_duplicates_test() -> Nil {
   let assert Ok(values) = bag.lookup(table, key: "key")
   assert { values |> list.length } == 1
   let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_insert_new_literal_atom_keys_test() -> Nil {
+  let path = "test_bag_insert_new_literal_atom_keys.dets"
+  let assert Ok(table) =
+    bag.open(
+      path,
+      key_decoder: test_helper.unsafe_decoder(),
+      value_decoder: decode.string,
+    )
+  let keys = list.map(["red", "_", "$1", "$2", "$123"], atom.create)
+  list.each(keys, fn(key) {
+    let assert Ok(Nil) = bag.insert_new(table, key, "value")
+    assert bag.insert_new(table, key, "value") == Error(slate.KeyAlreadyPresent)
+  })
+  let assert Ok(entries) = bag.to_list(table)
+  assert list.length(entries) == list.length(keys)
+  list.each(keys, fn(key) {
+    assert list.contains(entries, #(key, "value"))
+  })
+  let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_insert_new_literal_atom_values_test() -> Nil {
+  let path = "test_bag_insert_new_literal_atom_values.dets"
+  let assert Ok(table) =
+    bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helper.unsafe_decoder(),
+    )
+  let values = list.map(["red", "blue", "_", "$1", "$2", "$123"], atom.create)
+  list.each(values, fn(value) {
+    let assert Ok(Nil) = bag.insert_new(table, "key", value)
+    assert bag.insert_new(table, "key", value) == Error(slate.KeyAlreadyPresent)
+  })
+  let assert Ok(entries) = bag.to_list(table)
+  assert list.length(entries) == list.length(values)
+  list.each(values, fn(value) {
+    assert list.contains(entries, #("key", value))
+  })
+  let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_insert_new_nested_literal_atoms_test() -> Nil {
+  let path = "test_bag_insert_new_nested_literal_atoms.dets"
+  let assert Ok(table) =
+    bag.open(
+      path,
+      key_decoder: test_helper.unsafe_decoder(),
+      value_decoder: test_helper.unsafe_decoder(),
+    )
+  let ordinary = #(atom.create("red"), [atom.create("red")])
+  let nested_terms =
+    list.map(["_", "$1", "$2", "$123"], fn(name) {
+      #(atom.create(name), [atom.create(name)])
+    })
+  let assert Ok(Nil) = bag.insert(table, ordinary, ordinary)
+  list.each(nested_terms, fn(term) {
+    let assert Ok(Nil) = bag.insert_new(table, term, ordinary)
+    let assert Ok(Nil) = bag.insert_new(table, ordinary, term)
+    assert bag.insert_new(table, term, ordinary)
+      == Error(slate.KeyAlreadyPresent)
+    assert bag.insert_new(table, ordinary, term)
+      == Error(slate.KeyAlreadyPresent)
+  })
+  let assert Ok(entries) = bag.to_list(table)
+  assert list.length(entries) == 9
+  list.each(nested_terms, fn(term) {
+    assert list.contains(entries, #(term, ordinary))
+    assert list.contains(entries, #(ordinary, term))
+  })
+  let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_insert_new_exact_numbers_test() -> Nil {
+  let path = "test_bag_insert_new_exact_numbers.dets"
+  let assert Ok(table) =
+    bag.open(path, key_decoder: decode.dynamic, value_decoder: decode.dynamic)
+  let numbers = [dynamic.int(1), dynamic.float(1.0)]
+  list.each(numbers, fn(key) {
+    list.each(numbers, fn(value) {
+      let assert Ok(Nil) = bag.insert_new(table, key, value)
+      assert bag.insert_new(table, key, value) == Error(slate.KeyAlreadyPresent)
+    })
+  })
+  assert bag.size(table) == Ok(4)
+  let assert Ok(Nil) = bag.close(table)
+  test_helper.cleanup(path)
+}
+
+pub fn bag_insert_new_literal_atom_errors_test() -> Nil {
+  let path = "test_bag_insert_new_literal_atom_errors.dets"
+  let existing = atom.create("_")
+  let missing = atom.create("$1")
+  let assert Ok(table) =
+    bag.open(
+      path,
+      key_decoder: decode.string,
+      value_decoder: test_helper.unsafe_decoder(),
+    )
+  let assert Ok(Nil) = bag.insert(table, "key", existing)
+  let assert Ok(Nil) = bag.close(table)
+  let assert Ok(table) =
+    bag.open_with_access(
+      path:,
+      repair: slate.AutoRepair,
+      access: slate.ReadOnly,
+      key_decoder: decode.string,
+      value_decoder: test_helper.unsafe_decoder(),
+    )
+  assert bag.insert_new(table, "key", existing)
+    == Error(slate.KeyAlreadyPresent)
+  assert bag.insert_new(table, "key", missing)
+    == Error(
+      slate.AccessDenied(file_error_test_helper.context(path, "access_mode")),
+    )
+  assert bag.to_list(table) == Ok([#("key", existing)])
+  let assert Ok(Nil) = bag.close(table)
+  assert bag.insert_new(table, "key", missing) == Error(slate.TableDoesNotExist)
   test_helper.cleanup(path)
 }
 

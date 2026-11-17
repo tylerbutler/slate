@@ -323,10 +323,10 @@ insert_new_unlocked(Name, Objects) ->
     end.
 
 %% For bag tables: rejects duplicate key-value pairs but allows same key
-%% with different values. Checks if the exact object already exists via
-%% dets:match_object before inserting.
+%% with different values. Looks up the literal tuple key, then checks exact
+%% whole-object equality so '_' and '$N' atoms remain literal data.
 %%
-%% NOTE: This is NOT atomic. Between the match_object check and the insert,
+%% NOTE: This is NOT atomic. Between the lookup check and the insert,
 %% another process could insert the same object. In practice the window is
 %% tiny and the consequence is benign: both callers succeed, but DETS's own
 %% bag deduplication ensures only one copy ends up in the table.
@@ -335,11 +335,12 @@ insert_new_unlocked(Name, Objects) ->
 %% Keep that documented check/insert race, but route the write through the
 %% mutation gate. Do not acquire that gate around this call to insert/2.
 insert_new_object(Name, Object) ->
-    try dets:match_object(table_name(Name), Object) of
-        [] ->
-            insert(Name, Object);
-        [_ | _] ->
-            {error, key_already_present};
+    try dets:lookup(table_name(Name), element(1, Object)) of
+        Objects when is_list(Objects) ->
+            case lists:member(Object, Objects) of
+                true -> {error, key_already_present};
+                false -> insert(Name, Object)
+            end;
         {error, Reason} ->
             {error, translate_table_error(Name, Reason)}
     catch
