@@ -1,3 +1,3 @@
 package = "slate"
 kind = "Fixed"
-body = "Fixed bag.insert_new rejecting distinct pairs that contain literal _ or $N atoms, including nested terms."
+body = "Fixed `bag.insert_new` returning false `KeyAlreadyPresent` errors for distinct pairs that contain literal `_` or `$N` atoms, including nested terms."

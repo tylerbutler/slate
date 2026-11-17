@@ -1,3 +1,9 @@
 package = "slate"
 kind = "Fixed"
-body = "Concurrent table writers now wait in a monitored FIFO queue instead of randomized lock retries, which removes retry delays and prevents returning writers from passing queued callers."
+body = """
+Concurrent table writers wait their turn without random retry delays.
+
+Queued writers get the next turn before a previous writer can acquire the same
+lock again. Restart the BEAM VM when upgrading; do not hot-load this change
+alongside callers that use the old locks. No API or data-file migration is
+required."""
