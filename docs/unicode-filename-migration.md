@@ -1,4 +1,4 @@
-# Unicode filename migration
+# Unicode filename migration (breaking)
 
 Ordinary table opens and `slate.is_dets_file` now decode Gleam paths as UTF-8.
 They select the filename as written, as exclusive sessions already do.
