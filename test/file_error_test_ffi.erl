@@ -1,15 +1,16 @@
 -module(file_error_test_ffi).
--export([absolute_path/1, file_errors/1, pathless_errors/0, unknown_error/0, rename_error/0]).
+-export([absolute_path/1, file_errors/1, pathless_errors/0, unknown_error/0, rename_error/0,
+         unicode_rename_error/0, invalid_filename_errors/0]).
 
 absolute_path(Path) ->
-    list_to_binary(filename:absname(binary_to_list(Path))).
+    unicode:characters_to_binary(filename:absname(binary_to_list(Path))).
 
 %% Exercise known OTP envelopes, including shapes that are difficult to
 %% reproduce on disk (permissions under root and the 2 GB allocator limit).
 file_errors(Path) ->
     Cases = [
         {{file_error, Path, enoent}, <<"file_not_found">>, <<"enoent">>},
-        {{error, {file_error, binary_to_list(Path), {error, enoent}}},
+        {{error, {file_error, unicode:characters_to_list(Path), {error, enoent}}},
             <<"file_not_found">>, <<"{error,enoent}">>},
         {{file_error, Path, eacces}, <<"access_denied">>, <<"eacces">>},
         {{file_error, Path, {error, eacces}}, <<"access_denied">>, <<"{error,eacces}">>},
@@ -21,7 +22,7 @@ file_errors(Path) ->
         {{access_mode, Path}, <<"access_denied">>, <<"access_mode">>},
         {{type_mismatch, Path}, <<"type_mismatch">>, <<"type_mismatch">>},
         {{incompatible_arguments, Path}, <<"already_open">>, <<"incompatible_arguments">>},
-        {{error, {incompatible_arguments, binary_to_list(Path)}},
+        {{error, {incompatible_arguments, unicode:characters_to_list(Path)}},
             <<"already_open">>, <<"incompatible_arguments">>},
         {{error, {keypos_mismatch, Path}}, <<"type_mismatch">>, <<"keypos_mismatch">>},
         {{error, {needs_repair, Path}}, <<"needs_repair">>, <<"needs_repair">>},
@@ -47,3 +48,10 @@ unknown_error() ->
 
 rename_error() ->
     slate_dets_ffi:translate_error({file_error, {"old.dets", "new.dets"}, eacces}).
+
+unicode_rename_error() ->
+    slate_dets_ffi:translate_error({file_error, {"café.dets", "résumé.dets"}, eacces}).
+
+invalid_filename_errors() ->
+    [slate_dets_ffi:translate_error({file_error, Path, enoent}) ||
+        Path <- [<<255>>, <<195>>, [16#110000]]].

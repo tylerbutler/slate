@@ -67,20 +67,24 @@ pub fn duplicate_bag_info_path_test() -> Nil {
 }
 
 pub fn set_info_unicode_path_test() -> Nil {
-  check_path(
-    "test_path_\u{e9}_\u{1f4be}.dets",
-    fn(path, access) {
-      set.open_with_access(
-        path,
-        slate.AutoRepair,
-        access,
-        key_decoder: decode.string,
-        value_decoder: decode.int,
-      )
-    },
-    set.info,
-    set.close,
-  )
+  let filename = "test_path_\u{e9}_\u{1f4be}.dets"
+  let assert Ok(Nil) =
+    set.with_table(
+      filename,
+      slate.AutoRepair,
+      slate.ReadWrite,
+      key_decoder: decode.string,
+      value_decoder: decode.int,
+      callback: fn(table) {
+        let assert Ok(details) = set.info(table)
+        // Report OTP's disk filename, not the original bytes passed to open.
+        // Unicode input conversion and reopening this output belong to #137.
+        assert details.file_path == disk_path(filename)
+        Ok(Nil)
+      },
+    )
+  let assert Ok(Nil) = delete_file(filename)
+  Nil
 }
 
 fn check_path(
@@ -135,6 +139,9 @@ fn is_absolute(path: String) -> Bool
 
 @external(erlang, "path_test_ffi", "canonical_path")
 fn canonical_path(path: String) -> String
+
+@external(erlang, "path_test_ffi", "disk_path")
+fn disk_path(path: String) -> String
 
 @external(erlang, "path_test_ffi", "above_root_alias")
 fn above_root_alias(path: String) -> String

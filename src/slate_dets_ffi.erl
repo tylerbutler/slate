@@ -459,17 +459,14 @@ info_file_size(Name) ->
 info_path({slate_exclusive, Name}) ->
     try dets:info(Name, filename) of
         undefined -> {error, table_does_not_exist};
-        Path -> {ok, unicode:characters_to_binary(Path)}
+        Path -> filename_to_utf8(Path)
     catch
         error:Reason -> {error, translate_encoded_error(true, Reason)}
     end;
 info_path(Name) ->
     try dets:info(Name, filename) of
         undefined -> {error, table_does_not_exist};
-        Path when is_list(Path) ->
-            %% Preserve the legacy byte-list filename contract.
-            {ok, list_to_binary(Path)};
-        Path when is_binary(Path) -> {ok, Path};
+        Path when is_list(Path); is_binary(Path) -> filename_to_utf8(Path);
         Other -> {error, unexpected_error({dets_info, filename, Other})}
     catch
         error:Reason -> {error, translate_error(Reason)}
@@ -609,10 +606,11 @@ file_error_kind(efbig) -> file_size_limit_exceeded;
 file_error_kind({error, Reason}) -> file_error_kind(Reason);
 file_error_kind(_) -> unexpected.
 
-contextual_file_error(Kind, Path, Reason) when is_binary(Path) ->
-    contextual_error(Kind, {some, Path}, Reason);
-contextual_file_error(Kind, Path, Reason) when is_list(Path) ->
-    contextual_error(Kind, {some, list_to_binary(Path)}, Reason);
+contextual_file_error(Kind, Path, Reason) when is_binary(Path); is_list(Path) ->
+    case filename_to_utf8(Path) of
+        {ok, Filename} -> contextual_error(Kind, {some, Filename}, Reason);
+        {error, Error} -> Error
+    end;
 contextual_file_error(Kind, undefined, Reason) ->
     contextual_error(Kind, none, Reason);
 contextual_file_error(Kind, {From, To}, Reason) ->
@@ -622,6 +620,13 @@ contextual_file_error(Kind, {From, To}, Reason) ->
 
 contextual_error(Kind, Path, Reason) ->
     {Kind, {file_error_context, Path, format_reason(Reason)}}.
+
+%% OTP reports Unicode code points, even when open received a legacy byte list.
+filename_to_utf8(Path) ->
+    case unicode:characters_to_binary(Path) of
+        Filename when is_binary(Filename) -> {ok, Filename};
+        Error -> {error, unexpected_error({filename_encoding, Path, Error})}
+    end.
 
 table_name({slate_exclusive, Name}) -> Name;
 table_name(Name) -> Name.
@@ -653,4 +658,4 @@ unexpected_error(Reason) ->
     {unexpected_error, format_reason(Reason)}.
 
 format_reason(Reason) ->
-    list_to_binary(io_lib:format("~p", [Reason])).
+    unicode:characters_to_binary(io_lib:format("~p", [Reason])).

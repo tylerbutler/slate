@@ -103,6 +103,13 @@ the record, or propagate the original error unchanged.
   Other errors retain their OTP tag, such as `"access_mode"`,
   `"type_mismatch"`, `"keypos_mismatch"`, `"incompatible_arguments"`, or `"needs_repair"`.
   No expected/actual table type is invented when OTP supplies neither.
+- Filenames from OTP are encoded as UTF-8 in `path` and `TableInfo.file_path`,
+  including paths under a Unicode working directory. File errors retain their
+  category rather than becoming `TableDoesNotExist` during filename conversion.
+  An invalid filename encoding returns `UnexpectedError`.
+  This corrects reporting only: it does not change how input paths are decoded
+  or rename files created by earlier versions. A non-ASCII input path can still
+  name a different file, so its reported filename need not match the input.
 - The DETS allocator's `no_more_space_on_file` reason maps to
   `FileSizeLimitExceeded`, as does the existing `efbig` file error.
 - Unknown reasons remain `UnexpectedError`; they are not silently treated as

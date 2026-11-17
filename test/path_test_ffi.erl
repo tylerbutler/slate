@@ -1,5 +1,5 @@
 -module(path_test_ffi).
--export([delete_file/1, is_absolute/1, canonical_path/1,
+-export([delete_file/1, is_absolute/1, canonical_path/1, disk_path/1,
          above_root_alias/1, root_cases/0, same_table/2]).
 
 is_absolute(Path) ->
@@ -7,6 +7,9 @@ is_absolute(Path) ->
 
 canonical_path(Path) ->
     list_to_binary(slate_dets_ffi:canonicalize_path(Path)).
+
+disk_path(Path) ->
+    unicode:characters_to_binary(filename:absname(binary_to_list(Path))).
 
 above_root_alias(Path) ->
     Parts = filename:split(binary_to_list(Path)),
