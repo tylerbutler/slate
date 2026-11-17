@@ -1,6 +1,7 @@
 //// Tests for the is_dets_file utility function.
 //// Adapted from OTP dets_SUITE is_dets_file and open_file tests.
 
+import file_error_test_helper
 import gleam/dynamic/decode
 import gleam/option.{Some}
 import slate
@@ -56,12 +57,10 @@ pub fn is_dets_file_nonexistent_test() -> Nil {
 }
 
 pub fn is_dets_file_unicode_missing_path_output_test() -> Nil {
-  let path = "missing_is_dets_é_日/absent.dets"
-  // Legacy input conversion treats UTF-8 bytes as filename codepoints.
-  // Check that disk filename encoded as UTF-8, not the original input String.
-  // Changing input conversion (and this expectation) belongs to #137.
-  let disk_filename =
-    "missing_is_dets_\u{c3}\u{a9}_\u{e6}\u{97}\u{a5}/absent.dets"
+  let path =
+    file_error_test_helper.absolute_path(".")
+    <> "/missing_is_dets_é_日/absent.dets"
+  let disk_filename = file_error_test_helper.absolute_path(path)
   assert slate.is_dets_file(path)
     == Error(
       slate.FileNotFound(slate.FileErrorContext(

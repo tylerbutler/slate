@@ -9,7 +9,7 @@ canonical_path(Path) ->
     list_to_binary(slate_dets_ffi:canonicalize_path(Path)).
 
 disk_path(Path) ->
-    unicode:characters_to_binary(filename:absname(binary_to_list(Path))).
+    unicode:characters_to_binary(slate_dets_ffi:canonicalize_path(Path)).
 
 above_root_alias(Path) ->
     Parts = filename:split(binary_to_list(Path)),

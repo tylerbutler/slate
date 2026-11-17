@@ -3,7 +3,7 @@
          unicode_rename_error/0, invalid_filename_errors/0]).
 
 absolute_path(Path) ->
-    unicode:characters_to_binary(filename:absname(binary_to_list(Path))).
+    unicode:characters_to_binary(slate_dets_ffi:canonicalize_path(Path)).
 
 %% Exercise known OTP envelopes, including shapes that are difficult to
 %% reproduce on disk (permissions under root and the 2 GB allocator limit).

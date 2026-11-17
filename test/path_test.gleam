@@ -77,8 +77,7 @@ pub fn set_info_unicode_path_test() -> Nil {
       value_decoder: decode.int,
       callback: fn(table) {
         let assert Ok(details) = set.info(table)
-        // Report OTP's disk filename, not the original bytes passed to open.
-        // Unicode input conversion and reopening this output belong to #137.
+        // Report OTP's disk filename as UTF-8.
         assert details.file_path == disk_path(filename)
         Ok(Nil)
       },
