@@ -120,7 +120,7 @@ action(Table, {lookup, Key}, _Main) -> slate_dets_ffi:lookup(Table, Key);
 action(Table, {lookup_all, Key}, _Main) -> slate_dets_ffi:lookup_all(Table, Key);
 action(Table, {increment, Key}, _Main) ->
     Value = case slate_dets_ffi:lookup(Table, Key) of
-        {ok, Old} -> Old;
+        {ok, {Key, Old}} -> Old;
         {error, not_found} -> 0
     end,
     slate_dets_ffi:insert(Table, [{Key, Value + 1}]);

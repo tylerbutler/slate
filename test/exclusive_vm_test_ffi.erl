@@ -59,8 +59,8 @@ contention_at(Type, FilePath) ->
         send(A, {finish, {insert, <<"a">>, 1}}),
         {result, {ok, nil}} = event(A),
         opening = event(B), {result, {ok, nil}} = event(B),
-        {ok, 1} = run_session(B, Path, Type, {lookup, <<"a">>}),
-        {ok, 2} = run_session(A, Path, Type, {lookup, <<"b">>})
+        {ok, {<<"a">>, 1}} = run_session(B, Path, Type, {lookup, <<"a">>}),
+        {ok, {<<"b">>, 2}} = run_session(A, Path, Type, {lookup, <<"b">>})
     end).
 
 tmpfs_contention() ->
@@ -181,7 +181,7 @@ release_failures() ->
         send_session(B, Path, set, immediate, return_ok),
         {result, {error, {acquisition_failed, busy}}} = event(B),
         send(A, halt_vm), wait_exit(A, 70),
-        {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>})
+        {ok, {<<"kept">>, 7}} = run_session(B, Path, set, {lookup, <<"kept">>})
     end),
     with_vms(path("late_release_failure", set), fun(A, B, Path) ->
         send(A, {inject_release_failure, late_acquire}), fault_injected = event(A),
@@ -209,7 +209,7 @@ undelivered_cleanup() ->
         send_session(B, Path, set, immediate, return_ok),
         {result, {error, {acquisition_failed, busy}}} = event(B),
         send(A, halt_vm), wait_exit(A, 70),
-        {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>})
+        {ok, {<<"kept">>, 7}} = run_session(B, Path, set, {lookup, <<"kept">>})
     end).
 
 repeated_sessions(Type) ->
@@ -219,8 +219,8 @@ repeated_sessions(Type) ->
             send_session(B, Path, Type, {wait_up_to, 3000}, {insert, {b, N}, N}),
             opening = event(A), {result, {ok, nil}} = event(A),
             opening = event(B), {result, {ok, nil}} = event(B),
-            {ok, N} = run_session(A, Path, Type, {lookup, {b, N}}),
-            {ok, N} = run_session(B, Path, Type, {lookup, {a, N}})
+            {ok, {{b, N}, N}} = run_session(A, Path, Type, {lookup, {b, N}}),
+            {ok, {{a, N}, N}} = run_session(B, Path, Type, {lookup, {a, N}})
         end, lists:seq(1, 5)),
         case Type of
             set ->
@@ -230,10 +230,10 @@ repeated_sessions(Type) ->
                     opening = event(A), {result, {ok, nil}} = event(A),
                     opening = event(B), {result, {ok, nil}} = event(B)
                 end, lists:seq(1, 10)),
-                {ok, 20} = run_session(A, Path, set, {lookup, <<"counter">>}),
+                {ok, {<<"counter">>, 20}} = run_session(A, Path, set, {lookup, <<"counter">>}),
                 {ok, nil} = run_session(A, Path, set, {insert, <<"same">>, 1}),
                 {ok, nil} = run_session(B, Path, set, {insert, <<"same">>, 2}),
-                {ok, 2} = run_session(A, Path, set, {lookup, <<"same">>});
+                {ok, {<<"same">>, 2}} = run_session(A, Path, set, {lookup, <<"same">>});
             bag -> ok;
             duplicate_bag -> ok
         end
@@ -278,11 +278,11 @@ callback_failures() ->
     with_vms(path("callback_failures", set), fun(A, B, Path) ->
         {error, {session_failed, {callback_failure, not_found}}} =
             run_session(A, Path, set, {insert_then_error, <<"kept">>, 7}),
-        {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>}),
+        {ok, {<<"kept">>, 7}} = run_session(B, Path, set, {lookup, <<"kept">>}),
         lists:foreach(fun(Class) ->
             {exception, Class, exclusive_fixture_exception} =
                 run_session(A, Path, set, {raise, Class}),
-            {ok, 7} = run_session(B, Path, set, {lookup, <<"kept">>})
+            {ok, {<<"kept">>, 7}} = run_session(B, Path, set, {lookup, <<"kept">>})
         end, [error, throw, exit])
     end).
 
@@ -317,9 +317,9 @@ vm_crash() ->
         opening = event(B),
         {result, {error, {session_failed, {open_failure, {needs_repair, _}}}}} = event(B),
         {ok, nil} = run_session(B, Path, set, return_ok),
-        {ok, 2} = run_session(B, Path, set, {lookup, <<"before">>}),
+        {ok, {<<"before">>, 2}} = run_session(B, Path, set, {lookup, <<"before">>}),
         {ok, nil} = run_session(B, Path, set, {insert, <<"repaired">>, 3}),
-        {ok, 3} = run_session(B, Path, set, {lookup, <<"repaired">>})
+        {ok, {<<"repaired">>, 3}} = run_session(B, Path, set, {lookup, <<"repaired">>})
     end).
 
 different_files() ->
@@ -341,7 +341,7 @@ unicode_paths() ->
     with_vms(Path, fun(A, B, _) ->
         {ok, nil} = run_session(A, Path, set, {insert, <<"unicode">>, 42}),
         {ok, _} = file:read_file_info(unicode:characters_to_list(Path)),
-        {ok, 42} = run_session(B, Path, set, {lookup, <<"unicode">>})
+        {ok, {<<"unicode">>, 42}} = run_session(B, Path, set, {lookup, <<"unicode">>})
     end).
 
 case_and_short_aliases() ->
@@ -400,13 +400,13 @@ repair_sidecar() ->
             {ok, Before} = file:read_file_info(File),
             send(A, {session_with, Path, set, force_repair, read_write, immediate,
                      {lookup, <<"before">>}}),
-            opening = event(A), {result, {ok, 7}} = event(A),
+            opening = event(A), {result, {ok, {<<"before">>, 7}}} = event(A),
             {ok, After} = file:read_file_info(Sidecar),
             true = {Before#file_info.major_device, Before#file_info.inode} =:=
                    {After#file_info.major_device, After#file_info.inode},
             {ok, {Next, _}} = slate_lock_nif:acquire(Path),
             {ok, nil} = slate_lock_nif:release(Next),
-            {ok, 7} = run_session(B, Path, set, {lookup, <<"before">>})
+            {ok, {<<"before">>, 7}} = run_session(B, Path, set, {lookup, <<"before">>})
         after ok = file:close(File) end
     end).
 

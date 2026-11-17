@@ -27,7 +27,7 @@ import slate/internal/exclusive_session
 
 /// Errors returned by `update_counter`.
 pub type UpdateCounterError {
-  /// `update_counter` requires the stored value to be an integer.
+  /// `update_counter` requires a key-value pair with an integer value.
   CounterValueNotInteger
   /// A shared DETS table error from the underlying operation.
   TableError(DetsError)
@@ -232,15 +232,19 @@ fn ffi_open_exclusive(
 /// Look up the value for a key.
 ///
 /// Returns `Error(NotFound)` if the key does not exist.
-/// Returns `Error(DecodeErrors(_))` if the stored value does not match the
-/// expected type.
+/// Returns `Error(DecodeErrors(_))` if the stored object is not an exact
+/// key-value pair or its key or value does not match the supplied decoders.
 ///
 /// For bag and duplicate bag tables, `lookup` returns `Ok([])` for missing
 /// keys instead of `Error(NotFound)`.
 pub fn lookup(from table: Set(k, v), key key: k) -> Result(v, DetsError) {
   case ffi_lookup(table.reference, key) {
-    Ok(dynamic_value) ->
-      decode.run(dynamic_value, table.value_decoder)
+    Ok(entry) ->
+      decode.run(
+        entry,
+        internal.tuple_decoder(table.key_decoder, table.value_decoder),
+      )
+      |> result.map(fn(pair) { pair.1 })
       |> result.map_error(slate.DecodeErrors)
     Error(error) -> Error(error)
   }
@@ -410,7 +414,8 @@ pub fn delete_all(from table: Set(k, v)) -> Result(Nil, DetsError) {
 /// new value after incrementing. The increment can be negative.
 ///
 /// Returns `Error(TableError(slate.NotFound))` if the key does not exist,
-/// `Error(CounterValueNotInteger)` if the stored value is not an integer,
+/// `Error(CounterValueNotInteger)` if the stored object is not an exact
+/// key-value pair with an integer value,
 /// or `Error(TableError(error))` for other DETS table failures.
 ///
 /// ```gleam

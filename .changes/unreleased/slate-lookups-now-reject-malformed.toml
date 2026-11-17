@@ -1,0 +1,3 @@
+package = "slate"
+kind = "Fixed"
+body = "Lookups now reject malformed DETS objects with DecodeErrors instead of raising or silently dropping entries. Counter updates reject objects that are not exact key-value pairs without changing stored data."

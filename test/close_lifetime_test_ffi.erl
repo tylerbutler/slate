@@ -238,7 +238,7 @@ registry_failure_fixture() ->
         {error, {unexpected_error, _}} =
             slate_dets_ffi:open_set(<<"test_registry_must_not_create.dets">>, no_repair),
         false = filelib:is_file("test_registry_must_not_create.dets"),
-        {ok, 1} = slate_dets_ffi:lookup(Table, base),
+        {ok, {base, 1}} = slate_dets_ffi:lookup(Table, base),
         {ok, nil} = slate_dets_ffi:close(Table),
         undefined = whereis(slate_dets_lifetime),
         io:format("registry_fail_closed_ok~n")

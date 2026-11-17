@@ -12,10 +12,19 @@ pub fn tuple_decoder(
   key_decoder: Decoder(k),
   value_decoder: Decoder(v),
 ) -> Decoder(#(k, v)) {
+  use _ <- decode.then(decode.new_primitive_decoder(
+    "2-element tuple",
+    ffi_decode_pair,
+  ))
   use key <- decode.field(0, key_decoder)
   use value <- decode.field(1, value_decoder)
   decode.success(#(key, value))
 }
+
+@external(erlang, "slate_dets_ffi", "decode_pair")
+fn ffi_decode_pair(
+  data: Dynamic,
+) -> Result(#(Dynamic, Dynamic), #(Dynamic, Dynamic))
 
 /// Decode a list of DETS tuple entries into typed key-value pairs.
 pub fn decode_entries(
