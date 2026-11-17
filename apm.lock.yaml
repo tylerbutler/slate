@@ -48,8 +48,8 @@ dependencies:
 - repo_url: tylerbutler/apm-base
   name: apm-base
   host: github.com
-  resolved_commit: cf1d0e1736975b7f99607d130c87de989322c8ca
-  version: 0.2.4
+  resolved_commit: bc2598b13910c37caba38eca68478117be74f177
+  version: 0.2.5
   package_type: apm_package
   deployed_files:
   - .agents/skills/humanizer
@@ -57,6 +57,8 @@ dependencies:
   - .agents/skills/humanizer/SKILL.md
   - .agents/skills/prose-banlist
   - .agents/skills/prose-banlist/SKILL.md
+  - .agents/skills/storytelling
+  - .agents/skills/storytelling/SKILL.md
   - .claude/commands/create-pr.md
   - .claude/commands/merge-upstream.md
   - .claude/rules/use-ste.md
@@ -65,28 +67,32 @@ dependencies:
   - .claude/skills/humanizer/SKILL.md
   - .claude/skills/prose-banlist
   - .claude/skills/prose-banlist/SKILL.md
+  - .claude/skills/storytelling
+  - .claude/skills/storytelling/SKILL.md
   - .github/instructions/use-ste.instructions.md
   - .github/prompts/create-pr.prompt.md
   - .github/prompts/merge-upstream.prompt.md
   deployed_file_hashes:
     .agents/skills/humanizer/LICENSE: sha256:4ac4810254ab36d45419141aeb8e69bf50652cfafe5b2dab947d06d44e5cbf96
     .agents/skills/humanizer/SKILL.md: sha256:14fc8a965b6e0a8dc100ba4dffeab55cb94bbac112abbde7e014d5c15a35c202
-    .agents/skills/prose-banlist/SKILL.md: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
+    .agents/skills/prose-banlist/SKILL.md: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
+    .agents/skills/storytelling/SKILL.md: sha256:68a7dfe08ba69c59af66b28d2d9f3344eb97dc7f4eb096cae41f98abcc4ea23e
     .claude/commands/create-pr.md: sha256:f60319bef36ed8d7159543f774f196f2ab90df55d3538c1723da6b81295d02ff
     .claude/commands/merge-upstream.md: sha256:f8c97a3085cc2b603cd34428aa28d17c55b5411ba526871ae599cede372d3f89
-    .claude/rules/use-ste.md: sha256:6bfec65cbeaf6e78cf7885d6119fb868ad789db4a34a7dd28c2e71abfe69f803
+    .claude/rules/use-ste.md: sha256:29c78e0076d736e43b8d9b414465de9c236128975b95118dcb2047f4e49018b2
     .claude/skills/humanizer/LICENSE: sha256:4ac4810254ab36d45419141aeb8e69bf50652cfafe5b2dab947d06d44e5cbf96
     .claude/skills/humanizer/SKILL.md: sha256:14fc8a965b6e0a8dc100ba4dffeab55cb94bbac112abbde7e014d5c15a35c202
-    .claude/skills/prose-banlist/SKILL.md: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
-    .github/instructions/use-ste.instructions.md: sha256:c4512aac8ae85c13578effb80b704cc72a14a6a13a3c5f3db036ca2e899513de
+    .claude/skills/prose-banlist/SKILL.md: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
+    .claude/skills/storytelling/SKILL.md: sha256:68a7dfe08ba69c59af66b28d2d9f3344eb97dc7f4eb096cae41f98abcc4ea23e
+    .github/instructions/use-ste.instructions.md: sha256:686d7f6f6172dd5c238371076383b2f67c0f4937465e6e53633936d294c9adbc
     .github/prompts/create-pr.prompt.md: sha256:5fcb1b64247130aec3a0ebd114ae6d127de44f7e824087033c468d8debb593a2
     .github/prompts/merge-upstream.prompt.md: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
-  content_hash: sha256:b79cb18c0a888d9c830388493ae241334ccfa4af00a2851a1c4c002d9de0ac21
+  content_hash: sha256:d80d2a6162685cfb2a027ccfc9439613edda386eb5fd8b8e00fc3d03f1b77680
   is_dev: true
 - repo_url: cursor/plugins
   name: unslop
   host: github.com
-  resolved_commit: ad267954814a2d6ba4e6784de4bb21dad0c98712
+  resolved_commit: 320bfaa1fe11077b1efc7113bfafc7ef29ba1b8a
   version: unknown
   virtual_path: pstack/skills/unslop
   is_virtual: true
@@ -99,15 +105,15 @@ dependencies:
   - .claude/skills/unslop
   - .claude/skills/unslop/SKILL.md
   deployed_file_hashes:
-    .agents/skills/unslop/SKILL.md: sha256:ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f
-    .claude/skills/unslop/SKILL.md: sha256:ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f
-  content_hash: sha256:eca0ad9fa3a3867c83f3aaf3a058e247a569c8976a68ca423a569b93eb86de5d
+    .agents/skills/unslop/SKILL.md: sha256:2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0
+    .claude/skills/unslop/SKILL.md: sha256:2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0
+  content_hash: sha256:9bace43ba8cc2c76bfd18ce3f508381f490013cac2116d747553cfcd5cb44c88
   is_dev: true
 - repo_url: dietrichgebert/ponytail
   materialization_repo_url: DietrichGebert/ponytail
   name: ponytail
   host: github.com
-  resolved_commit: 09c434ab73ca43761c5d8b0c5d341926c2fba710
+  resolved_commit: 96608e078b2d5ea607c5c3b8b5a54d1c1fba6846
   version: 96608e0
   depth: 2
   resolved_by: tylerbutler/apm-base
@@ -152,7 +158,7 @@ dependencies:
     .claude/skills/ponytail-review/SKILL.md: sha256:33fe4ebe22a460924e5d4a261e223df22e409cc94ab76182bee9fb91a3ef022e
     .claude/skills/ponytail/SKILL.md: sha256:9badd22a32e19cb884e46dfa8d3aae82bb81dfa5484105b8b4f0262df823a509
     .github/hooks/ponytail-copilot-hooks.json: sha256:692b5148c3605d2ece2f081834b650c3c43d75cb272a7884dc40e9ce4425ef79
-  content_hash: sha256:5087e9e5f577b05cc53ba392a4d263787d9d65ac8dc97bbd71adf42d4cf7672f
+  content_hash: sha256:b995a71ddd28e617eb0e7968c7ec7a0cc8229b3af20065432ce5ecb1da2d92bc
   is_dev: true
 - repo_url: hardikpandya/stop-slop
   name: stop-slop
@@ -200,7 +206,7 @@ dependencies:
   materialization_repo_url: JuliusBrussee/caveman
   name: caveman-commit
   host: github.com
-  resolved_commit: bad48a0e1df55e05e3f52249afa35ecc1909ee76
+  resolved_commit: 9b243662ff98d392bc0a95b865a554583d71be75
   version: unknown
   virtual_path: skills/caveman-commit
   is_virtual: true
@@ -284,7 +290,7 @@ deployments:
   owners:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
-  content_hash: sha256:6bfec65cbeaf6e78cf7885d6119fb868ad789db4a34a7dd28c2e71abfe69f803
+  content_hash: sha256:29c78e0076d736e43b8d9b414465de9c236128975b95118dcb2047f4e49018b2
 - kind: project-relative
   target: claude
   value: .claude/skills/caveman-commit
@@ -545,7 +551,7 @@ deployments:
   owners:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
-  content_hash: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
+  content_hash: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
 - kind: project-relative
   target: claude
   value: .claude/skills/stop-slop
@@ -620,6 +626,24 @@ deployments:
   content_hash: sha256:ffbf1316c7fb5aaf552de005609a64a9639b546ecd76bfb0e482864d5bbe6f58
 - kind: project-relative
   target: claude
+  value: .claude/skills/storytelling
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/storytelling/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:68a7dfe08ba69c59af66b28d2d9f3344eb97dc7f4eb096cae41f98abcc4ea23e
+- kind: project-relative
+  target: claude
   value: .claude/skills/unslop
   runtime: null
   scope: project
@@ -635,7 +659,7 @@ deployments:
   owners:
   - cursor/plugins/pstack/skills/unslop
   active_owner: cursor/plugins/pstack/skills/unslop
-  content_hash: sha256:ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f
+  content_hash: sha256:2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0
 - kind: project-relative
   target: copilot
   value: .agents/skills/caveman-commit
@@ -896,7 +920,7 @@ deployments:
   owners:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
-  content_hash: sha256:48330781d0d69dc91cf4ef295fadc04d6d14f5a195d82b293d31677829e6f2b0
+  content_hash: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
 - kind: project-relative
   target: copilot
   value: .agents/skills/stop-slop
@@ -971,6 +995,24 @@ deployments:
   content_hash: sha256:ffbf1316c7fb5aaf552de005609a64a9639b546ecd76bfb0e482864d5bbe6f58
 - kind: project-relative
   target: copilot
+  value: .agents/skills/storytelling
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/storytelling/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/apm-base
+  active_owner: tylerbutler/apm-base
+  content_hash: sha256:68a7dfe08ba69c59af66b28d2d9f3344eb97dc7f4eb096cae41f98abcc4ea23e
+- kind: project-relative
+  target: copilot
   value: .agents/skills/unslop
   runtime: null
   scope: project
@@ -986,7 +1028,7 @@ deployments:
   owners:
   - cursor/plugins/pstack/skills/unslop
   active_owner: cursor/plugins/pstack/skills/unslop
-  content_hash: sha256:ccab208e315ce05e2fab8eeee2f7879f1289b5c6844840b2d307adf31c79144f
+  content_hash: sha256:2b823fd069e031c1420180be8e0d4f5e2fd25bf2c428049e5c835c59a489b5e0
 - kind: project-relative
   target: copilot
   value: .github/agents/beam-vm-reviewer.agent.md
@@ -1040,7 +1082,7 @@ deployments:
   owners:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
-  content_hash: sha256:c4512aac8ae85c13578effb80b704cc72a14a6a13a3c5f3db036ca2e899513de
+  content_hash: sha256:686d7f6f6172dd5c238371076383b2f67c0f4937465e6e53633936d294c9adbc
 - kind: project-relative
   target: copilot
   value: .github/prompts/create-pr.prompt.md
