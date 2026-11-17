@@ -240,18 +240,28 @@ table_name_atom(Index) ->
 
 %% ── Close / Sync ───────────────────────────────────────────────────────
 
-%% Node-local coordination only, not an OS/file lock. global monitors the
-%% caller and releases on death; trans releases in an after on return/raise.
-%% Infinite retries cannot return 'aborted'. Work stays in the caller so DETS
-%% opener ownership is unchanged. Never nest the same resource (global locks
-%% are not reference-counted), and never run user callbacks under these gates.
+%% Node-local FIFO admission only, not an OS/file lock. Work stays in the
+%% caller so DETS opener ownership is unchanged. Never nest the same resource,
+%% and never run user callbacks under these gates.
 coordinated(Resource, Work) ->
-    global:trans({{?MODULE, Resource}, self()}, Work, [node()]).
+    slate_dets_coordination:with(Resource, Work).
 
 mutate(Name, Work) ->
-    coordinated({mutation, table_name(Name)}, Work).
+    try coordinated({mutation, table_name(Name)}, Work)
+    catch
+        error:{slate_dets_coordination_unavailable, _} = Reason ->
+            {error, translate_table_error(Name, Reason)}
+    end.
 
 close(Name) ->
+    %% The outer path acquisition can fail before reaching the mutation gate.
+    try close_coordinated(Name)
+    catch
+        error:{slate_dets_coordination_unavailable, _} = Reason ->
+            {error, translate_table_error(Name, Reason)}
+    end.
+
+close_coordinated(Name) ->
     %% Always path -> mutation, never the reverse. The lifetime reservation
     %% outlives this caller if it dies while DETS continues flushing the file.
     Path = try slate_dets_lifetime:path(table_name(Name))
@@ -496,7 +506,14 @@ is_dets_file(Path) ->
     end.
 
 update_counter(Name, Key, Increment) ->
-    mutate(Name, fun() -> validate_counter(Name, Key, Increment) end).
+    %% Counter's typed boundary has its own table-error envelope. Do not feed
+    %% an already translated mutation result back through error translation.
+    try coordinated({mutation, table_name(Name)},
+                    fun() -> validate_counter(Name, Key, Increment) end)
+    catch
+        error:{slate_dets_coordination_unavailable, _} = Reason ->
+            {error, update_counter_table_error(Name, Reason)}
+    end.
 
 validate_counter(Name, Key, Increment) ->
     %% OTP accepts floats and mutates them before returning a float. Check
@@ -594,6 +611,8 @@ translate_error({not_a_dets_file, Path}) ->
 translate_error({needs_repair, Path}) ->
     contextual_file_error(needs_repair, Path, needs_repair);
 translate_error({slate_dets_lifetime_unavailable, _Reason} = Error) ->
+    unexpected_error(Error);
+translate_error({slate_dets_coordination_unavailable, _Reason} = Error) ->
     unexpected_error(Error);
 translate_error({error, Reason}) -> translate_error(Reason);
 translate_error({Reason, _Context}) -> translate_error(Reason);

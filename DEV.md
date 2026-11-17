@@ -93,6 +93,22 @@ finishes, so absence from `dets:all()` does not mean the file is safe to reopen.
 The FFI keeps native opens in the caller and uses path-before-mutation lock order
 for explicit closes.
 
+`src/slate_dets_coordination.erl` queues node-local lock requests in arrival
+order. It monitors holders and waiting callers, removes dead waiters, and hands
+each lock to the next caller on release or holder death. Only lock bookkeeping
+runs in this service; DETS operations stay in the caller. A blocked table does
+not block another table. Never nest the same resource or run user callbacks
+under these locks.
+
+The coordination service also uses a temporary `kernel_safe_sup` child and a
+fixed VM-lifetime marker. If it fails, new lock requests fail closed: a
+replacement must not grant locks while old holders can still run. Opens,
+writes, and closes then return `UnexpectedError` (wrapped in `TableError` for
+counters); reads remain available. Restart the VM to recover. Do not erase
+either service marker. Adopt this change in a fresh VM; do not hot-load it
+while callers still use the old locks. No public API or data-file migration is
+required.
+
 The lifetime service starts as a temporary child of `kernel_safe_sup`. One fixed
 `persistent_term` marker prevents an empty-state restart after service failure.
 New opens then fail with `UnexpectedError`; existing reads and cleanup closes

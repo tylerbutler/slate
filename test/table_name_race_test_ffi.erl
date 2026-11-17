@@ -20,22 +20,28 @@ await_exclusive_coordination(Owner, Deadline) ->
             end
     end.
 
-%% Observe an actual failed acquisition/backoff, not a sleep that assumes
-%% the competing opener was scheduled. global itself is not interpreted.
+%% Observe actual enqueue behind a holder, not merely a caller waiting for
+%% its initial gen_server call to be processed. Inspection is test-only.
 await_coordination(Pid) ->
     await_coordination(Pid, erlang:monotonic_time(millisecond) + 5000).
 
 await_coordination(Pid, Deadline) ->
-    {current_stacktrace, Stack} = process_info(Pid, current_stacktrace),
-    case lists:any(fun
-        ({global, random_sleep, _, _}) -> true;
-        (_) -> false
-    end, Stack) of
+    State = sys:get_state(slate_dets_coordination),
+    #{resources := Resources, requests := Requests} = State,
+    Queued = lists:any(fun(#{waiters := Waiters}) ->
+        lists:any(fun(Token) ->
+            case maps:get(Token, Requests) of
+                {_, {Pid, _}} -> true;
+                _ -> false
+            end
+        end, queue:to_list(Waiters))
+    end, maps:values(Resources)),
+    case Queued of
         true -> nil;
         false ->
             case erlang:monotonic_time(millisecond) < Deadline of
                 true -> timer:sleep(1), await_coordination(Pid, Deadline);
-                false -> error({coordination_not_reached, Pid, Stack})
+                false -> error({coordination_not_reached, Pid, State})
             end
     end.
 
