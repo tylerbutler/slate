@@ -1,3 +1,41 @@
 package = "slate"
-kind = "Fixed"
-body = "Prevented independent DETS writers through file aliases on Unix and macOS. Ordinary opens now share verified file identities, including hard links, and retain reservations through repair and shutdown. Windows hard-linked table files remain unsupported; Windows case and symlink aliases remain identity-unprotected."
+kind = "Breaking"
+body = """
+Ordinary Unix opens now share verified file identities to prevent lost writes through aliases.
+
+On Unix, including macOS, `TableInfo.file_path` resolves symlinks and can report
+the first opener's filename for hard-link or case aliases. Previously, it was
+documented to preserve symlinks in the normalized absolute path. Keep the
+requested pathname separately if its spelling matters; do not use `file_path`
+string equality as a file-identity check.
+
+Before, after opening a normalized absolute symlink pathname:
+
+```gleam
+let assert Ok(details) = set.info(table)
+assert details.file_path == requested_absolute_path
+```
+
+After:
+
+```gleam
+let requested_path = requested_absolute_path
+let assert Ok(details) = set.info(table)
+// Keep requested_path for the caller's spelling.
+// details.file_path is the shared table's filename, not necessarily that path.
+```
+
+Unix filesystems without verified nonzero inode information now return an error
+instead of opening without identity protection. Reservations cover creation,
+repair, and actual table shutdown. Repair can split hard links; an older link
+returns `AlreadyOpen` while reserved and accesses the older file after shutdown.
+Back up files before repair and use the repaired pathname afterward.
+
+Restart the BEAM VM when upgrading. Do not hot-load alongside older callers or
+existing lifetime state. No dependency or stored-data migration is required.
+
+Windows hard-linked table files remain unsupported, without runtime detection
+or rejection. Ordinary Windows opens remain enabled and native-free; case and
+symlink aliases remain identity-unprotected. Concurrent aliases can lose
+acknowledged writes or damage the file. Use one stable absolute pathname
+without hard-link aliases."""
