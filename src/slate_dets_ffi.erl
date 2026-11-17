@@ -153,7 +153,7 @@ access_value(read_write) -> read_write;
 access_value(read_only) -> read.
 
 canonicalize_path(Path) when is_binary(Path) ->
-    normalize_path(filename:absname(binary_to_list(Path)));
+    normalize_path(filename:absname(unicode:characters_to_list(Path)));
 canonicalize_path(Path) when is_list(Path) ->
     normalize_path(filename:absname(Path)).
 
@@ -227,8 +227,8 @@ allocate_table_name(CanonicalPath, Start, Attempts) ->
             end
     end.
 
-%% DETS accepts/report filenames as Unicode lists or UTF-8 binaries. Decode
-%% reported binaries, unlike the intentionally byte-list legacy open input.
+%% DETS accepts/reports filenames as Unicode lists or UTF-8 binaries. Decode
+%% reported binaries consistently with incoming Gleam paths.
 canonicalize_open_path(Path) when is_binary(Path) ->
     canonicalize_path(unicode:characters_to_list(Path));
 canonicalize_open_path(Path) when is_list(Path) ->
@@ -488,7 +488,7 @@ info_integer(Name, Item) ->
 %% ── Utilities ───────────────────────────────────────────────────────────
 
 is_dets_file(Path) ->
-    try dets:is_dets_file(binary_to_list(Path)) of
+    try dets:is_dets_file(unicode:characters_to_list(Path)) of
         true -> {ok, true};
         false -> {ok, false};
         {error, Reason} -> {error, translate_error(Reason)}

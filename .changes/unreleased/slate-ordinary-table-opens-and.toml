@@ -1,0 +1,20 @@
+package = "slate"
+kind = "Breaking"
+body = """
+Ordinary table opens and `is_dets_file` use the requested Unicode filename.
+
+The same non-ASCII path can select a different file after upgrading:
+
+```gleam
+// Before: opens the byte-interpreted filename cafÃ©.dets.
+set.open("café.dets", key_decoder: decode.string, value_decoder: decode.int)
+
+// After: opens the requested filename café.dets.
+set.open("café.dets", key_decoder: decode.string, value_decoder: decode.int)
+```
+
+There is no legacy-name fallback. If only the old name exists, `ReadOnly`
+cannot open it and `ReadWrite` creates an empty table at the requested name.
+Stop all access, back up and inspect both names, and never overwrite another
+dataset. Follow docs/unicode-filename-migration.md before upgrading.
+ASCII filenames and the DETS format are unchanged."""

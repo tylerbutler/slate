@@ -50,7 +50,7 @@ pub fn file_error_context_rename_retains_both_paths_test() -> Nil {
 }
 
 pub fn file_error_context_missing_parent_test() -> Nil {
-  let path = "missing_context_é_資料/absent.dets"
+  let path = "missing_context_parent/absent.dets"
   let assert Error(slate.FileNotFound(context)) =
     set.open(path, key_decoder: decode.string, value_decoder: decode.int)
   assert context == file_error_test_helper.context(path, "enoent")

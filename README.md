@@ -185,6 +185,11 @@ set.lookup(users, key: "alice")
 table modules. For long-lived tables, manage `open` and `close` yourself.
 See the [table cleanup guide](https://slate.tylerbutler.com/advanced/with-table/).
 
+Paths use the Unicode filename as written, for both ordinary opens and exclusive
+sessions. Older ordinary opens could create a different filename for a non-ASCII
+path. There is no fallback to that old name. Before you upgrade an application
+that uses such paths, follow the [Unicode filename migration guide](docs/unicode-filename-migration.md).
+
 **Migrating from 1.x:** `with_table` requires `repair` and `access`.
 Add `repair: slate.AutoRepair` and `access: slate.ReadWrite` to keep the previous
 behavior. Cleanup and error handling are unchanged.
