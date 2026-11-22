@@ -70,6 +70,47 @@ each path. Up to 4096 distinct normalized paths can be open at once.
 Closing a table releases its slot for reuse. If all slots are in use,
 new opens for other paths return `TableNamePoolExhausted`.
 
+## File aliases
+
+On Unix, including macOS, ordinary `open*` and `with_table` calls within one
+BEAM node share a DETS server for verified aliases of the same file. Slate
+resolves file and directory symlinks before reducing `..` and compares device
+and inode information for existing files. Case variants share a server when
+the filesystem identifies them as the same file. Hard links are supported.
+Slate serializes open admission through file creation and identity publication
+so concurrent first opens through aliases cannot start separate Slate writers.
+Opens of unrelated files also wait for this admission step.
+
+Repair can replace the opened directory entry with a new file, leaving other
+hard links on the older file. Slate retains both identities until the table
+finishes closing. Opening an older hard link during that time returns
+`AlreadyOpen(context)`. After closing, that link accesses the older file, not
+the repaired data. Back up files before repair and use the repaired pathname
+afterward. No stored-data migration is required, but code that compares
+`file_path` strings must allow the shared table's filename.
+
+This protection is node-local, not an OS lock. Keep paths and directory entries
+stable while tables are open. Slate can discover a raw DETS table already open
+through an alias, but cannot coordinate raw clients racing an open or close.
+External renames, replacements, link changes, and independent VMs remain outside
+the ordinary-open guarantee. A Unix filesystem that supplies no verified
+nonzero inode returns an error rather than assuming two files are identical.
+
+### Windows
+
+**Hard-linked table files are unsupported on Windows.** Ordinary Windows opens
+remain native-free and enabled, but OTP does not expose a verified file
+identity. Slate does not detect or reject Windows hard links at runtime.
+Concurrent access through hard-link aliases can start independent DETS writers
+and lose acknowledged writes or damage the file, including during final close.
+Remove hard-link aliases and use one stable absolute pathname for all callers.
+
+Case variants and file or directory symlinks on Windows also remain
+identity-unprotected; using them concurrently carries the same data-integrity
+risk. Do not mix alias spellings. For independent VMs, use
+[`with_exclusive_table`](/advanced/exclusive-sessions/) on a supported local
+filesystem with a non-hard-linked data file and the required native component.
+
 ## Serialized access from multiple OS processes
 
 Independent VMs must use [`with_exclusive_table`](/advanced/exclusive-sessions/)

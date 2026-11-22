@@ -2,21 +2,25 @@
 -behaviour(gen_server).
 
 -export([find/1, available/2, begin_open/2, opened/2, failed/1, path/1,
-         start_link/0]).
+         await_idle/0, start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
 
--record(entry, {name, pids = #{}, pending = 0}).
+-record(entry, {name, pids = #{}, pending = 0, identities = []}).
 -record(opening, {path, owner_monitor, fence_pid = undefined,
                   fence_monitor = undefined, reply = undefined}).
--record(state, {paths = #{}, names = #{}, openings = #{}, monitors = #{}}).
+-record(state, {paths = #{}, names = #{}, openings = #{}, monitors = #{},
+                idle_waiters = #{}}).
 
 %% DETS removes a name from its registry BEFORE finishing the final close,
 %% including close on owner death. Retain path -> name until all observed
 %% servers and in-flight opens are finished. These are reservations, not a cache:
 %% rebuilding from dets:all() after losing this state would be unsafe.
-find(Path) -> call({find, Path}).
-available(Name, Path) -> call({available, Name, Path}).
-begin_open(Path, Name) -> call({begin_open, Path, Name}).
+find(Path) -> call({find, Path, slate_dets_ffi:file_identity(Path)}).
+available(Name, Path) -> call({available, Name, Path, slate_dets_ffi:file_identity(Path)}).
+begin_open(Path, Name) -> call({begin_open, Path, Name, slate_dets_ffi:file_identity(Path)}).
+%% Called under open_admission before selection, never under a mutation gate.
+%% A dead opener may still create/repair a file before its fence completes.
+await_idle() -> call(await_idle).
 opened(Token, Pid) when is_pid(Pid) -> call({opened, Token, Pid});
 opened(Token, undefined) -> failed(Token).
 failed(Token) -> call({failed, Token}).
@@ -61,22 +65,32 @@ start_link() ->
 
 init([]) -> {ok, #state{}}.
 
-handle_call({find, Path}, _From, State) ->
-    Reply = case maps:find(Path, State#state.paths) of
-        {ok, #entry{name = Name}} -> {ok, Name};
+handle_call(await_idle, From, State) when map_size(State#state.openings) > 0 ->
+    {Caller, _} = From,
+    Ref = monitor(process, Caller),
+    {noreply, State#state{
+        idle_waiters = (State#state.idle_waiters)#{Ref => From},
+        monitors = (State#state.monitors)#{Ref => idle_waiter}}};
+handle_call(await_idle, _From, State) ->
+    {reply, ok, State};
+handle_call({find, Path, Identity}, _From, State) ->
+    Reply = case find_entry(Path, Identity, State) of
+        {ok, _, #entry{name = Name}} -> {ok, Name};
         error -> error
     end,
     {reply, Reply, State};
 handle_call({path, Name}, _From, State) ->
     {reply, maps:find(Name, State#state.names), State};
-handle_call({available, Name, Path}, _From, State) ->
-    {reply, available_in(Name, Path, State), State};
-handle_call({begin_open, Path, Proposed}, {Owner, _}, State) ->
-    case maps:find(Path, State#state.paths) of
-        {ok, Entry} -> reserve(Path, Entry, Owner, State);
+handle_call({available, Name, Path, Identity}, _From, State) ->
+    {reply, available_in(Name, Path, Identity, State), State};
+handle_call({begin_open, Path, Proposed, Identity}, {Owner, _}, State) ->
+    case find_entry(Path, Identity, State) of
+        {ok, ReservedPath, Entry} -> reserve(ReservedPath, Entry, Owner, State);
         error ->
-            case available_in(Proposed, Path, State) of
-                true -> reserve(Path, #entry{name = Proposed}, Owner, State);
+            case available_in(Proposed, Path, Identity, State) of
+                true ->
+                    Entry = add_identity(Identity, #entry{name = Proposed}),
+                    reserve(Path, Entry, Owner, State);
                 false -> {reply, busy, State}
             end
     end;
@@ -101,6 +115,9 @@ handle_info({fenced, Worker, Token, Pid}, State) ->
 handle_info({'DOWN', Ref, process, Pid, Reason}, State) ->
     case maps:take(Ref, State#state.monitors) of
         error -> {noreply, State};
+        {idle_waiter, Monitors} ->
+            {noreply, State#state{monitors = Monitors,
+                                 idle_waiters = maps:remove(Ref, State#state.idle_waiters)}};
         {{opener, Token}, Monitors} ->
             %% The caller may have died before reporting the returned PID.
             %% Keep its reservation until a non-owner fence has observed all
@@ -117,11 +134,28 @@ handle_info({'DOWN', Ref, process, Pid, Reason}, State) ->
             {stop, {lifetime_fence_failed, Reason}, State}
     end.
 
-available_in(Name, Path, State) ->
+find_entry(Path, Identity, State) ->
+    case maps:find(Path, State#state.paths) of
+        {ok, Entry} -> {ok, Path, Entry};
+        error -> find_identity(maps:to_list(State#state.paths), Identity)
+    end.
+
+find_identity(_, none) -> error;
+find_identity([], _Identity) -> error;
+find_identity([{Path, Entry} | Rest], Identity) ->
+    case lists:member(Identity, Entry#entry.identities) of
+        true -> {ok, Path, Entry};
+        false -> find_identity(Rest, Identity)
+    end.
+
+available_in(Name, Path, Identity, State) ->
     case maps:find(Name, State#state.names) of
         error -> true;
-        {ok, Path} -> true;
-        {ok, _Other} -> false
+        {ok, ReservedPath} ->
+            case find_entry(Path, Identity, State) of
+                {ok, ReservedPath, _} -> true;
+                _ -> false
+            end
     end.
 
 reserve(Path, Entry, Owner, State) ->
@@ -164,9 +198,9 @@ fenced_pid(Name, Path) ->
             case dets:info(Name, filename) of
                 undefined -> Pid;
                 Filename ->
-                    case canonical_filename(Filename) of
-                        Path -> Pid;
-                        _OtherPath -> undefined
+                    case slate_dets_ffi:same_file(canonical_filename(Filename), Path) of
+                        true -> Pid;
+                        false -> undefined
                     end
             end
     end.
@@ -181,10 +215,26 @@ complete(Token, Pid, State) ->
     Path = Opening#opening.path,
     Monitors = remove_monitor(Opening#opening.fence_monitor,
         remove_monitor(Opening#opening.owner_monitor, State#state.monitors)),
-    Entry = maps:get(Path, State#state.paths),
+    %% Auto/force repair can rename a new inode over just this directory entry.
+    %% Retain BOTH observations until every PID and pending open is gone.
+    Entry = add_identity(slate_dets_ffi:file_identity(Path),
+                         maps:get(Path, State#state.paths)),
     {Tracked, NextMonitors} = track(Path, Entry, Pid, Monitors),
     Paths = (State#state.paths)#{Path => Tracked#entry{pending = Entry#entry.pending - 1}},
-    prune(Path, State#state{paths = Paths, openings = Openings, monitors = NextMonitors}).
+    Next = prune(Path, State#state{paths = Paths, openings = Openings, monitors = NextMonitors}),
+    case map_size(Openings) of
+        0 ->
+            IdleMonitors = maps:fold(fun(Ref, From, Acc) ->
+                gen_server:reply(From, ok),
+                remove_monitor(Ref, Acc)
+            end, Next#state.monitors, Next#state.idle_waiters),
+            Next#state{idle_waiters = #{}, monitors = IdleMonitors};
+        _ -> Next
+    end.
+
+add_identity(none, Entry) -> Entry;
+add_identity(Identity, Entry) ->
+    Entry#entry{identities = lists:usort([Identity | Entry#entry.identities])}.
 
 track(_Path, Entry, undefined, Monitors) -> {Entry, Monitors};
 track(Path, Entry, Pid, Monitors) ->
