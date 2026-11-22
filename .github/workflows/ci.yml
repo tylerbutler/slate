@@ -95,7 +95,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             build/native
-          key: native-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('priv/slate_lock/source/Cargo.lock', 'priv/slate_lock/source/rust-toolchain.toml') }}
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('priv/slate_lock/source/Cargo.lock', 'priv/slate_lock/source/rust-toolchain.toml') }}-${{ hashFiles('priv/slate_lock/source/**/*.rs', 'priv/slate_lock/source/Cargo.toml', 'priv/slate_lock/source/build.escript', 'priv/slate_lock/source/.cargo/**', '.cargo/**', 'src/slate_lock_nif.erl', 'justfile', '.mise.toml', '.github/workflows/ci.yml') }}
+          restore-keys: |
+            native-${{ runner.os }}-${{ runner.arch }}-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('priv/slate_lock/source/Cargo.lock', 'priv/slate_lock/source/rust-toolchain.toml') }}-
       - name: Check and build native component
         run: just native-check && just native-build
       - name: Reject Linux file-mount aliases
