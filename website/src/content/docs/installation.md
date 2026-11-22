@@ -42,7 +42,7 @@ Hex releases include the native files for these targets:
 | Windows | x64 | Windows Server 2022 / Windows 10+ with the MSVC runtime | Fixed-drive NTFS |
 
 The native component uses Rust standard-library locks through Rustler. It
-requires NIF ABI 2.17 (OTP 26+). Unlocked APIs do not load it. Unsupported
+requires NIF ABI 2.17 (OTP 26+). Only exclusive sessions load it. Unsupported
 platforms or filesystems return typed acquisition errors; Slate does not open
 the table without a lock. Musl Linux, network mounts, FUSE, overlay filesystems,
 and other unqualified types are unsupported.
@@ -97,10 +97,22 @@ runtime notices.
 
 Use `slate_lock.so` for Linux/macOS or `slate_lock.dll` for Windows. For a CLI
 that runs on more than one target, include each target directory. Slate finds
-`slate_native` beside the script, independent of the current working directory.
-Keep the script and companion directory together when you relocate them.
-A missing or incompatible library returns `NativeUnavailable`; unlocked APIs
-remain usable.
+`slate_native` beside the script when you launch the script with an absolute
+path. This lookup does not depend on later changes to the current working
+directory. For example, on Unix:
+
+```sh
+escript "$(pwd)/my-cli"
+```
+
+Relative launches, such as `escript ./my-cli` or `escript bin/my-cli`, return
+`NativeUnavailable` for exclusive sessions. Slate loads native code lazily and
+cannot safely recover the launch directory after a cwd change. Use an absolute
+script path, even if your application does not change its cwd.
+
+Keep the script and companion directory together when you relocate them, and
+keep both in a trusted installation directory. A missing or incompatible
+library also returns `NativeUnavailable`. Other APIs remain usable.
 
 Release CI must pass independent-VM and package-loading proofs on all five
 targets before publishing. See [exclusive sessions](/advanced/exclusive-sessions/)

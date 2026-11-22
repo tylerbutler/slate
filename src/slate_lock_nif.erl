@@ -25,8 +25,13 @@ native_directory() ->
         {error, bad_name} ->
             case init:get_argument(escript) of
                 {ok, _} ->
-                    {ok, filename:join(filename:dirname(filename:absname(escript:script_name())),
-                                      "slate_native")};
+                    Script = escript:script_name(),
+                    %% Lazy loading cannot recover the launch cwd for a relative path.
+                    case filename:pathtype(Script) of
+                        absolute ->
+                            {ok, filename:join(filename:dirname(Script), "slate_native")};
+                        _ -> {error, {escript_path_not_absolute, Script}}
+                    end;
                 error -> {error, native_directory_not_found}
             end;
         Directory -> {ok, filename:join(Directory, "slate_lock")}

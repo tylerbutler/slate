@@ -208,8 +208,8 @@ to this case.
 `with_exclusive_table` prevents this problem. It acquires an OS lock before
 it opens or repairs DETS, runs your callback, and then closes DETS before it
 releases the lock. The lock is advisory, so it works only if every client uses
-it, including readers. Unlocked APIs, raw DETS, and older slate versions ignore
-the lock.
+it, including readers. APIs that do not use exclusive sessions, raw DETS, and
+older slate versions ignore the lock.
 
 Obey these rules to keep a session safe:
 
@@ -224,7 +224,7 @@ If cleanup is not safe, a session can keep ownership until the VM exits.
 
 The OS lock uses a native component that Hex releases include. This component
 requires a supported OS, architecture, and local filesystem. Source checkouts
-need Rust/Cargo 1.91 and `just native-build`. Unlocked APIs do not load native
+need Rust/Cargo 1.91 and `just native-build`. Only exclusive sessions load native
 code. See [native delivery and escripts](https://slate.tylerbutler.com/installation/#exclusive-session-native-component).
 
 The helper is available for all three table types. The

@@ -152,10 +152,10 @@ repairing data you need to keep.
 ## Ownership restrictions
 
 All clients of the shared file must use exclusive sessions, including readers
-while writes can occur. Raw DETS, older Slate, and unlocked APIs ignore the
-advisory lock. Exclusive sessions reject an already-open same-file table in
-the VM. They serialize sessions; they do not permit simultaneous DETS access
-from independent VMs.
+while writes can occur. Raw DETS, older Slate versions, and APIs that do not use
+exclusive sessions ignore the advisory lock. Exclusive sessions reject an
+already-open same-file table in the VM. They serialize sessions; they do not
+permit simultaneous DETS access from independent VMs.
 
 Keep the handle and all table work inside the callback. Do not reopen or
 close the table yourself, save the handle, or pass it to work that outlives the

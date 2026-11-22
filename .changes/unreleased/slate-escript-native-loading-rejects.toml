@@ -1,0 +1,11 @@
+package = "slate"
+kind = "Security"
+body = '''
+Escript native loading rejects non-absolute script paths.
+
+Exclusive sessions now return `NativeUnavailable` for relative escript launches
+instead of resolving the companion library against a possibly changed working
+directory. Launch the script with an absolute path and keep its `slate_native`
+companion in a trusted installation directory. Absolute-path launches retain
+their existing behavior. Other APIs remain usable.
+'''
