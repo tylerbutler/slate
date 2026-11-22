@@ -27,13 +27,13 @@ import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 gleam add slate
 ```
 
-slate supports Gleam's Erlang target. DETS is part of OTP; slate does not support the JavaScript target.
+DETS is part of OTP, so slate runs on Gleam's Erlang target. It does not support the JavaScript target.
 
 ## What it looks like
 
-Open a table, insert a value, and look it up. Reads use your decoders to check the stored data.
+This program stores a user's age in a file and reads it back. Your decoders check the stored data when you read it.
 
-Create the parent directory before you run the example:
+slate does not create parent directories, so create the directory first:
 
 ```sh
 mkdir -p data
@@ -63,9 +63,11 @@ pub fn main() {
 
 Gleam's `use value <- function(...)` syntax passes the rest of the block as a callback. Here, `with_table` supplies `users` and attempts to close the table when the callback returns. The decoders define the key and value types expected from disk; `result.try` stops early if the insert fails.
 
-Stored data persists across node restarts. An abnormal node shutdown can lose pending writes and leave the file needing repair. The [quick start](/quick-start/) explains this example. See the [table cleanup guide](/advanced/with-table/) for cleanup and repair options.
+Because the age is in a file, it stays there after the node restarts. Closing the table is what makes this reliable: an abnormal node shutdown can lose pending writes and leave the file needing repair. The [quick start](/quick-start/) runs this example and then reads the age in a new VM. The [table cleanup guide](/advanced/with-table/) explains cleanup and repair options.
 
 ## When to use DETS
+
+DETS is between a plain file and a full database:
 
 <table class="slate-comparison">
 	<caption class="sr-only">Storage approaches at a glance</caption>
@@ -111,11 +113,11 @@ Stored data persists across node restarts. An abnormal node shutdown can lose pe
 	</tbody>
 </table>
 
-Use DETS when you need persistent key lookup without a separate database service. Each table has a 2 GB file size limit. Disk-backed access is slower than ETS for frequent reads. See [Limitations](/advanced/limitations/).
+Use DETS when you need persistent key lookup without a separate database service. This simplicity has limits: each table has a 2 GB file size limit, and disk-backed access is slower than ETS for frequent reads. See [Limitations](/advanced/limitations/).
 
 ## Pick a table type
 
-The table modules share a core API. Set and bag tables also provide `insert_new`, with different duplicate rules. Only set tables provide `update_counter`.
+The example above uses a set, because each user has one age. Other data has a different shape, so slate has three table types. They share a core API. Set and bag tables also provide `insert_new`, with different duplicate rules. Only set tables provide `update_counter`.
 
 <CardGrid>
 	<LinkCard

@@ -28,6 +28,11 @@ Gleam also installs these packages:
 
 ## Exclusive-session native component
 
+Most of slate is Gleam and Erlang. But [exclusive sessions](/advanced/exclusive-sessions/)
+need an OS file lock, so slate also includes a small native library for them.
+If you do not use exclusive sessions, slate does not load it, and you can skip
+this section.
+
 Hex releases include the native files for these targets:
 
 | OS | Architecture | Baseline | Allowed filesystems |

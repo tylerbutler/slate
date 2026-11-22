@@ -3,17 +3,22 @@ title: Error handling
 description: Handle table errors and inspect diagnostic context.
 ---
 
-Table operations return `Result` values. Most use `slate.DetsError` for errors.
-`slate/set.update_counter` uses `set.UpdateCounterError` instead.
-`with_exclusive_table` uses `exclusive.SessionError`; its callback still uses
-`DetsError`.
-The helpers `slate.error_code` and `slate.error_message` return `String` values.
+Disk storage can fail in many ways: a file can be missing, locked, damaged, or
+full. For this reason, table operations return `Result` values, and most use
+`slate.DetsError` for errors. Two operations can fail in ways that `DetsError`
+does not describe, so they use their own types. `slate/set.update_counter` uses
+`set.UpdateCounterError`. `with_exclusive_table` uses `exclusive.SessionError`,
+but its callback still uses `DetsError`.
 
-Callbacks passed to `with_table`, `fold`, or `fold_results` can raise exceptions.
-Those exceptions propagate to the caller. `with_table` attempts to close the
-table before it re-raises a callback exception.
+You do not need to handle every variant. Match the errors that you expect, and
+for the others, use [`slate.error_code`](/advanced/troubleshooting/#using-error_code-and-error_message)
+for a stable machine-readable code and `slate.error_message` for a user-facing
+message. Both helpers return `String` values.
 
-For a stable machine-readable code or a user-facing message, use [`slate.error_code`](/advanced/troubleshooting/#using-error_code-and-error_message) and `slate.error_message`.
+Exceptions are different from errors. Callbacks passed to `with_table`, `fold`,
+or `fold_results` can raise exceptions, and those exceptions propagate to the
+caller. `with_table` attempts to close the table before it re-raises a callback
+exception.
 
 ## Handling errors
 
