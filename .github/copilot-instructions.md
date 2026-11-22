@@ -71,6 +71,10 @@ Missing-entry reminders are advisory; invalid fragments fail CI. Preview version
 with `just changelog-preview`. Preserve the kind-to-version rules in
 `gleam.toml`.
 
+Use the shared `changelog-authoring` skill. Fragment bodies contain their own
+`####` sentence heading, a blank line, and explanatory paragraphs. The renderer
+passes the body through without adding a heading.
+
 Trellis updates the release PR on `release/next`, batches sections under
 `.changes/slate/`, and generates `CHANGELOG.md`. Do not edit the generated
 changelog to add entries. Commitlint accepts Trellis's

@@ -67,7 +67,7 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Vulnerability report | `just audit-vulns` | Report known vulnerabilities through OSV.dev |
 | Audit check | `just audit-check` | Enforce the licence policy and vulnerability threshold |
 | Docs | `just docs` | Build documentation |
-| Changelog entry | `just change Fixed "Fixed a lookup error."` | Create a Trellis TOML fragment |
+| Changelog entry | `just change Fixed "<Markdown body>"` | Create a Trellis TOML fragment |
 | Changelog preview | `just changelog-preview` | Preview the next version without writing files |
 | Release PR | `just release-pr [pre] [version] [replace]` | Request coordinated preparation on main |
 | Release recovery | `just release-recover <pr-number>` | Recover publication at a merged release PR's revision |
@@ -77,6 +77,11 @@ APM writes skills to `.claude/skills/` and `.agents/skills/`, and agents to
 | Workspace health | `just doctor` | Check Trellis configuration and changelog fragments |
 | CI | `just ci` | Run all CI checks (doctor, format, check, test, build) |
 | Main | `just main` | Extended checks for main branch |
+
+Use the shared `changelog-authoring` skill for release notes. Each fragment body
+starts with a complete sentence in a `####` heading, followed by a blank line
+and explanatory paragraphs. Trellis renders the body as written and adds blank
+lines between entries. Automatic dependency entries use the same format.
 
 `just test` builds the native component before tests. `just ci` also checks
 native formatting, clippy, and license notices. Run it before opening a PR.
