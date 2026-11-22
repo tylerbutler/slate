@@ -6,9 +6,65 @@
 main(["--release-artifacts"]) ->
     lists:foreach(fun require_artifact/1, targets()),
     io:format("All five native artifacts are present.~n");
+main(["--loader-only"]) -> check_loader();
 main([]) -> check_package(export);
 main(["--archive", Archive]) -> check_package({archive, filename:absname(Archive)});
-main(_) -> error("Usage: exclusive-package.escript [--release-artifacts | --archive PATH]").
+main(_) -> error("Usage: exclusive-package.escript [--loader-only | --release-artifacts | --archive PATH]").
+
+check_loader() ->
+    {ok, Cwd} = file:get_cwd(),
+    Root = filename:join([Cwd, "build", "exclusive-loader-" ++
+                         integer_to_list(erlang:system_time(nanosecond))]),
+    ok = filelib:ensure_dir(filename:join(Root, "placeholder")),
+    try
+        Beam = loader_beam(Cwd),
+        {ok, Target} = slate_lock_nif:target(),
+        Native = filename:join([Cwd, "priv", "slate_lock", Target, library(Target)]),
+        require_artifact(Target),
+        loader_regressions(Cwd, Root, Beam, Target, Native)
+    after
+        cleanup(Root)
+    end.
+
+loader_beam(Cwd) ->
+    {ok, slate_lock_nif, Beam} = compile:file(
+        filename:join([Cwd, "src", "slate_lock_nif.erl"]), [binary, warnings_as_errors]),
+    {module, slate_lock_nif} = code:load_binary(slate_lock_nif, "loader", Beam),
+    Beam.
+
+loader_regressions(Cwd, Root, Beam, Target, Native) ->
+    {ok, slate_loader_probe, Main} = compile:file(
+        filename:join([Cwd, "test", "support", "slate_loader_probe.erl"]),
+        [binary, warnings_as_errors]),
+    {ok, {_, Archive}} = zip:create("loader.zip",
+        [{"slate_lock_nif.beam", Beam}, {"slate_loader_probe.beam", Main}], [memory]),
+    Launch = filename:join([Root, "loader", "launch"]),
+    Changed = filename:join([Root, "loader", "changed"]),
+    Script = filename:join([Launch, "nested", "probe"]),
+    Missing = filename:join([Launch, "missing", "probe"]),
+    lists:foreach(fun(Path) ->
+        ok = filelib:ensure_dir(Path),
+        ok = escript:create(Path, [shebang,
+            {emu_args, "+S 2:2 +A 1 -escript main slate_loader_probe"},
+            {archive, Archive}])
+    end, [Script, Missing]),
+    %% Only this checkout's built host library is used, never an external NIF.
+    %% The old absname fallback would successfully load the replacement below.
+    lists:foreach(fun(Directory) ->
+        Destination = filename:join([Directory, "nested", "slate_native",
+                                     Target, library(Target)]),
+        ok = filelib:ensure_dir(Destination),
+        {ok, _} = file:copy(Native, Destination)
+    end, [Launch, Changed]),
+    Escript = os:find_executable("escript", filename:join(code:root_dir(), "bin")),
+    Nested = filename:join("nested", "probe"),
+    DotRelative = "./" ++ Nested,
+    lists:foreach(fun(Relative) ->
+        run_executable(Escript, [Relative, "reject", Relative, Changed], Launch, 15000)
+    end, [Nested, DotRelative]),
+    run_executable(Escript, [Script, "loaded", Script, Changed], Launch, 15000),
+    run_executable(Escript, [Missing, "missing", Missing, Changed], Launch, 15000),
+    io:format("Lazy escript loader regressions passed.~n").
 
 check_package(Source) ->
     {ok, Cwd} = file:get_cwd(),
@@ -48,12 +104,12 @@ check_package(Source) ->
         ok = erl_tar:extract({binary, Contents}, [compressed, {cwd, Package}]),
         Notices = notice_files(filename:join([Cwd, "priv", "slate_lock", "licenses"])),
         check_notices(Notices, filename:join([Package, "priv", "slate_lock", "licenses"])),
-        {ok, slate_lock_nif, Beam} = compile:file(
-            filename:join([Cwd, "src", "slate_lock_nif.erl"]), [binary]),
-        {module, slate_lock_nif} = code:load_binary(slate_lock_nif, "loader", Beam),
+        Beam = loader_beam(Cwd),
         {ok, Target} = slate_lock_nif:target(),
         true = filelib:is_regular(filename:join([Package, "priv", "slate_lock",
                                                  Target, library(Target)])),
+        loader_regressions(Cwd, Root, Beam, Target,
+            filename:join([Package, "priv", "slate_lock", Target, library(Target)])),
         lists:foreach(fun(Name) ->
             true = filelib:is_regular(filename:join([Package, "priv", "slate_lock",
                                                      "source", Name]))
@@ -185,6 +241,9 @@ run(Name, Args, Directory) ->
     end.
 
 run_executable(Executable, Args, Directory) ->
+    run_executable(Executable, Args, Directory, 180000).
+
+run_executable(Executable, Args, Directory, Timeout) ->
     io:format("Running ~ts~n", [filename:basename(Executable)]),
     Missing = case lists:member("missing", Args) of true -> "true"; false -> "false" end,
     Separator = case os:type() of {win32, _} -> ";"; {unix, _} -> ":" end,
@@ -196,7 +255,7 @@ run_executable(Executable, Args, Directory) ->
                       {env, [{"ERL_FLAGS", "+S 2:2 +A 1"},
                              {"SLATE_PACKAGE_MISSING", Missing},
                              {"PATH", Path}]}]),
-    wait(Port, erlang:monotonic_time(millisecond) + 180000).
+    wait(Port, erlang:monotonic_time(millisecond) + Timeout).
 
 wait(Port, Deadline) ->
     receive
