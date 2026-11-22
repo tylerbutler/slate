@@ -36,7 +36,12 @@ skip_unchanged = true
 strictness = "warn"
 header_format = "# Changelog"
 version_format = "## {{ version }} - {{ date }}"
-change_format = "#### {{ body }}"
+change_format = "{{ body | trim }}\n\n"
+dependency_body = """
+#### Updated {{ dependency }} to {{ dependency_version }}.
+
+{{ package }} now requires {{ dependency }} {{ dependency_version }}.
+"""
 kinds = [
   { label = "Breaking", bump = "major" },
   { label = "Added", bump = "minor" },
