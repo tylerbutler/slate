@@ -4,12 +4,16 @@ dependencies:
 - repo_url: tylerbutler/agent-marketplace
   name: gleam
   host: github.com
-  resolved_commit: a88af94c38d2247b18e59d9f237676e62edfed2a
+  resolved_commit: b79ccb72e09ff38a142527568751342ac6233e15
   version: 0.1.0
   virtual_path: plugins/gleam
   is_virtual: true
   package_type: marketplace_plugin
   deployed_files:
+  - .agents/skills/changelog-authoring
+  - .agents/skills/changelog-authoring/LICENSE
+  - .agents/skills/changelog-authoring/SKILL.md
+  - .agents/skills/changelog-authoring/evals/evals.json
   - .agents/skills/gleam-reference-docs
   - .agents/skills/gleam-reference-docs/SKILL.md
   - .agents/skills/gleam-reference-docs/assets/generate-reference.mjs
@@ -19,6 +23,10 @@ dependencies:
   - .agents/skills/gleam-review/references/conventions.md
   - .claude/agents/beam-vm-reviewer.md
   - .claude/agents/erlang-specialist.md
+  - .claude/skills/changelog-authoring
+  - .claude/skills/changelog-authoring/LICENSE
+  - .claude/skills/changelog-authoring/SKILL.md
+  - .claude/skills/changelog-authoring/evals/evals.json
   - .claude/skills/gleam-reference-docs
   - .claude/skills/gleam-reference-docs/SKILL.md
   - .claude/skills/gleam-reference-docs/assets/generate-reference.mjs
@@ -29,6 +37,9 @@ dependencies:
   - .github/agents/beam-vm-reviewer.agent.md
   - .github/agents/erlang-specialist.agent.md
   deployed_file_hashes:
+    .agents/skills/changelog-authoring/LICENSE: sha256:82116f65007210345ac9421253256e894f477f1791a6b40c54046798736dcc3c
+    .agents/skills/changelog-authoring/SKILL.md: sha256:9fa3edccf65b9d4b97f310aad5e0a5bc996bb42ac819012b44538263e505af62
+    .agents/skills/changelog-authoring/evals/evals.json: sha256:493c7fa94038b2161d16841b4f9cb43437571695ca2933ffd79ee074160aa251
     .agents/skills/gleam-reference-docs/SKILL.md: sha256:7d3dd41722242d3cd627aae529ffd919391c8ff8a6be950c9ef61cd0b193c531
     .agents/skills/gleam-reference-docs/assets/generate-reference.mjs: sha256:a2581e009f9fe189a02681ad29d410a9e55a7c0a399de498bf5710ef539e6f43
     .agents/skills/gleam-reference-docs/evals/evals.json: sha256:9da907b7e7c07b3529d20d3ee2cf80b6d7f4bc8794ad151b550896268f1f29db
@@ -36,6 +47,9 @@ dependencies:
     .agents/skills/gleam-review/references/conventions.md: sha256:cd0b6dee401eff48c7afcb83db73ee5971e2563989f266dfd58bd93b997fe6ed
     .claude/agents/beam-vm-reviewer.md: sha256:ac71fee93fa8a8caa2cca9248fbd06a3666726c59de93b53feb346df8ce2512c
     .claude/agents/erlang-specialist.md: sha256:4bb6bf9b41f0f62cd0d779e0020b276c05ec68ebb4b913135774d0a12acdf851
+    .claude/skills/changelog-authoring/LICENSE: sha256:82116f65007210345ac9421253256e894f477f1791a6b40c54046798736dcc3c
+    .claude/skills/changelog-authoring/SKILL.md: sha256:9fa3edccf65b9d4b97f310aad5e0a5bc996bb42ac819012b44538263e505af62
+    .claude/skills/changelog-authoring/evals/evals.json: sha256:493c7fa94038b2161d16841b4f9cb43437571695ca2933ffd79ee074160aa251
     .claude/skills/gleam-reference-docs/SKILL.md: sha256:7d3dd41722242d3cd627aae529ffd919391c8ff8a6be950c9ef61cd0b193c531
     .claude/skills/gleam-reference-docs/assets/generate-reference.mjs: sha256:a2581e009f9fe189a02681ad29d410a9e55a7c0a399de498bf5710ef539e6f43
     .claude/skills/gleam-reference-docs/evals/evals.json: sha256:9da907b7e7c07b3529d20d3ee2cf80b6d7f4bc8794ad151b550896268f1f29db
@@ -43,12 +57,12 @@ dependencies:
     .claude/skills/gleam-review/references/conventions.md: sha256:cd0b6dee401eff48c7afcb83db73ee5971e2563989f266dfd58bd93b997fe6ed
     .github/agents/beam-vm-reviewer.agent.md: sha256:ac71fee93fa8a8caa2cca9248fbd06a3666726c59de93b53feb346df8ce2512c
     .github/agents/erlang-specialist.agent.md: sha256:4bb6bf9b41f0f62cd0d779e0020b276c05ec68ebb4b913135774d0a12acdf851
-  content_hash: sha256:aa48826aed0d947f3b3fcede8721d57256a3f109af2a0a8445623ee80d3a98e1
+  content_hash: sha256:1ff4aad29286c7309c56ceb37db96858066d40bce832296a13ba5844430191d8
   is_dev: true
 - repo_url: tylerbutler/apm-base
   name: apm-base
   host: github.com
-  resolved_commit: bc2598b13910c37caba38eca68478117be74f177
+  resolved_commit: c9965d7278f5f2994aecf9f6172d03687de47e00
   version: 0.2.5
   package_type: apm_package
   deployed_files:
@@ -87,12 +101,106 @@ dependencies:
     .github/instructions/use-ste.instructions.md: sha256:686d7f6f6172dd5c238371076383b2f67c0f4937465e6e53633936d294c9adbc
     .github/prompts/create-pr.prompt.md: sha256:5fcb1b64247130aec3a0ebd114ae6d127de44f7e824087033c468d8debb593a2
     .github/prompts/merge-upstream.prompt.md: sha256:bf990755d11f1e73610d9cde3b656aa175c7f63cdd8d069158302c6496a5b77e
-  content_hash: sha256:d80d2a6162685cfb2a027ccfc9439613edda386eb5fd8b8e00fc3d03f1b77680
+  content_hash: sha256:b06f81774f80441a375001e17e996916f4321c1776dd363c1834f58bc8bf2f17
+  is_dev: true
+- repo_url: cloudflare/security-audit-skill
+  name: security-audit-skill
+  host: github.com
+  resolved_commit: c1c8a8c1471069fb0e188eeaff69b8e8db6564a8
+  version: unknown
+  depth: 2
+  resolved_by: tylerbutler/apm-base
+  package_type: skill_bundle
+  deployed_files:
+  - .agents/skills/security-audit
+  - .agents/skills/security-audit/AI-AND-LLM.md
+  - .agents/skills/security-audit/ATTACK-CLASSES.md
+  - .agents/skills/security-audit/CLIENT-SIDE.md
+  - .agents/skills/security-audit/CLOUD-AND-DEPLOYMENT.md
+  - .agents/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md
+  - .agents/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md
+  - .agents/skills/security-audit/HUNTING.md
+  - .agents/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md
+  - .agents/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md
+  - .agents/skills/security-audit/RECONNAISSANCE.md
+  - .agents/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md
+  - .agents/skills/security-audit/SKILL.md
+  - .agents/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md
+  - .agents/skills/security-audit/VALIDATION-AND-REPORTING.md
+  - .agents/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md
+  - .agents/skills/security-audit/report-schema.json
+  - .agents/skills/security-audit/validate-coverage-ledger.cjs
+  - .agents/skills/security-audit/validate-coverage-ledger.test.cjs
+  - .agents/skills/security-audit/validate-findings.cjs
+  - .agents/skills/security-audit/validate-findings.test.cjs
+  - .claude/skills/security-audit
+  - .claude/skills/security-audit/AI-AND-LLM.md
+  - .claude/skills/security-audit/ATTACK-CLASSES.md
+  - .claude/skills/security-audit/CLIENT-SIDE.md
+  - .claude/skills/security-audit/CLOUD-AND-DEPLOYMENT.md
+  - .claude/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md
+  - .claude/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md
+  - .claude/skills/security-audit/HUNTING.md
+  - .claude/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md
+  - .claude/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md
+  - .claude/skills/security-audit/RECONNAISSANCE.md
+  - .claude/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md
+  - .claude/skills/security-audit/SKILL.md
+  - .claude/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md
+  - .claude/skills/security-audit/VALIDATION-AND-REPORTING.md
+  - .claude/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md
+  - .claude/skills/security-audit/report-schema.json
+  - .claude/skills/security-audit/validate-coverage-ledger.cjs
+  - .claude/skills/security-audit/validate-coverage-ledger.test.cjs
+  - .claude/skills/security-audit/validate-findings.cjs
+  - .claude/skills/security-audit/validate-findings.test.cjs
+  deployed_file_hashes:
+    .agents/skills/security-audit/AI-AND-LLM.md: sha256:7335a95c43554eadefcf03ece639291bb0e038c398a179299e3887ffe06bd2ef
+    .agents/skills/security-audit/ATTACK-CLASSES.md: sha256:3ee4f00c6e8c9dcf6dd02dd5ac2a4ceb322e2085f3e9fbe79cf0c6330bc7ef83
+    .agents/skills/security-audit/CLIENT-SIDE.md: sha256:613f6b98f86083e045525c5b60154ffdab122bac35f1e05eb17488e6e453370c
+    .agents/skills/security-audit/CLOUD-AND-DEPLOYMENT.md: sha256:3c80f3088be22345e07b057c056d6ed99fe2b0304f794398964f7ccd5a496ca3
+    .agents/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md: sha256:307dcb3e24d292715c4a041190e7bb135646a37eb6187619ae01d000a634a4ad
+    .agents/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md: sha256:58eae8ee0ca6a46611c501ec5a3ab47fdff88dd7db0d8d74789bbf8bb19d8cb2
+    .agents/skills/security-audit/HUNTING.md: sha256:71c121decea1322c47c718f6e110f1a892980bb4266bd7ac55ef043a213ade09
+    .agents/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md: sha256:7c8b0dccfb35315cca2455509674d49632b2fe37e1f3aac16c1a496a7e9924a7
+    .agents/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md: sha256:8b73816fa5b3697c9c40977f0c836b40f01d6e81929ff2720fe83ce089e9a619
+    .agents/skills/security-audit/RECONNAISSANCE.md: sha256:02ca887aca84de8ae137f1891bd2f0a54f28d3fa6da92a27f54734382b3381a2
+    .agents/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md: sha256:4326fab5c92a0b4c420a70196254040105cd794026562130b59bf1a6db3e4baa
+    .agents/skills/security-audit/SKILL.md: sha256:5e3e96a1e438d8f35fef0a1e38f02d4f00e2bdf910401b7dfe00e6779c6dac85
+    .agents/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md: sha256:f372e919940e335468ba1ae09f99026c3986a345f7fe26f8068f132e199f52a5
+    .agents/skills/security-audit/VALIDATION-AND-REPORTING.md: sha256:b892470cb89bb31f33403e050d4bdfbe2cdaef940ade1496fa65e32b2e129449
+    .agents/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md: sha256:4f3066dffa23c5635859187be9b96c32f2aff29a688186b91ff0c63e47d62b5c
+    .agents/skills/security-audit/report-schema.json: sha256:6575c9de4a62255699ea052ebf9a49ebfb373a32891bcd89af6f55cc84b35519
+    .agents/skills/security-audit/validate-coverage-ledger.cjs: sha256:2eb280bd2e33c002916f86db9b29f9edfedb6454e5db973c766290465b868ac8
+    .agents/skills/security-audit/validate-coverage-ledger.test.cjs: sha256:cfb9df26b03469a4279a70e7664a2a5434dd6f8c2c204e91f9b0aeb9dd71e648
+    .agents/skills/security-audit/validate-findings.cjs: sha256:e85f232e36bfac0f866f244da50376692d6b45c690beadcb00608b0e6c8b5283
+    .agents/skills/security-audit/validate-findings.test.cjs: sha256:b92001117a92c4161d43777a0ba2fa182a8a4d97f2304cc8c0cee5331497b73b
+    .claude/skills/security-audit/AI-AND-LLM.md: sha256:7335a95c43554eadefcf03ece639291bb0e038c398a179299e3887ffe06bd2ef
+    .claude/skills/security-audit/ATTACK-CLASSES.md: sha256:3ee4f00c6e8c9dcf6dd02dd5ac2a4ceb322e2085f3e9fbe79cf0c6330bc7ef83
+    .claude/skills/security-audit/CLIENT-SIDE.md: sha256:613f6b98f86083e045525c5b60154ffdab122bac35f1e05eb17488e6e453370c
+    .claude/skills/security-audit/CLOUD-AND-DEPLOYMENT.md: sha256:3c80f3088be22345e07b057c056d6ed99fe2b0304f794398964f7ccd5a496ca3
+    .claude/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md: sha256:307dcb3e24d292715c4a041190e7bb135646a37eb6187619ae01d000a634a4ad
+    .claude/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md: sha256:58eae8ee0ca6a46611c501ec5a3ab47fdff88dd7db0d8d74789bbf8bb19d8cb2
+    .claude/skills/security-audit/HUNTING.md: sha256:71c121decea1322c47c718f6e110f1a892980bb4266bd7ac55ef043a213ade09
+    .claude/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md: sha256:7c8b0dccfb35315cca2455509674d49632b2fe37e1f3aac16c1a496a7e9924a7
+    .claude/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md: sha256:8b73816fa5b3697c9c40977f0c836b40f01d6e81929ff2720fe83ce089e9a619
+    .claude/skills/security-audit/RECONNAISSANCE.md: sha256:02ca887aca84de8ae137f1891bd2f0a54f28d3fa6da92a27f54734382b3381a2
+    .claude/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md: sha256:4326fab5c92a0b4c420a70196254040105cd794026562130b59bf1a6db3e4baa
+    .claude/skills/security-audit/SKILL.md: sha256:5e3e96a1e438d8f35fef0a1e38f02d4f00e2bdf910401b7dfe00e6779c6dac85
+    .claude/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md: sha256:f372e919940e335468ba1ae09f99026c3986a345f7fe26f8068f132e199f52a5
+    .claude/skills/security-audit/VALIDATION-AND-REPORTING.md: sha256:b892470cb89bb31f33403e050d4bdfbe2cdaef940ade1496fa65e32b2e129449
+    .claude/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md: sha256:4f3066dffa23c5635859187be9b96c32f2aff29a688186b91ff0c63e47d62b5c
+    .claude/skills/security-audit/report-schema.json: sha256:6575c9de4a62255699ea052ebf9a49ebfb373a32891bcd89af6f55cc84b35519
+    .claude/skills/security-audit/validate-coverage-ledger.cjs: sha256:2eb280bd2e33c002916f86db9b29f9edfedb6454e5db973c766290465b868ac8
+    .claude/skills/security-audit/validate-coverage-ledger.test.cjs: sha256:cfb9df26b03469a4279a70e7664a2a5434dd6f8c2c204e91f9b0aeb9dd71e648
+    .claude/skills/security-audit/validate-findings.cjs: sha256:e85f232e36bfac0f866f244da50376692d6b45c690beadcb00608b0e6c8b5283
+    .claude/skills/security-audit/validate-findings.test.cjs: sha256:b92001117a92c4161d43777a0ba2fa182a8a4d97f2304cc8c0cee5331497b73b
+  content_hash: sha256:414184860d72fa1d44fbdf8267672fec765ddab1f2e7c12f8c859122e2223adb
   is_dev: true
 - repo_url: cursor/plugins
   name: unslop
   host: github.com
-  resolved_commit: 320bfaa1fe11077b1efc7113bfafc7ef29ba1b8a
+  resolved_commit: ec5dbf8851aabc0122dbbf51990c052b45b9b107
   version: unknown
   virtual_path: pstack/skills/unslop
   is_virtual: true
@@ -113,8 +221,8 @@ dependencies:
   materialization_repo_url: DietrichGebert/ponytail
   name: ponytail
   host: github.com
-  resolved_commit: 96608e078b2d5ea607c5c3b8b5a54d1c1fba6846
-  version: 96608e0
+  resolved_commit: dec89d9040ad863decb0207003dcd500cb00aa03
+  version: dec89d9
   depth: 2
   resolved_by: tylerbutler/apm-base
   package_type: marketplace_plugin
@@ -158,7 +266,7 @@ dependencies:
     .claude/skills/ponytail-review/SKILL.md: sha256:33fe4ebe22a460924e5d4a261e223df22e409cc94ab76182bee9fb91a3ef022e
     .claude/skills/ponytail/SKILL.md: sha256:9badd22a32e19cb884e46dfa8d3aae82bb81dfa5484105b8b4f0262df823a509
     .github/hooks/ponytail-copilot-hooks.json: sha256:692b5148c3605d2ece2f081834b650c3c43d75cb272a7884dc40e9ce4425ef79
-  content_hash: sha256:b995a71ddd28e617eb0e7968c7ec7a0cc8229b3af20065432ce5ecb1da2d92bc
+  content_hash: sha256:9dbe4f5e14d64e490de439d51d6b8885dbbc3f7955551d540e7ccebc315f803f
   is_dev: true
 - repo_url: hardikpandya/stop-slop
   name: stop-slop
@@ -206,7 +314,7 @@ dependencies:
   materialization_repo_url: JuliusBrussee/caveman
   name: caveman-commit
   host: github.com
-  resolved_commit: 9b243662ff98d392bc0a95b865a554583d71be75
+  resolved_commit: a192894723a8f47e7f504c7b5041967ff1f18e55
   version: unknown
   virtual_path: skills/caveman-commit
   is_virtual: true
@@ -318,6 +426,42 @@ deployments:
   - juliusbrussee/caveman/skills/caveman-commit
   active_owner: juliusbrussee/caveman/skills/caveman-commit
   content_hash: sha256:c788a282fc75b981b421dfdad5d84ea7f83f946c126daa39cfc7d3f97845e193
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-authoring
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-authoring/LICENSE
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:82116f65007210345ac9421253256e894f477f1791a6b40c54046798736dcc3c
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-authoring/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:9fa3edccf65b9d4b97f310aad5e0a5bc996bb42ac819012b44538263e505af62
+- kind: project-relative
+  target: claude
+  value: .claude/skills/changelog-authoring/evals/evals.json
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:493c7fa94038b2161d16841b4f9cb43437571695ca2933ffd79ee074160aa251
 - kind: project-relative
   target: claude
   value: .claude/skills/changelog-entry
@@ -554,6 +698,195 @@ deployments:
   content_hash: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
 - kind: project-relative
   target: claude
+  value: .claude/skills/security-audit
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/AI-AND-LLM.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:7335a95c43554eadefcf03ece639291bb0e038c398a179299e3887ffe06bd2ef
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/ATTACK-CLASSES.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:3ee4f00c6e8c9dcf6dd02dd5ac2a4ceb322e2085f3e9fbe79cf0c6330bc7ef83
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/CLIENT-SIDE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:613f6b98f86083e045525c5b60154ffdab122bac35f1e05eb17488e6e453370c
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/CLOUD-AND-DEPLOYMENT.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:3c80f3088be22345e07b057c056d6ed99fe2b0304f794398964f7ccd5a496ca3
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:307dcb3e24d292715c4a041190e7bb135646a37eb6187619ae01d000a634a4ad
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:58eae8ee0ca6a46611c501ec5a3ab47fdff88dd7db0d8d74789bbf8bb19d8cb2
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/HUNTING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:71c121decea1322c47c718f6e110f1a892980bb4266bd7ac55ef043a213ade09
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:7c8b0dccfb35315cca2455509674d49632b2fe37e1f3aac16c1a496a7e9924a7
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:8b73816fa5b3697c9c40977f0c836b40f01d6e81929ff2720fe83ce089e9a619
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/RECONNAISSANCE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:02ca887aca84de8ae137f1891bd2f0a54f28d3fa6da92a27f54734382b3381a2
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:4326fab5c92a0b4c420a70196254040105cd794026562130b59bf1a6db3e4baa
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:5e3e96a1e438d8f35fef0a1e38f02d4f00e2bdf910401b7dfe00e6779c6dac85
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:f372e919940e335468ba1ae09f99026c3986a345f7fe26f8068f132e199f52a5
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/VALIDATION-AND-REPORTING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:b892470cb89bb31f33403e050d4bdfbe2cdaef940ade1496fa65e32b2e129449
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:4f3066dffa23c5635859187be9b96c32f2aff29a688186b91ff0c63e47d62b5c
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/report-schema.json
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:6575c9de4a62255699ea052ebf9a49ebfb373a32891bcd89af6f55cc84b35519
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/validate-coverage-ledger.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:2eb280bd2e33c002916f86db9b29f9edfedb6454e5db973c766290465b868ac8
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/validate-coverage-ledger.test.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:cfb9df26b03469a4279a70e7664a2a5434dd6f8c2c204e91f9b0aeb9dd71e648
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/validate-findings.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:e85f232e36bfac0f866f244da50376692d6b45c690beadcb00608b0e6c8b5283
+- kind: project-relative
+  target: claude
+  value: .claude/skills/security-audit/validate-findings.test.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:b92001117a92c4161d43777a0ba2fa182a8a4d97f2304cc8c0cee5331497b73b
+- kind: project-relative
+  target: claude
   value: .claude/skills/stop-slop
   runtime: null
   scope: project
@@ -687,6 +1020,42 @@ deployments:
   - juliusbrussee/caveman/skills/caveman-commit
   active_owner: juliusbrussee/caveman/skills/caveman-commit
   content_hash: sha256:c788a282fc75b981b421dfdad5d84ea7f83f946c126daa39cfc7d3f97845e193
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/changelog-authoring
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/changelog-authoring/LICENSE
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:82116f65007210345ac9421253256e894f477f1791a6b40c54046798736dcc3c
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/changelog-authoring/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:9fa3edccf65b9d4b97f310aad5e0a5bc996bb42ac819012b44538263e505af62
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/changelog-authoring/evals/evals.json
+  runtime: null
+  scope: project
+  owners:
+  - tylerbutler/agent-marketplace/plugins/gleam
+  active_owner: tylerbutler/agent-marketplace/plugins/gleam
+  content_hash: sha256:493c7fa94038b2161d16841b4f9cb43437571695ca2933ffd79ee074160aa251
 - kind: project-relative
   target: copilot
   value: .agents/skills/changelog-entry
@@ -921,6 +1290,195 @@ deployments:
   - tylerbutler/apm-base
   active_owner: tylerbutler/apm-base
   content_hash: sha256:77d434e3b207f74a0b5e1e9d62e210d484714ff331351de0b272df1fe242886e
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: null
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/AI-AND-LLM.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:7335a95c43554eadefcf03ece639291bb0e038c398a179299e3887ffe06bd2ef
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/ATTACK-CLASSES.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:3ee4f00c6e8c9dcf6dd02dd5ac2a4ceb322e2085f3e9fbe79cf0c6330bc7ef83
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/CLIENT-SIDE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:613f6b98f86083e045525c5b60154ffdab122bac35f1e05eb17488e6e453370c
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/CLOUD-AND-DEPLOYMENT.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:3c80f3088be22345e07b057c056d6ed99fe2b0304f794398964f7ccd5a496ca3
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/DATA-ISOLATION-AND-LIFECYCLE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:307dcb3e24d292715c4a041190e7bb135646a37eb6187619ae01d000a634a4ad
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/DESKTOP-MOBILE-AND-LOCAL-IPC.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:58eae8ee0ca6a46611c501ec5a3ab47fdff88dd7db0d8d74789bbf8bb19d8cb2
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/HUNTING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:71c121decea1322c47c718f6e110f1a892980bb4266bd7ac55ef043a213ade09
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/MEMORY-SAFETY-AND-BINARY.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:7c8b0dccfb35315cca2455509674d49632b2fe37e1f3aac16c1a496a7e9924a7
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/PROTOCOLS-RPC-AND-MESSAGING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:8b73816fa5b3697c9c40977f0c836b40f01d6e81929ff2720fe83ce089e9a619
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/RECONNAISSANCE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:02ca887aca84de8ae137f1891bd2f0a54f28d3fa6da92a27f54734382b3381a2
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/RESOURCE-EXHAUSTION-AND-AVAILABILITY.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:4326fab5c92a0b4c420a70196254040105cd794026562130b59bf1a6db3e4baa
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:5e3e96a1e438d8f35fef0a1e38f02d4f00e2bdf910401b7dfe00e6779c6dac85
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/SUPPLY-CHAIN-AND-RELEASE.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:f372e919940e335468ba1ae09f99026c3986a345f7fe26f8068f132e199f52a5
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/VALIDATION-AND-REPORTING.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:b892470cb89bb31f33403e050d4bdfbe2cdaef940ade1496fa65e32b2e129449
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/WEB-PROTOCOL-AND-AUTH.md
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:4f3066dffa23c5635859187be9b96c32f2aff29a688186b91ff0c63e47d62b5c
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/report-schema.json
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:6575c9de4a62255699ea052ebf9a49ebfb373a32891bcd89af6f55cc84b35519
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/validate-coverage-ledger.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:2eb280bd2e33c002916f86db9b29f9edfedb6454e5db973c766290465b868ac8
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/validate-coverage-ledger.test.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:cfb9df26b03469a4279a70e7664a2a5434dd6f8c2c204e91f9b0aeb9dd71e648
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/validate-findings.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:e85f232e36bfac0f866f244da50376692d6b45c690beadcb00608b0e6c8b5283
+- kind: project-relative
+  target: copilot
+  value: .agents/skills/security-audit/validate-findings.test.cjs
+  runtime: null
+  scope: project
+  owners:
+  - cloudflare/security-audit-skill
+  active_owner: cloudflare/security-audit-skill
+  content_hash: sha256:b92001117a92c4161d43777a0ba2fa182a8a4d97f2304cc8c0cee5331497b73b
 - kind: project-relative
   target: copilot
   value: .agents/skills/stop-slop
