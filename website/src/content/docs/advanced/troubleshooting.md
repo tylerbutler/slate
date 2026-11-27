@@ -3,8 +3,12 @@ title: Troubleshooting
 description: Diagnose lookup errors, repair needs, and table limits.
 ---
 
-Use the error variant to identify the problem before you change a file or
-retry an operation.
+Most problems show up as an error variant. Read the variant before you change
+a file or retry an operation, because the right fix depends on it. A decode
+error needs a schema fix, and a repair error needs a backup first. Some
+surprises are not errors at all: a lookup that returns `Ok([])`, or a
+`delete_object` that removes more than you expected. Each section below starts
+with what you see, explains why, and then shows how to recover.
 
 ## DecodeErrors
 
@@ -18,7 +22,7 @@ corruption. Possible causes include:
 
 ### Diagnosing the problem
 
-Match `DecodeErrors` to inspect its `decode.DecodeError` values. Each error
+To find out which of these causes applies, match `DecodeErrors` to inspect its `decode.DecodeError` values. Each error
 describes the expected and found types. Its `path` is a `List(String)` that
 locates the error within the value, not a filename. Join its segments for display:
 
@@ -47,20 +51,24 @@ case set.lookup(table, key: "user:1") {
 
 ### Recovery strategies
 
+The right recovery depends on whether you need the old data:
+
 - If you can discard the old data, close the table and delete its `.dets` file.
   The next read-write `open` creates an empty table.
 - To keep the data, open the old table with decoders for its old schema.
   Read entries with `fold`, convert them, and write them to a new table.
 - To accept more than one schema, use `decode.one_of`.
 
-Use `fold_results` to process readable entries and handle decode errors for
-other entries. It passes each entry's decode result to your callback.
-It does not repair or rewrite stored data.
+A migration can take time, and your program may need to keep running with a
+mixed file meanwhile. In that case, use `fold_results` to process readable
+entries and handle decode errors for the others. It passes each entry's decode
+result to your callback. It does not repair or rewrite stored data.
 
 ## Repair policies
 
-A VM crash or power failure can leave a DETS file in need of repair.
-`RepairPolicy` controls whether DETS attempts repair when you open the file.
+A VM crash or power failure can stop a DETS table before it closes. The file
+can then need repair. `RepairPolicy` controls whether DETS attempts that repair
+when you open the file.
 
 ### When to use each policy
 
@@ -73,7 +81,41 @@ A VM crash or power failure can leave a DETS file in need of repair.
 No policy guarantees full data recovery. A successful open does not certify
 that every stored entry is intact or matches your schema.
 
+<a id="example-detecting-corruption-explicitly"></a>
+
+### Example: detecting a repair requirement
+
+After a crash, find out whether the file needs repair before anything changes
+it. Open it with `NoRepair`, which reports a repair requirement without
+attempting repair. This example reports `NeedsRepair` and returns it to the caller. It does not
+attempt repair or treat other errors as corruption:
+
+```gleam
+import gleam/dynamic/decode
+import gleam/io
+import slate.{NoRepair, ReadOnly}
+import slate/set
+
+case set.open_with_access(path: "data/important.dets",
+  repair: NoRepair, access: ReadOnly,
+  key_decoder: decode.string, value_decoder: decode.int)
+{
+  Ok(table) -> Ok(table)
+  Error(slate.NeedsRepair(context)) -> {
+    io.println("Repair required. Stop file access and back up the file before repair.")
+    Error(slate.NeedsRepair(context))
+  }
+  Error(other) -> Error(other)
+}
+```
+
+`ReadOnly` requires an existing file. The caller must close a successfully
+opened table. If repair is required, continue with the backup and repair
+steps in the next example.
+
 ### Example: recovering after a crash
+
+Once `NoRepair` reports `NeedsRepair`, you can decide to repair the file.
 
 :::caution
 Before you attempt repair, stop access to the file and make a backup of the
@@ -97,41 +139,11 @@ Handle `repair_result`. If it is `Ok(table)`, check the recovered data and
 close the table when you finish. An open error does not confirm that repair
 left the file unchanged.
 
-<a id="example-detecting-corruption-explicitly"></a>
-
-### Example: detecting a repair requirement
-
-Use `NoRepair` to detect whether the file needs repair without attempting repair.
-This example reports `NeedsRepair` and returns it to the caller. It does not
-attempt repair or treat other errors as corruption:
-
-```gleam
-import gleam/dynamic/decode
-import gleam/io
-import slate.{NoRepair, ReadOnly}
-import slate/set
-
-case set.open_with_access(path: "data/important.dets",
-  repair: NoRepair, access: ReadOnly,
-  key_decoder: decode.string, value_decoder: decode.int)
-{
-  Ok(table) -> Ok(table)
-  Error(slate.NeedsRepair(context)) -> {
-    io.println("Repair required. Stop file access and back up the file before repair.")
-    Error(slate.NeedsRepair(context))
-  }
-  Error(other) -> Error(other)
-}
-```
-
-`ReadOnly` requires an existing file. The caller must close a successfully
-opened table. If repair is required,
-complete the backup step before using the separate repair example above.
-
 ## TableNamePoolExhausted
 
-slate has 4096 DETS table name slots. The pool supports up to 4096 concurrently
-open distinct normalized paths. When all slots are in use, opening another
+slate has 4096 DETS table name slots, so it supports up to 4096 concurrently
+open distinct normalized paths. See [Bounded table-name pool](/advanced/limitations/#bounded-table-name-pool)
+for the reason. When all slots are in use, opening another
 path returns `TableNamePoolExhausted`. Closing a table releases its slot for
 reuse. Opening a path does not permanently consume a slot.
 
@@ -142,6 +154,8 @@ reuse. Opening a path does not permanently consume a slot.
 
 ### How to recover
 
+Each fix releases slots or uses fewer of them:
+
 1. Call `close` on tables you no longer need to release their slots.
 2. Store entries for multiple entities in one table with structured keys.
 3. Use [`with_table`](/advanced/with-table/) for short-lived operations. It
@@ -149,6 +163,8 @@ reuse. Opening a path does not permanently consume a slot.
    result; a callback error does not confirm that closing succeeded.
 
 ### Checking for this error
+
+Match the error to report it rather than crash:
 
 ```gleam
 import gleam/io
@@ -172,7 +188,8 @@ The caller must close the table if opening succeeds.
 
 ## Lookup behavior differences
 
-The three table types return different result shapes from `lookup`:
+A missing key is the most common surprise when you change table types. The
+three types return different result shapes from `lookup`:
 
 | Table type | Return type | Missing key returns |
 |------------|-------------|---------------------|
@@ -199,8 +216,10 @@ case set.lookup(table, key: "alice") {
 
 ### Bag and duplicate bag lookup
 
-Bag and duplicate bag lookups return a `Result`. A successful result contains
-a list of values. `Ok([])` means the key does not exist:
+A bag key can have any number of values, so an empty list is a valid answer.
+Bag and duplicate bag lookups return a `Result` that contains a list of values,
+and `Ok([])` means the key does not exist. This example uses a default tag for
+a missing key:
 
 ```gleam
 import gleam/list
@@ -223,7 +242,8 @@ bag or duplicate bag.
 
 `delete_key` removes all entries with the specified key. `delete_object`
 removes entries whose key and value both match. A duplicate bag can contain
-multiple copies of one entry.
+multiple copies of one entry, so one `delete_object` call can remove several
+entries.
 
 ### Example
 
@@ -246,15 +266,18 @@ let assert Ok(Nil) = duplicate_bag.delete_key(table, key: "color")
 If you inserted the same entry three times, one call removes all three copies.
 :::
 
-For bag tables, `delete_object` removes the matching entry. A bag cannot
-contain duplicate entries.
+The other table types do not have this surprise. For bag tables,
+`delete_object` removes the matching entry, because a bag cannot contain
+duplicate entries.
 
 For set tables, `delete_object` removes the entry only if both its key and
 value match. Use `delete_key` to remove an entry by key, regardless of its value.
 
 ## Using error_code and error_message
 
-`slate.error_code(error)` returns a stable, machine-readable string such as
+When you report an error, the variant is not always enough. Logs and metrics
+need a stable string, and users need a readable message. slate has one helper
+for each. `slate.error_code(error)` returns a stable, machine-readable string such as
 `"not_found"` or `"decode_error"`. Use it for logging, metrics, and programmatic
 error handling.
 
@@ -286,6 +309,9 @@ for the seven constructors that contain `FileErrorContext`.
 | `UnexpectedError(_)` | `"unexpected_error"` | An unexpected DETS error occurred. |
 
 ### Example: structured error handling
+
+This example uses both helpers in the log line, then matches the variant to
+choose what the caller sees:
 
 ```gleam
 import gleam/io

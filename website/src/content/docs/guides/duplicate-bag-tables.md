@@ -10,14 +10,15 @@ Duplicate bag tables are provided by the `slate/duplicate_bag` module and corres
 <a id="when-to-use-duplicate-bag-tables"></a>
 
 Use a duplicate bag to record repeated events or measurements and count their
-occurrences with a fold. The examples below record button clicks and errors.
+occurrences with a fold. A bag would keep only one copy of two identical clicks;
+a duplicate bag keeps both. The examples below record button clicks and errors.
 Run the snippets in order within one function, keeping the handle open until
 the closing step. The final options section shows separate ways to reopen
 the saved file.
 
-Store a timestamp or sequence number with each value if you need to reconstruct
-event order. A duplicate bag does not enforce append-only access or provide an
-immutable audit log.
+A duplicate bag keeps each event, but not the order of events. Store a timestamp
+or sequence number with each value if you need to reconstruct that order. It
+also does not enforce append-only access, so it is not an immutable audit log.
 
 ## Opening and closing
 
@@ -55,9 +56,10 @@ let assert Ok(Nil) = duplicate_bag.insert_list(table, [
 
 ## Looking up data
 
-Read the clicks back. Both copies of the button A value remain:
-
-On success, `lookup` returns `Ok(values)`, where `values` is a list of all values for the key, including duplicates. The order is unspecified; do not assume insertion order.
+Read the clicks back. Both copies of the button A value remain, because
+`lookup` returns `Ok(values)`, where `values` is a list of all values for the
+key, including duplicates. The order is unspecified; do not assume insertion
+order:
 
 ```gleam
 let assert Ok(clicks) = duplicate_bag.lookup(table, key: "click")
@@ -89,7 +91,8 @@ let assert Ok(Nil) = duplicate_bag.delete_object(table, key: "click", value: "bu
 
 ## Iterating over entries
 
-One click and three error entries remain. Both timeout entries count toward the total:
+One click and three error entries remain. Both timeout entries count toward
+the total, so the fold and `size` both return 4:
 
 ```gleam
 // Get all entries in an unspecified order (loads the entire table into memory)
@@ -106,7 +109,9 @@ let assert Ok(n) = duplicate_bag.size(table)
 
 ## Flushing writes
 
-Use `sync` to flush pending writes to disk without closing the table:
+The recorded events are not necessarily on disk yet. When they must be on
+disk before you continue, call `sync`. It writes pending updates without
+closing the table:
 
 ```gleam
 let assert Ok(Nil) = duplicate_bag.sync(table)
@@ -114,6 +119,9 @@ let assert Ok(Nil) = duplicate_bag.sync(table)
 ```
 
 ## Table info
+
+`info` reports the same entry count as `size`, together with the size and
+location of the file:
 
 ```gleam
 let assert Ok(info) = duplicate_bag.info(table)
@@ -127,20 +135,24 @@ For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
 ## Closing the table
 
-Close the handle after these operations to flush pending writes:
+You are done with the table, so close the handle. Closing writes all pending
+updates to disk:
 
 ```gleam
 let assert Ok(Nil) = duplicate_bag.close(table)
 ```
 
-To discard all entries, call `duplicate_bag.delete_all(table)` before closing.
-Closing alone preserves the data for the next open.
+Closing alone keeps the four events for the next open. To discard all entries
+instead, call `duplicate_bag.delete_all(table)` before closing.
 
 ## Opening with options
 
+The events are now in `data/events.dets`. When you open the file again, you
+can also select a repair policy and an access mode.
+
 ### Repair policy
 
-Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data. See [Repair policies](/advanced/troubleshooting/#repair-policies) to choose an option.
+A file that did not close cleanly can need repair. Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data. See [Repair policies](/advanced/troubleshooting/#repair-policies) to choose an option.
 
 ```gleam
 import slate.{AutoRepair}
@@ -154,7 +166,9 @@ let assert Ok(Nil) = duplicate_bag.close(table)
 
 ### Access mode
 
-Use `ReadOnly` to prevent writes through the table handle. The file must exist.
+To read the saved events without a risk of changing the file, open it with
+`ReadOnly`. This mode prevents writes through the table handle, and the file
+must exist:
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
@@ -163,12 +177,17 @@ import gleam/dynamic/decode
 let assert Ok(table) = duplicate_bag.open_with_access(path: "data/events.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
+let assert Ok(["button_b"]) = duplicate_bag.lookup(table, key: "click")
+// duplicate_bag.insert(table, "click", "button_a") would return Error(AccessDenied(context))
 let assert Ok(Nil) = duplicate_bag.close(table)
 ```
 
 <a id="bag-vs-duplicate-bag"></a>
 
 ## Compare bag and duplicate bag tables
+
+The two bag types differ only in how they treat a repeated pair. If you
+recorded these events in a bag, the second `button_a` click would disappear:
 
 | Behavior | Bag | Duplicate bag |
 |----------|-----|---------------|

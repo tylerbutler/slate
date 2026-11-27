@@ -3,10 +3,14 @@ title: Exclusive sessions across processes
 description: Serialize short DETS sessions between independent BEAM VMs.
 ---
 
-Use `with_exclusive_table` when CLI commands in separate BEAM VMs share a DETS
-file. Each session acquires an OS lock, opens the current table, runs your
-callback, closes DETS, then releases the lock. The helper returns `Ok(value)`
-only after close and release succeed.
+Think of a CLI that caches package metadata in a DETS file. Each run of the
+command is a separate BEAM VM, so two runs can open the file at the same time.
+DETS does not coordinate between VMs, and simultaneous access can lose writes
+or damage the file.
+
+`with_exclusive_table` makes the runs take turns. Each session acquires an OS
+lock, opens the current table, runs your callback, closes DETS, then releases
+the lock. The helper returns `Ok(value)` only after close and release succeed:
 
 ```gleam
 import gleam/dynamic/decode
@@ -30,20 +34,26 @@ Create the parent directory first. The same helper exists in `slate/bag` and
 
 ## Two sessions around network work
 
+A cache miss means a network fetch, and a fetch can take seconds. If the CLI
+holds the lock during the fetch, every other run waits for it. Split the work
+into two short sessions instead:
+
 1. Take a locked read session. Read cached entries, close DETS, and release
    ownership.
 2. Fetch missing metadata without a table or lock.
 3. Take a new locked write session. Insert fetched entries into the current
    table, close DETS, and release ownership.
 
-Competing commands can fetch in parallel and take turns for storage access.
-Do not replace the current table with a snapshot from step 1. Different-key
-inserts accumulate across sessions.
+Competing commands can now fetch in parallel and take turns only for storage
+access. Another run can write to the table between your two sessions, so write
+your new entries into the current table. Do not replace it with a snapshot from
+step 1. Inserts for different keys then accumulate across sessions.
 
-Ordinary set inserts use last-write-wins for the same key. Keep a freshness
-check, comparison, and conditional insert inside one callback if an older
-network response must not replace newer data. Keep a read-modify-write sequence
-inside one session:
+Inserts for the same key are different. Ordinary set inserts use
+last-write-wins, so an older network response can replace newer data. If that
+must not happen, keep the freshness check, the comparison, and the conditional
+insert inside one callback. The same rule applies to any read-modify-write
+sequence, such as a counter:
 
 ```gleam
 import gleam/dynamic/decode
@@ -67,11 +77,13 @@ use value <- result.try(current)
 set.insert(table, "count", value + 1)
 ```
 
-Releasing ownership between the read and write permits lost updates.
+If ownership were released between the read and the write, two runs could
+read the same count, and one increment would be lost.
 
 ## Acquisition waits and errors
 
-`Immediate` tries once. `WaitUpTo(milliseconds)` retries contention until one
+While one run holds the lock, the others wait. The `wait` argument sets how
+long. `Immediate` tries once. `WaitUpTo(milliseconds)` retries contention until one
 monotonic deadline; zero means immediate and a negative value returns
 `InvalidWait`. There is no infinite-wait option. Slate runs native filesystem
 work on BEAM dirty I/O schedulers.
@@ -83,6 +95,10 @@ deadline releases its lock without opening DETS.
 
 Once Slate acquires ownership, the deadline does not limit open, repair, or the
 callback, and does not expire the lock.
+
+A cache is optional, so a CLI does not have to fail when the cache is busy.
+This example matches the two contention errors, reports a warning, and lets
+the command continue without the cached result:
 
 ```gleam
 import gleam/io
@@ -105,12 +121,12 @@ case session_result {
 }
 ```
 
-These acquisition errors occur before DETS opens or the callback runs.
-Applications can skip caching and report a warning. Other acquisition failures
-include unsupported targets/filesystems, missing native code, unsafe aliases,
-and OS errors. Slate does not use an unlocked fallback.
+These acquisition errors occur before DETS opens or the callback runs, so the
+table is unchanged. Other acquisition failures include unsupported targets or
+filesystems, missing native code, unsafe aliases, and OS errors. Slate does not
+use an unlocked fallback for any of them.
 
-The callback returns `Result(a, slate.DetsError)`. The helper returns
+Acquisition is only the first step that can fail. The callback returns `Result(a, slate.DetsError)`. The helper returns
 `Result(a, exclusive.SessionError)`:
 
 | Error | Meaning |
@@ -126,7 +142,8 @@ Diagnostic paths and reasons belong in trusted logs. See
 
 ## Caller death and cleanup recovery
 
-The callback runs in the original calling process. A separate guardian owns
+A lock is only safe if it is released after DETS closes, even when the caller
+fails. The callback runs in the original calling process. A separate guardian owns
 the DETS open and monitors that caller. On callback return or exception, Slate
 waits for cleanup. On caller death, the guardian closes DETS before releasing
 ownership. Slate confirms that the underlying DETS server has stopped, not
@@ -151,7 +168,8 @@ repairing data you need to keep.
 
 ## Ownership restrictions
 
-All clients of the shared file must use exclusive sessions, including readers
+The lock is advisory: it protects the file only if every client asks for it.
+Thus all clients of the shared file must use exclusive sessions, including readers
 while writes can occur. Raw DETS, older Slate versions, and APIs that do not use
 exclusive sessions ignore the advisory lock. Exclusive sessions reject an
 already-open same-file table in the VM. They serialize sessions; they do not
@@ -167,7 +185,8 @@ no transaction or power-loss guarantee. Repair can lose data.
 
 ## Paths, sidecars, and filesystem limits
 
-Slate resolves directory and file symlinks before choosing
+Two runs must agree on which lock belongs to which file, even if they spell
+the path differently. Slate resolves directory and file symlinks before choosing
 `<resolved-data-path>.slate.lock` and passes the resolved path to DETS.
 For a new file, the parent must exist. Relative, absolute, and supported
 filesystem aliases use the same sidecar. Slate checks identity again under
@@ -192,7 +211,8 @@ scope. An escript needs the native companion directory described in
 
 ## Open and close overhead
 
-One local Linux x64 measurement used OTP 27.3.4.13, a release native build,
+Each session opens and closes DETS, so short sessions have a fixed cost. One
+local Linux x64 measurement used OTP 27.3.4.13, a release native build,
 local ext4 storage, and an existing set with 1,000 integer entries.
 For 200 sequential, uncontended sessions with one lookup each, the shared
 exclusive lifecycle took a median of 1.108 ms and a 95th percentile of

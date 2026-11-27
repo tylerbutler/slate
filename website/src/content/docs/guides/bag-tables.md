@@ -56,7 +56,9 @@ let assert Ok(Nil) = bag.insert_list(table, [
 
 ### Detect an existing pair
 
-Use `insert_new` to return an error if the exact key-value pair exists. Other values for the same key do not prevent insertion.
+A plain `insert` does not tell you whether the pair was new. When you need to
+know, use `insert_new`. It returns an error if the exact key-value pair exists.
+Other values for the same key do not prevent insertion:
 
 ```gleam
 let assert Ok(Nil) = bag.insert_new(table, "color", "green")
@@ -68,9 +70,10 @@ Concurrent calls can both return `Ok(Nil)` for the same pair. The table still st
 
 ## Looking up data
 
-Read the colors you assigned. The earlier `insert_new` added green to red and blue.
-
-On success, `lookup` returns `Ok(values)`, where `values` is a list of all values for the key. The order is unspecified; do not assume insertion order.
+Read the colors you assigned. The earlier `insert_new` added green to red and
+blue, so the lookup returns three values. On success, `lookup` returns
+`Ok(values)`, where `values` is a list of all values for the key. The order is
+unspecified; do not assume insertion order:
 
 ```gleam
 let assert Ok(colors) = bag.lookup(table, key: "color")
@@ -100,7 +103,8 @@ let assert Ok(["blue"]) = bag.lookup(table, key: "color")
 
 ## Iterating over entries
 
-Blue and the food entries remain. Count their entries rather than their distinct keys:
+Blue and the three food entries remain under three keys. A bag counts
+entries, not distinct keys, so the fold and `size` both return 4:
 
 ```gleam
 // Get all entries in an unspecified order (loads the entire table into memory)
@@ -117,7 +121,9 @@ let assert Ok(n) = bag.size(table)
 
 ## Flushing writes
 
-Use `sync` to flush pending writes to disk without closing the table:
+The deletes and inserts above are not necessarily on disk yet. When they must
+be on disk before you continue, call `sync`. It writes pending updates without
+closing the table:
 
 ```gleam
 let assert Ok(Nil) = bag.sync(table)
@@ -125,6 +131,9 @@ let assert Ok(Nil) = bag.sync(table)
 ```
 
 ## Table info
+
+`info` reports the same entry count as `size`, together with the size and
+location of the file:
 
 ```gleam
 let assert Ok(info) = bag.info(table)
@@ -138,20 +147,24 @@ For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
 ## Closing the table
 
-Close the handle after these operations to flush pending writes:
+You are done with the table, so close the handle. Closing writes all pending
+updates to disk:
 
 ```gleam
 let assert Ok(Nil) = bag.close(table)
 ```
 
-To discard all entries, call `bag.delete_all(table)` before closing.
-Closing alone preserves the data for the next open.
+Closing alone keeps the four entries for the next open. To discard all entries
+instead, call `bag.delete_all(table)` before closing.
 
 ## Opening with options
 
+The data is now in `data/tags.dets`. When you open the file again, you can
+also select a repair policy and an access mode.
+
 ### Repair policy
 
-Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data. See [Repair policies](/advanced/troubleshooting/#repair-policies) to choose an option.
+A file that did not close cleanly can need repair. Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data. See [Repair policies](/advanced/troubleshooting/#repair-policies) to choose an option.
 
 ```gleam
 import slate.{AutoRepair, ForceRepair, NoRepair}
@@ -164,7 +177,9 @@ let assert Ok(Nil) = bag.close(table)
 
 ### Access mode
 
-Use `ReadOnly` to prevent writes through the table handle. The file must exist.
+To read the saved tags without a risk of changing the file, open it with
+`ReadOnly`. This mode prevents writes through the table handle, and the file
+must exist:
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
@@ -173,5 +188,7 @@ import gleam/dynamic/decode
 let assert Ok(table) = bag.open_with_access(path: "data/tags.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.string)
+let assert Ok(["blue"]) = bag.lookup(table, key: "color")
+// bag.insert(table, "color", "red") would return Error(AccessDenied(context))
 let assert Ok(Nil) = bag.close(table)
 ```

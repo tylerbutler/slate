@@ -147,10 +147,11 @@ yourself. See the [table cleanup guide](https://slate.tylerbutler.com/advanced/w
 
 ### Bag tables (multiple values per key)
 
-Users also have tags, and one key can need several values. A bag keeps
-several distinct values for each key. This example and the next one call
-`open` and `close` directly, which is the manual style for long-lived tables.
-If you insert the same pair again, the bag keeps one copy:
+Users also have tags, but Alice can have several tags and a set keeps only one
+value per key. A bag keeps several distinct values for each key. This example
+and the next one call `open` and `close` directly, which is the manual style
+for long-lived tables. If you tag Alice as an admin a second time, the bag
+still keeps one copy:
 
 ```gleam
 import gleam/dynamic/decode
@@ -160,11 +161,12 @@ pub fn main() {
   let assert Ok(tags) = bag.open("data/tags.dets",
     key_decoder: decode.string, value_decoder: decode.string)
 
-  let assert Ok(Nil) = bag.insert(tags, "color", "red")
-  let assert Ok(Nil) = bag.insert(tags, "color", "blue")
+  let assert Ok(Nil) = bag.insert(tags, "alice", "admin")
+  let assert Ok(Nil) = bag.insert(tags, "alice", "editor")
+  let assert Ok(Nil) = bag.insert(tags, "alice", "admin")
 
-  let assert Ok(colors) = bag.lookup(tags, key: "color")
-  // Contains "red" and "blue" in an unspecified order
+  let assert Ok(alice_tags) = bag.lookup(tags, key: "alice")
+  // Contains "admin" and "editor" once each, in an unspecified order
 
   let assert Ok(Nil) = bag.close(tags)
 }
@@ -172,7 +174,7 @@ pub fn main() {
 
 ### Duplicate bag tables
 
-A bag removes repeated pairs, but some data must keep them. If a user clicks
+A bag removes repeated pairs, but some data must keep them. If Alice clicks
 the same button two times, you want to count two clicks. A duplicate bag keeps
 each occurrence as a separate entry:
 
@@ -435,7 +437,9 @@ See [DEV.md](DEV.md) for setup instructions, build tasks, and contribution guide
 
 ## Software bills of materials
 
-Hex packages include CycloneDX 1.6 JSON inventories alongside the native libraries:
+Hex packages ship native code as well as Gleam code, so you may need to know
+exactly what is inside them. For this reason, they include CycloneDX 1.6 JSON
+inventories alongside the native libraries:
 
 - `priv/sbom/slate-gleam.cdx.json`: Slate's locked Gleam dependencies.
 - `priv/sbom/slate-native.cdx.json`: The native library's locked Rust dependencies.

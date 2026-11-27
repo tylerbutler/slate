@@ -2,8 +2,11 @@
 title: Stability and versioning
 ---
 
-slate follows [Semantic Versioning](https://semver.org/). The guarantees below
-apply to the public API.
+Before you upgrade, you need to know which changes can break your code.
+slate follows [Semantic Versioning](https://semver.org/), so the version number
+tells you. This page first defines the public API that the guarantees cover.
+It then says what each kind of release can change, and ends with how to
+upgrade.
 
 ## Public API surface
 
@@ -21,9 +24,9 @@ Semantic Versioning covers all public functions and types in these modules.
 
 ## Internal surfaces
 
-The Erlang FFI files and native lock implementation are internal details.
-They are not part of the public API and may
-change in any release without notice. Use the Gleam modules instead of calling
+Everything outside those modules is internal. This includes the Erlang FFI
+files and the native lock implementation. They are not part of the public API
+and may change in any release without notice. Use the Gleam modules instead of calling
 FFI functions directly.
 
 ## Semver policy
@@ -53,6 +56,7 @@ release. Do not use them for programmatic matching.
 
 ## Diagnostics-only surfaces
 
+Error codes are stable, but some text inside error values is not.
 `UnexpectedError(detail)` contains an unexpected Erlang error as a formatted
 string. `FileErrorContext.reason` contains a diagnostic reason from OTP.
 Neither string is a stable API. Both may change in any release.
