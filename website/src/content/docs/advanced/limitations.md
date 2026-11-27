@@ -4,7 +4,9 @@ description: Known limitations of DETS and slate.
 ---
 
 slate wraps Erlang's [DETS](https://www.erlang.org/doc/apps/stdlib/dets.html).
-Use these limits to decide whether it fits your storage needs.
+DETS is simple because it does less than a database, and slate keeps most of
+its limits. Each section below describes one limit and what to do when you
+reach it. Use them to decide whether slate fits your storage needs.
 
 ## File size limit
 
@@ -18,19 +20,19 @@ database such as SQLite or Postgres.
 
 ## No `ordered_set` table type
 
-Unlike Erlang's ETS (in-memory storage), DETS does not support `ordered_set` tables. Only `set`, `bag`, and `duplicate_bag` are available. Keys are stored in an unspecified order.
+Unlike Erlang's ETS (in-memory storage), DETS does not support `ordered_set` tables. Only `set`, `bag`, and `duplicate_bag` are available. Keys are stored in an unspecified order, so `to_list` and `fold` visit entries in an unspecified order too. To process keys in order, collect them and sort the result.
 
 <a id="disk-io-on-every-operation"></a>
 
 ## Disk-backed performance
 
-DETS stores data on disk. Performance depends on disk I/O, buffering, and your
-workload. A successful insert does not mean that the data has been
-synchronously flushed to disk. Use `sync` to flush pending writes and `close`
-when you finish with a table. Handle errors from both operations.
+DETS stores data on disk, so performance depends on disk I/O, buffering, and
+your workload. Buffering also means that a successful insert is not
+necessarily on disk yet. Use `sync` to flush pending writes and `close` when
+you finish with a table. Handle errors from both operations.
 
-For frequent reads with low latency, load data into ETS at startup and use
-DETS for persistence.
+Disk access is the cost of persistence. For frequent reads with low latency,
+load data into ETS at startup and use DETS only for persistence.
 
 :::note
 The related library [shelf](https://github.com/tylerbutler/shelf) provides
@@ -40,23 +42,25 @@ when writes reach disk.
 
 ## Tables must be closed properly
 
-VM or node termination and power loss can prevent a DETS table from closing
-properly. Pending writes may be lost, and the file may need repair on the
-next open. File persistence does not guarantee that all writes survive a crash.
+DETS keeps recent writes in memory and saves them later, at the latest when
+the table closes. VM or node termination and power loss can prevent a DETS table from closing properly.
+Then pending writes may be lost, and the file may need repair on the next
+open. Thus a file on disk does not guarantee that all writes survive a crash.
 
-Keep primary data files on persistent storage and maintain backups. Deleting
-or replacing a DETS file loses the data in that file.
-
-An individual Erlang process exit is different. DETS tracks processes that
+An individual Erlang process exit is less severe. DETS tracks processes that
 open a table and normally closes it when the last user exits.
-[`with_table`](/advanced/with-table/) attempts to close the table after its
-callback returns or raises. The helper cannot run cleanup after a forced kill
-of the owning process. For longer-lived tables, call `close` yourself.
+[`with_table`](/advanced/with-table/) also attempts to close the table after
+its callback returns or raises. The helper cannot run cleanup after a forced
+kill of the owning process. For longer-lived tables, call `close` yourself.
 
+If a file does need repair, the repair policy selects what happens on open.
 slate's default `AutoRepair` policy attempts repair when needed. `ForceRepair`
 repairs even a properly closed file. `NoRepair` returns `NeedsRepair` when
 repair is required. None of these policies guarantees full data recovery.
-Back up a closed file before attempting repair.
+
+For this reason, back up a closed file before attempting repair. Keep primary
+data files on persistent storage and maintain backups. Deleting or replacing
+a DETS file loses the data in that file.
 
 ## Erlang target only
 
@@ -65,38 +69,45 @@ It does not support the JavaScript target.
 
 ## Bounded table-name pool
 
-slate reuses a pool of 4096 DETS table names instead of creating an atom for
-each path. Up to 4096 distinct normalized paths can be open at once.
+slate names each open DETS table with an atom. The BEAM does not free atoms,
+so a new atom for each path would grow the atom table without a limit.
+Instead, slate reuses a pool of 4096 DETS table names. Thus up to 4096
+distinct normalized paths can be open at once.
 Closing a table releases its slot for reuse. If all slots are in use,
 new opens for other paths return `TableNamePoolExhausted`.
 
 ## Serialized access from multiple OS processes
 
-Independent VMs must use [`with_exclusive_table`](/advanced/exclusive-sessions/)
-for every access to a shared DETS file, including reads. The helper opens the
-current file under an OS lock and closes DETS before releasing ownership.
-Competing commands take turns; their DETS handles do not remain open between
-sessions.
-
-Unlocked `open*` and `with_table` APIs do not coordinate with other OS
-processes. Simultaneous unlocked access can lose writes or damage the file.
 Multiple Erlang processes within one BEAM node can share an unlocked table.
+Independent VMs cannot. Unlocked `open*` and `with_table` APIs do not
+coordinate with other OS processes, and simultaneous unlocked access can lose
+writes or damage the file.
 
-Exclusive sessions require supported native code and an
+For this reason, independent VMs must use
+[`with_exclusive_table`](/advanced/exclusive-sessions/) for every access to a
+shared DETS file, including reads. The helper opens the current file under an
+OS lock and closes DETS before releasing ownership. Competing commands take
+turns; their DETS handles do not remain open between sessions.
+
+The lock has its own requirements. Exclusive sessions require supported native
+code and an
 [allowed local filesystem](/installation/#exclusive-session-native-component).
 Network, FUSE, and overlay mounts are unsupported. Keep the directory namespace
 trusted and stable. Slate rejects hard-linked data and unsafe sidecars.
 Do not delete or replace the persistent sidecar while clients can start
 sessions.
 
-The acquisition wait does not limit an acquired callback. Callback errors do
-not undo writes, and locks add no power-loss guarantee. Unsafe cleanup can
-retain ownership until VM exit; report `CleanupFailed` rather than deleting
-a lock file.
+The lock makes sessions take turns, but it adds no other guarantee. The
+acquisition wait does not limit an acquired callback. Callback errors do not
+undo writes, and locks add no power-loss guarantee. Unsafe cleanup can retain
+ownership until VM exit; report `CleanupFailed` rather than deleting a lock
+file.
 
 ## Validating DETS files
 
-Use `slate.is_dets_file` to identify a DETS file before opening it:
+A DETS file needs no special name or extension, so a filename does not tell
+you what a file contains. Use `slate.is_dets_file` to identify a DETS file
+before opening it:
 
 ```gleam
 import slate
@@ -110,6 +121,9 @@ does not guarantee file integrity, successful decoding, or safe access to
 a user-provided path. Apply your application's path and access rules separately.
 
 ## Comparison with alternatives
+
+If one of these limits rules out DETS, another BEAM storage option can fit
+better. This table compares them:
 
 <table class="slate-comparison">
   <caption class="sr-only">DETS compared with other BEAM storage options</caption>

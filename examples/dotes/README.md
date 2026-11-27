@@ -13,9 +13,10 @@ just native-build
 cd examples/dotes
 ```
 
-Run the commands below from `examples/dotes`. Dotes requires the native component
-and a qualified local filesystem. If either is unavailable, startup reports an
-error rather than opening the files without locks.
+Run the commands below from `examples/dotes`. Dotes opens every table in an
+exclusive session, so it requires the native component and a qualified local
+filesystem. If either is unavailable, startup reports an error rather than
+opening the files without locks.
 
 ### Interactive TUI
 
@@ -74,7 +75,8 @@ gleam run -- delete 1
 
 ## How it uses slate
 
-dotes uses **four DETS tables**, one for each slate table type:
+A note needs four kinds of data, and each kind fits a different table type.
+dotes uses **four DETS tables**:
 
 | Table | Type | Key → Value | Purpose |
 |-------|------|-------------|---------|
@@ -83,7 +85,15 @@ dotes uses **four DETS tables**, one for each slate table type:
 | `tags.dets` | `Bag(Int, String)` | note ID → tag strings | Multiple distinct tags per note |
 | `history.dets` | `DuplicateBag(Int, Revision)` | note ID → revisions | Edit history that accumulates over time |
 
+Follow one note through its life to see how the tables work together. `save`
+takes a new ID from the counter and stores the body under it. A second `save`
+moves the old body into the history and stores the new one. `tag` adds or
+removes one tag in the bag. `delete` removes the note's tags and history, then
+the note itself.
+
 ### slate API coverage
+
+Each command uses only the functions that its step needs:
 
 | Command | API functions used |
 |---------|-------------------|
@@ -98,7 +108,9 @@ Data is stored in a `.dotes/` directory in the current working directory.
 
 ### Ownership and failure handling
 
-One dotes process owns a data directory at a time. While the web app or TUI is
+Four tables mean four files that must stay consistent with each other, so
+dotes lets only one process change them. One dotes process owns a data
+directory at a time. While the web app or TUI is
 running, another CLI, TUI, or web process reports that the store is in use.
 Close the running app before switching interfaces. Multiple browser clients
 can use the same web process.
@@ -130,8 +142,9 @@ cleanup, asynchronous results, and real loopback WebSocket connections.
 Tests use isolated directories under `build/` and remove data and sidecars only
 after the owning processes have stopped.
 
-Late operation results cannot replace a newer draft, request, or screen, including
-a later visit to the same note.
-The web server returns HTTP 500 if the Lustre runtime is unavailable. If a
-WebSocket component cannot start, it logs the failure and closes the connection.
-Failed frame sends stop the WebSocket and shut down its component.
+The tests also check how the interfaces handle work that arrives late or
+fails. A late operation result cannot replace a newer draft, request, or
+screen, including a later visit to the same note. The web server returns
+HTTP 500 if the Lustre runtime is unavailable. If a WebSocket component cannot
+start, it logs the failure and closes the connection. A failed frame send
+stops the WebSocket and shuts down its component.

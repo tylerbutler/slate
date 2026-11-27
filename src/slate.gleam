@@ -1,9 +1,10 @@
 //// Type-safe Gleam wrapper for Erlang DETS (Disk Erlang Term Storage).
 ////
-//// DETS provides persistent key-value storage backed by files on disk.
-//// Stored data persists across node restarts. An abnormal node shutdown can lose
-//// pending writes and leave the file needing repair. DETS is built into OTP.
-//// No separate database service is required.
+//// DETS is built into OTP and keeps key-value pairs in a file on disk, so
+//// you get persistent storage without a separate database service. Stored data
+//// persists across node restarts. But an abnormal node shutdown can lose
+//// pending writes and leave the file needing repair, so close each table that
+//// you open.
 ////
 //// ## Table types
 ////
@@ -21,11 +22,12 @@
 //// import gleam/dynamic/decode
 //// import slate/set
 ////
-//// let assert Ok(table) = set.open("cache.dets",
-////   key_decoder: decode.string, value_decoder: decode.string)
-//// let assert Ok(Nil) = set.insert(table, "key", "value")
-//// let assert Ok(value) = set.lookup(table, key: "key")
-//// let assert Ok(Nil) = set.close(table)
+//// let assert Ok(users) = set.open("users.dets",
+////   key_decoder: decode.string, value_decoder: decode.int)
+//// let assert Ok(Nil) = set.insert(users, "alice", 42)
+//// let assert Ok(42) = set.lookup(users, key: "alice")
+//// // Close the table so that pending writes reach the file
+//// let assert Ok(Nil) = set.close(users)
 //// ```
 ////
 //// ## Limitations

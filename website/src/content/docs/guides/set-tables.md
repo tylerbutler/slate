@@ -30,12 +30,12 @@ use [`with_table`](/advanced/with-table/) to attempt cleanup when the callback r
 
 ## Inserting data
 
-Store Alice's age, then add the other users. The batch insert also replaces
-Alice's existing value:
+Store Alice's age, then add the other users. The batch includes a new age
+for Alice, so it replaces her first value:
 
 ```gleam
 // Insert a single key-value pair (overwrites if key exists)
-let assert Ok(Nil) = set.insert(table, "alice", 42)
+let assert Ok(Nil) = set.insert(table, "alice", 41)
 
 // Batch insert multiple pairs
 let assert Ok(Nil) = set.insert_list(table, [
@@ -47,7 +47,9 @@ let assert Ok(Nil) = set.insert_list(table, [
 
 ### Insert without overwriting
 
-Use `insert_new` to insert only if the key does not exist. It returns `Error(KeyAlreadyPresent)` if the key exists.
+A plain `insert` can replace a user by accident. When a new user must not
+replace an existing one, use `insert_new`. It inserts only if the key does not
+exist, and it returns `Error(KeyAlreadyPresent)` if the key exists:
 
 ```gleam
 let assert Ok(Nil) = set.insert_new(table, "carol", 42)
@@ -60,7 +62,8 @@ Set and bag tables provide `insert_new`, with different duplicate rules. A set r
 
 ## Looking up data
 
-Read Alice's age and check whether a user exists before you need their value:
+The table now holds four users. Read Alice's age, and check whether a user
+exists before you need their value:
 
 ```gleam
 // Get the value for a key (returns Error(NotFound) if missing)
@@ -86,7 +89,8 @@ let assert Ok(Nil) = set.delete_object(table, key: "bob", value: 37)
 
 ## Iterating over entries
 
-Carol and Charlie remain in the table. Fold over their ages or count their entries:
+Carol and Charlie remain in the table. Fold over their ages to get a total
+of 67, or count their two entries:
 
 ```gleam
 // Get all entries in an unspecified order (loads the entire table into memory)
@@ -103,14 +107,15 @@ let assert Ok(count) = set.size(table)
 
 ## Atomic counters
 
-You can also store a page-view counter in this integer-valued table.
-Set tables support atomic counter increments for integer values:
+Carol has a birthday. You could look up her age, add one, and insert the
+result, but another process can write between those steps. `update_counter`
+changes an integer value in one atomic operation and returns the new value:
 
 ```gleam
-let assert Ok(Nil) = set.insert(table, "page_views", 0)
-let assert Ok(1) = set.update_counter(table, "page_views", 1)
-let assert Ok(3) = set.update_counter(table, "page_views", 2)
-let assert Ok(1) = set.update_counter(table, "page_views", -2)
+let assert Ok(43) = set.update_counter(table, "carol", 1)
+// A negative increment decreases the value
+let assert Ok(42) = set.update_counter(table, "carol", -1)
+let assert Ok(43) = set.update_counter(table, "carol", 1)
 ```
 
 :::note
@@ -119,15 +124,20 @@ let assert Ok(1) = set.update_counter(table, "page_views", -2)
 
 ## Flushing writes
 
-Use `sync` to write pending updates to disk without closing the table. DETS saves after an idle period, not at fixed intervals during continuous use. Call `sync` and handle its result when you need to save before continuing:
+Carol's new age is not necessarily on disk yet. DETS saves after an idle
+period, not at fixed intervals during continuous use. When an update must be
+on disk before you continue, call `sync` and handle its result. `sync` writes
+pending updates without closing the table:
 
 ```gleam
-let assert Ok(Nil) = set.insert(table, "checkpoint", 42)
 let assert Ok(Nil) = set.sync(table)
 // Pending updates are written to disk; the table remains open
 ```
 
 ## Table info
+
+The table still holds Carol and Charlie. `info` reports that count together
+with the size and location of the file:
 
 ```gleam
 let assert Ok(info) = set.info(table)
@@ -141,20 +151,25 @@ For the 2.0 record change, see [migration guidance](/advanced/stability/).
 
 ## Closing the table
 
-Close the handle after these operations to flush pending writes:
+You are done with the table, so close the handle. Closing writes all pending
+updates to disk:
 
 ```gleam
 let assert Ok(Nil) = set.close(table)
 ```
 
-To discard all entries, call `set.delete_all(table)` before closing.
-Closing alone preserves the data for the next open.
+Closing alone keeps Carol and Charlie for the next open. To discard all
+entries instead, call `set.delete_all(table)` before closing.
 
 ## Opening with options
 
+The data is now in `data/users.dets`. When you open the file again, you can
+also select a repair policy and an access mode.
+
 ### Repair policy
 
-Select what happens when a table file needs repair. Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data.
+A file that did not close cleanly can need repair. The repair policy selects
+what happens in that case. Make a backup before you repair a file with data you need to keep. Repair does not guarantee recovery of all data.
 
 Choose one of these calls. The repair policy has no effect if the table is already open.
 
@@ -183,7 +198,9 @@ let assert Ok(Nil) = set.close(table)
 
 ### Access mode
 
-Use `ReadOnly` to prevent writes through the table handle. The file must exist.
+To read Carol's saved age without a risk of changing the file, open it with
+`ReadOnly`. This mode prevents writes through the table handle, and the file
+must exist:
 
 ```gleam
 import slate.{AutoRepair, ReadOnly}
@@ -192,7 +209,7 @@ import gleam/dynamic/decode
 let assert Ok(table) = set.open_with_access(path: "data/users.dets",
   repair: AutoRepair, access: ReadOnly,
   key_decoder: decode.string, value_decoder: decode.int)
-let assert Ok(42) = set.lookup(table, key: "checkpoint")
-// set.insert(table, "checkpoint", 99) would return Error(AccessDenied(context))
+let assert Ok(43) = set.lookup(table, key: "carol")
+// set.insert(table, "carol", 44) would return Error(AccessDenied(context))
 let assert Ok(Nil) = set.close(table)
 ```

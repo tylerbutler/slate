@@ -1,6 +1,9 @@
 # File error context migration (breaking)
 
-Seven existing `slate.DetsError` constructors now carry one `FileErrorContext`:
+In 1.x, a file error such as `AccessDenied` said what went wrong, but not which
+file or why. A log line could not tell a permission failure on one file from
+a read-only handle on another. slate 2.0 keeps that information: seven existing
+`slate.DetsError` constructors now carry one `FileErrorContext`:
 
 ```gleam
 FileNotFound(FileErrorContext)
@@ -19,6 +22,10 @@ pub type FileErrorContext {
   FileErrorContext(path: Option(String), reason: String)
 }
 ```
+
+The new payload breaks code that matches or builds these constructors. The
+sections below show each change, then describe what the context contains and
+what stays the same.
 
 ## Update patterns
 
@@ -62,6 +69,8 @@ case context.path {
 
 ## Update constructed errors
 
+Code that builds these errors must now supply context too.
+
 Before:
 
 ```gleam
@@ -84,6 +93,8 @@ callback that previously returned a bare error, use a function that constructs
 the record, or propagate the original error unchanged.
 
 ## Context contract
+
+Once you have the context, use it only for what it promises:
 
 - `path` is the filename in the OTP error, not an internal table-name atom.
   Opens normally report the absolute, normalized path that slate passes to OTP.

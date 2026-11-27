@@ -19,7 +19,8 @@ This adds slate to your `gleam.toml` dependencies. slate supports Gleam's Erlang
 
 ## Dependencies
 
-Gleam also installs these packages:
+slate needs no database service, and only two Gleam packages. Gleam installs
+them for you:
 
 | Package | Purpose |
 |---------|---------|
@@ -41,13 +42,17 @@ Hex releases include the native files for these targets:
 | macOS | x64, ARM64 | macOS 15+ | Local APFS |
 | Windows | x64 | Windows Server 2022 / Windows 10+ with the MSVC runtime | Fixed-drive NTFS |
 
-The native component uses Rust standard-library locks through Rustler. It
-requires NIF ABI 2.17 (OTP 26+). Only exclusive sessions load it. Unsupported
-platforms or filesystems return typed acquisition errors; Slate does not open
-the table without a lock. Musl Linux, network mounts, FUSE, overlay filesystems,
-and other unqualified types are unsupported.
+Release CI must pass independent-VM and package-loading proofs on all five
+targets before publishing. The native component uses Rust standard-library
+locks through Rustler, and it requires NIF ABI 2.17 (OTP 26+).
 
-Use a local filesystem on one host. Sharing a network volume or a sidecar
+A lock that fails without notice is worse than no lock. For this reason,
+unsupported platforms or filesystems return typed acquisition errors, and Slate
+never opens the table without a lock. Musl Linux, network mounts, FUSE, overlay
+filesystems, and other unqualified types are unsupported.
+
+The lock coordinates processes on one host only, so use a local filesystem on
+one host. Sharing a network volume or a sidecar
 between hosts does not extend the support contract. Keep the data directory
 trusted and stable, and keep the sidecar beside the data file. tmpfs loses its
 contents on host restart; use persistent storage for data you must retain.
@@ -57,6 +62,7 @@ file mount points, including bind-mounted files.
 
 ### Source checkouts
 
+A source checkout has no prebuilt native files, so you build them yourself.
 Install Rust/Cargo 1.91 with your native linker, then run:
 
 ```sh
@@ -72,6 +78,7 @@ and do not download native code at runtime.
 
 ### Erlang shipments and escripts
 
+The native files must travel with your application when you deploy it.
 `gleam export erlang-shipment` copies the application's `priv` directory.
 Keep it in the shipment when you move or deploy the application.
 
@@ -112,11 +119,10 @@ script path, even if your application does not change its cwd.
 
 Keep the script and companion directory together when you relocate them, and
 keep both in a trusted installation directory. A missing or incompatible
-library also returns `NativeUnavailable`. Other APIs remain usable.
-
-Release CI must pass independent-VM and package-loading proofs on all five
-targets before publishing. See [exclusive sessions](/advanced/exclusive-sessions/)
-for the ownership and path requirements.
+library also returns `NativeUnavailable`. Other APIs remain usable, because
+only exclusive sessions load native code. See
+[exclusive sessions](/advanced/exclusive-sessions/) for the ownership and path
+requirements.
 
 ## Upgrading
 
